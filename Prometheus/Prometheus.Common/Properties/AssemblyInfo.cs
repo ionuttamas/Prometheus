@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("Prometheus.Domain")]
+[assembly: AssemblyTitle("Prometheus.Common")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("Prometheus.Domain")]
+[assembly: AssemblyProduct("Prometheus.Common")]
 [assembly: AssemblyCopyright("Copyright ©  2017")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("a1f8a3f5-18cd-4eb4-949f-99bd3d329611")]
+[assembly: Guid("3bd30a4c-160b-45e5-9700-2d1d8c4cf21e")]
 
 // Version information for an assembly consists of the following four values:
 //

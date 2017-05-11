@@ -7,9 +7,22 @@
     {
         /// <summary>
         /// Marks the value property or field as needed to be atomically modified.
-        /// E.g. for class "Account", marking "x => x.Balance.IsAtomic()" sets the "Balance" property as modifiable only within synchronized access.
+        /// Primitive values (numeric, boolean, char) can be read without locks, but reference types cannot.
+        /// E.g. for class "Account", marking "x => x.Balance.IsModifiedAtomic()" sets the "Balance" property as modifiable only within synchronized access.
         /// </summary>
         public static bool IsModifiedAtomic(this object value)
+        {
+            // Return value does not matter - is only used for property marking
+            return false;
+        }
+
+        /// <summary>
+        /// Marks the value property or field as needed to be atomically modified.
+        /// This check is intended for private fields.
+        /// Primitive values (numeric, boolean, char) can be read without locks, but reference types cannot.
+        /// E.g. for class "Account", marking "x => x.IsModifiedAtomic("Address")" sets the "Address" property as modifiable only within synchronized access.
+        /// </summary>
+        public static bool IsModifiedAtomic(this object value, string name)
         {
             // Return value does not matter - is only used for property marking
             return false;
