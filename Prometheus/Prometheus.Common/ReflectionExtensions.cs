@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Prometheus.Common
 {
@@ -149,25 +147,6 @@ namespace Prometheus.Common
                 default:
                     return false;
             }
-        }
-    }
-
-    public static class RoslynExtensions
-    {
-        public static string GetName(this FieldDeclarationSyntax fieldDeclaration)
-        {
-            var variable = fieldDeclaration.Declaration.Variables.First();
-            return variable.Identifier.Text;
-        }
-
-        public static string GetName(this PropertyDeclarationSyntax propertyDeclaration)
-        {
-            return propertyDeclaration.Identifier.Text;
-        }
-
-        public static Compilation GetCompilation(this Project project)
-        {
-            return project.GetCompilationAsync().Result;
         }
     }
 }

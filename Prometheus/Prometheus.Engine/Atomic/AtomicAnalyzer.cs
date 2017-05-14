@@ -5,6 +5,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Prometheus.Common;
 
 namespace Prometheus.Engine
@@ -71,12 +72,13 @@ namespace Prometheus.Engine
 
         private void AnalyzePrivateMember(MemberInfo member)
         {
-            string assemblyName = member.DeclaringType.Assembly.GetName().Name;
+            Type type = member.DeclaringType;
+            string assemblyName = type.Assembly.GetName().Name;
             Project project = workspace.CurrentSolution.Projects.First(x => x.AssemblyName == assemblyName);
             Compilation compilation = project.GetCompilation();
-            INamedTypeSymbol classSymbol = compilation.GetTypeByMetadataName(member.DeclaringType.FullName);
-
-
+            ClassDeclarationSyntax classDeclaration = compilation.GetClassDeclaration(type.FullName);
+            SemanticModel semanticModel = compilation.GetSemanticModel(classDeclaration.SyntaxTree);
+            
         }
     }
 }
