@@ -13,6 +13,6 @@ namespace Prometheus.Engine
     /// </summary>
     public interface IAnalyzer
     {
-        void Analyze(Expression expression, Workspace workspace);
+        IAnalysis Analyze(Expression expression);
     }
 }

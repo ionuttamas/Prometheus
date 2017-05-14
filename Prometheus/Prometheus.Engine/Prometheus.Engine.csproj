@@ -179,7 +179,9 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AtomicAnalyzer.cs" />
+    <Compile Include="Atomic\AtomicAnalysis.cs" />
+    <Compile Include="Atomic\AtomicAnalyzer.cs" />
+    <Compile Include="IAnalysis.cs" />
     <Compile Include="IAnalyzer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
