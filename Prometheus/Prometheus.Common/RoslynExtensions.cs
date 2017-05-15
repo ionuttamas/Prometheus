@@ -16,9 +16,9 @@ namespace Prometheus.Common
             return classDeclaration;
         }
 
-        public static FieldDeclarationSyntax GetFieldDeclaration(this ClassDeclarationSyntax classDeclaration, string field)
+        public static MemberDeclarationSyntax GetMemberDeclaration(this ClassDeclarationSyntax classDeclaration, string field)
         {
-            return classDeclaration.DescendantNodes().OfType<FieldDeclarationSyntax>().FirstOrDefault();
+            return classDeclaration.DescendantNodes().OfType<MemberDeclarationSyntax>().FirstOrDefault();
         }
 
         public static string GetFullName(this ClassDeclarationSyntax classDeclaration)

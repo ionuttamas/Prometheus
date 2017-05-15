@@ -13,6 +13,13 @@ namespace TestProject.GUI {
             var queue = new AtomicQueue<Order>();
             var orderService = new OrderService(queue);
             var orderProcessor = new OrderProcessor(queue, 10);
+
+            orderProcessor.Start();
+
+            for (int i = 0; i < 100; i++)
+            {
+                orderService.Add(new Order());
+            }
         }
     }
 }

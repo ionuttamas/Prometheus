@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.FindSymbols;
 using Prometheus.Common;
 
 namespace Prometheus.Engine
@@ -74,11 +75,16 @@ namespace Prometheus.Engine
         {
             Type type = member.DeclaringType;
             string assemblyName = type.Assembly.GetName().Name;
-            Project project = workspace.CurrentSolution.Projects.First(x => x.AssemblyName == assemblyName);
+            Solution solution = workspace.CurrentSolution;
+            Project project = solution.Projects.First(x => x.AssemblyName == assemblyName);
             Compilation compilation = project.GetCompilation();
             ClassDeclarationSyntax classDeclaration = compilation.GetClassDeclaration(type.FullName);
+            MemberDeclarationSyntax memberDeclaration = classDeclaration.GetMemberDeclaration(member.Name);
             SemanticModel semanticModel = compilation.GetSemanticModel(classDeclaration.SyntaxTree);
-            
+            ISymbol memberSymbol = semanticModel.GetSymbolInfo(memberDeclaration).Symbol;
+            IEnumerable<ReferencedSymbol> references = SymbolFinder.FindReferencesAsync(memberSymbol, solution).Result;
+
+
         }
     }
 }
