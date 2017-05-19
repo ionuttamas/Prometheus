@@ -4,6 +4,6 @@ namespace Prometheus.Engine.Thread
 {
     public interface IThreadAnalyzer
     {
-        ThreadHierarchy GeThreadHierarchy(Project project);
+        ThreadHierarchy GetThreadHierarchy(Project project);
     }
 }

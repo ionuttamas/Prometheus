@@ -217,6 +217,7 @@
   <ItemGroup>
     <Compile Include="AtomicAnalyzerTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ThreadAnalyzerTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />

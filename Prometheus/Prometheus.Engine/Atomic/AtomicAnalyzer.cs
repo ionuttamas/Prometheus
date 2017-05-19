@@ -84,7 +84,6 @@ namespace Prometheus.Engine
             ISymbol memberSymbol = semanticModel.GetSymbolInfo(memberDeclaration).Symbol;
             IEnumerable<ReferencedSymbol> references = SymbolFinder.FindReferencesAsync(memberSymbol, solution).Result;
 
-
         }
     }
 }
