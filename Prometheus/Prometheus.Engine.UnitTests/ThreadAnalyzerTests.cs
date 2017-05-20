@@ -1,11 +1,7 @@
-using System;
 using System.Linq;
-using System.Linq.Expressions;
 using Microsoft.CodeAnalysis.MSBuild;
 using NUnit.Framework;
 using Prometheus.Engine.Thread;
-using Prometheus.Extensions;
-using TestProject.Common;
 
 namespace Prometheus.Engine.UnitTests {
     [TestFixture]
@@ -17,8 +13,8 @@ namespace Prometheus.Engine.UnitTests {
         [SetUp]
         public void Init()
         {
-            workspace = Microsoft.CodeAnalysis.MSBuild.MSBuildWorkspace.Create();
-            var solution = workspace.OpenSolutionAsync(@"C:\Work\Projects\Prometheus\Prometheus\Prometheus.sln").Result;
+            workspace = MSBuildWorkspace.Create();
+            var solution = workspace.OpenSolutionAsync(@"C:\Users\Tamas Ionut\Documents\Prometheus\Prometheus\Prometheus.sln").Result;
             threadAnalyzer = new ThreadAnalyzer();
         }
 
@@ -29,7 +25,7 @@ namespace Prometheus.Engine.UnitTests {
         }
 
         [Test]
-        public void AtomicAnalyzer_WithAtomicityAnalyzer() {
+        public void ThreadAnalyzer_WithAtomicityAnalyzer() {
             var result = threadAnalyzer.GetThreadHierarchy(workspace.CurrentSolution.Projects.First(x=>x.Name=="TestProject.GUI"));
         }
     }

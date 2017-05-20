@@ -186,7 +186,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Thread\IThreadAnalyzer.cs" />
     <Compile Include="Thread\ThreadAnalyzer.cs" />
-    <Compile Include="Thread\ThreadHierarchy.cs" />
+    <Compile Include="Thread\ThreadSchedule.cs" />
     <Compile Include="Thread\ThreadPath.cs" />
   </ItemGroup>
   <ItemGroup>

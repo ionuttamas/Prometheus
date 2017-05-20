@@ -21,6 +21,12 @@ namespace Prometheus.Common
             return classDeclaration.DescendantNodes().OfType<MemberDeclarationSyntax>().FirstOrDefault();
         }
 
+        public static SemanticModel GetSemanticModel(this SyntaxNode node, Compilation compilation)
+        {
+            SemanticModel model = compilation.GetSemanticModel(node.SyntaxTree);
+            return model;
+        }
+
         public static string GetFullName(this ClassDeclarationSyntax classDeclaration)
         {
             var className = classDeclaration.Identifier.ToString();

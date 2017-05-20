@@ -2,11 +2,11 @@ using System.Collections.Generic;
 
 namespace Prometheus.Engine.Thread
 {
-    public class ThreadHierarchy
+    public class ThreadSchedule
     {
         public List<ThreadPath> Paths { get; private set; }
 
-        public ThreadHierarchy() {
+        public ThreadSchedule() {
             Paths = new List<ThreadPath>();
         }
     }
