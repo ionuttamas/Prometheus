@@ -20,15 +20,19 @@ namespace Prometheus.Engine.Thread
             compilation = compilation.AddReferences(MetadataReference.CreateFromFile(typeof(System.Threading.Thread).Assembly.Location));
             IMethodSymbol entryMethod = compilation.GetEntryPoint(CancellationToken.None);
             SymbolDisplayFormat typeDisplayFormat = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
-            List<string> threadVariables = compilation
+            var threadVariables = compilation
                 .SyntaxTrees
-                .SelectMany(x => x.GetRoot().DescendantNodes().OfType<VariableDeclarationSyntax>())
-                .Where(x => compilation.GetSemanticModel(x.SyntaxTree).GetTypeInfo(x.Type).Type.ToDisplayString(typeDisplayFormat)==typeof(System.Threading.Thread).FullName)
-                .Select(x=>x.Variables[0].Identifier.Text)
+                .Select(x => new {
+                    Tree = x,
+                    Variables = x
+                    .GetRoot()
+                    .DescendantNodes<VariableDeclarationSyntax>()
+                    .Where(v => v.GetSemanticModel(compilation).GetTypeInfo(v.Type).Type.ToDisplayString(typeDisplayFormat) == typeof(System.Threading.Thread).FullName)
+                    .Select(v => v.Variables[0].Identifier.Text)})
+                .Where(x => x.Variables.Any())
                 .ToList();
-            List<InvocationExpressionSyntax> threadInvocations = compilation
-                .SyntaxTrees
-                .SelectMany(x => x.GetRoot().DescendantNodes().OfType<InvocationExpressionSyntax>())
+            List<InvocationExpressionSyntax> threadInvocations = threadVariables
+                .SelectMany(x => x.Tree.GetRoot().DescendantNodes<InvocationExpressionSyntax>())
                 .Where(x => x.Expression.As<MemberAccessExpressionSyntax>().Name.Identifier.Text=="Start" &&
                             threadVariables.Contains(x.Expression.As<MemberAccessExpressionSyntax>().Expression.As<IdentifierNameSyntax>().Identifier.Text))
                 .ToList();
@@ -42,5 +46,7 @@ namespace Prometheus.Engine.Thread
 
             return null;
         }
+
+
     }
 }

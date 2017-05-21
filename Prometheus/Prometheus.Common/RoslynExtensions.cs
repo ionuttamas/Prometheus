@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Linq;
@@ -6,6 +7,10 @@ namespace Prometheus.Common
 {
     public static class RoslynExtensions
     {
+        public static IEnumerable<T> DescendantNodes<T>(this SyntaxNode node) {
+            return node.DescendantNodes().OfType<T>();
+        }
+
         public static ClassDeclarationSyntax GetClassDeclaration(this Compilation compilation, string fullClassName)
         {
             ClassDeclarationSyntax classDeclaration = compilation
