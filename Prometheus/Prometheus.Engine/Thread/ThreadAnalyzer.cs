@@ -34,8 +34,10 @@ namespace Prometheus.Engine.Thread
             List<InvocationExpressionSyntax> threadInvocations = threadVariables
                 .SelectMany(x => x.Tree.GetRoot().DescendantNodes<InvocationExpressionSyntax>())
                 .Where(x => x.Expression.As<MemberAccessExpressionSyntax>().Name.Identifier.Text=="Start" &&
-                            threadVariables.Contains(x.Expression.As<MemberAccessExpressionSyntax>().Expression.As<IdentifierNameSyntax>().Identifier.Text))
+                            threadVariables.First(tv=>tv.Tree==x.SyntaxTree).Variables.Contains(x.Expression.As<MemberAccessExpressionSyntax>().Expression.As<IdentifierNameSyntax>().Identifier.Text))
                 .ToList();
+
+
 
             //var model = threadDeclarations[0].Ancestors().OfType<ClassDeclarationSyntax>().FirstOrDefault().GetSemanticModel(compilation);
             //var localDeclaration = (LocalDeclarationStatementSyntax)threadDeclarations[0].Parent;

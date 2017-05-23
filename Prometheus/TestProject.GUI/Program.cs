@@ -11,19 +11,20 @@ namespace TestProject.GUI {
     class Program {
         static void Main(string[] args)
         {
-            var queue = new AtomicQueue<Order>();
+            /*var queue = new AtomicQueue<Order>();
             var orderService = new OrderService(queue);
             var orderProcessor = new OrderProcessor(queue, 10);
-
+*/
+            //todo: new Thread(Do).Start();
             var thread = new Thread(Do);
             thread.Start();
-
+/*
             orderProcessor.Start();
 
             for (int i = 0; i < 100; i++)
             {
                 orderService.Add(new Order());
-            }
+            }*/
         }
 
         private static void Do() {
