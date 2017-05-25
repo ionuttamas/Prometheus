@@ -11,6 +11,10 @@ namespace Prometheus.Common
             return node.DescendantNodes().OfType<T>();
         }
 
+        public static IEnumerable<T> AncestorNodes<T>(this SyntaxNode node) {
+            return node.Ancestors(false).OfType<T>();
+        }
+
         public static ClassDeclarationSyntax GetClassDeclaration(this Compilation compilation, string fullClassName)
         {
             ClassDeclarationSyntax classDeclaration = compilation

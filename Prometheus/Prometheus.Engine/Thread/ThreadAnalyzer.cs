@@ -13,9 +13,18 @@ namespace Prometheus.Engine.Thread
 {
     public class ThreadAnalyzer : IThreadAnalyzer
     {
+        private readonly Solution solution;
+        private readonly List<Project> startProjects;
+
+        public ThreadAnalyzer(Solution solution)
+        {
+            this.solution = solution;
+            // Currently, we support only ConsoleApplication projects as start projects
+            startProjects = solution.Projects.Where(x => x.CompilationOptions.OutputKind == OutputKind.ConsoleApplication).ToList();
+        }
+
         public ThreadSchedule GetThreadHierarchy(Project project)
         {
-            // Currently, we support only ConsoleApplication projects
             Compilation compilation = project.GetCompilationAsync(CancellationToken.None).Result;
             compilation = compilation.AddReferences(MetadataReference.CreateFromFile(typeof(System.Threading.Thread).Assembly.Location));
             IMethodSymbol entryMethod = compilation.GetEntryPoint(CancellationToken.None);
@@ -49,6 +58,44 @@ namespace Prometheus.Engine.Thread
             return null;
         }
 
+        private List<ThreadPath> GetPaths(Compilation compilation, InvocationExpressionSyntax threadStart)
+        {
+            // Get the method that calls the thread start and track it to a executable project entry point
+            MethodDeclarationSyntax methodDeclaration = threadStart.AncestorNodes<MethodDeclarationSyntax>().First();
+            ISymbol methodSymbol = methodDeclaration.GetSemanticModel(compilation).GetSymbolInfo(methodDeclaration).Symbol;
 
+            IEnumerable<ReferencedSymbol> references = SymbolFinder.FindReferencesAsync(methodSymbol, solution).Result;
+            var symbolChains = new List<List<ReferencedSymbol>>();
+
+            foreach (var reference in references) {
+                List<List<ReferencedSymbol>> chains = GetSymbolChains(reference);
+
+                foreach (var chain in chains) {
+                    chain.Add(reference);
+                    symbolChains.Add(chain);
+                }
+            }
+
+            //return GetPaths(methodSymbol);
+        }
+
+        private List<List<ReferencedSymbol>> GetSymbolChains(ReferencedSymbol symbol)
+        {
+            var result = new List<List<ReferencedSymbol>>();
+            IEnumerable<ReferencedSymbol> references = SymbolFinder.FindReferencesAsync(symbol.Definition, solution).Result;
+
+            foreach (var reference in references)
+            {
+                List<List<ReferencedSymbol>> chains = GetSymbolChains(reference);
+
+                foreach (var chain in chains)
+                {
+                    chain.Add(symbol);
+                    result.Add(chain);
+                }
+            }
+
+            return result;
+        }
     }
 }
