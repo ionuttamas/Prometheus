@@ -63,34 +63,26 @@ namespace Prometheus.Engine.Thread
             // Get the method that calls the thread start and track it to a executable project entry point
             MethodDeclarationSyntax methodDeclaration = threadStart.AncestorNodes<MethodDeclarationSyntax>().First();
             ISymbol methodSymbol = methodDeclaration.GetSemanticModel(compilation).GetSymbolInfo(methodDeclaration).Symbol;
+            List<List<Location>> callChains = GetSymbolChains(compilation, methodSymbol.Locations[0]);
 
-            IEnumerable<ReferencedSymbol> references = SymbolFinder.FindReferencesAsync(methodSymbol, solution).Result;
-            var symbolChains = new List<List<ReferencedSymbol>>();
-
-            foreach (var reference in references) {
-                List<List<ReferencedSymbol>> chains = GetSymbolChains(reference);
-
-                foreach (var chain in chains) {
-                    chain.Add(reference);
-                    symbolChains.Add(chain);
-                }
-            }
 
             //return GetPaths(methodSymbol);
         }
 
-        private List<List<ReferencedSymbol>> GetSymbolChains(ReferencedSymbol symbol)
+        private List<List<Location>> GetSymbolChains(Compilation compilation, Location location)
         {
-            var result = new List<List<ReferencedSymbol>>();
-            IEnumerable<ReferencedSymbol> references = SymbolFinder.FindReferencesAsync(symbol.Definition, solution).Result;
+            var result = new List<List<Location>>();
+            MethodDeclarationSyntax callingMethod = location.SourceTree.GetRoot().FindToken(location.SourceSpan.Start).Parent.Ancestors().OfType<MethodDeclarationSyntax>().First();
+            ISymbol methodSymbol = callingMethod.GetSemanticModel(compilation).GetSymbolInfo(callingMethod).Symbol;
+            IEnumerable<ReferencedSymbol> references = SymbolFinder.FindReferencesAsync(methodSymbol, solution).Result;
 
-            foreach (var reference in references)
+            foreach (var referenceLocation in references.SelectMany(x=>x.Locations).Select(x=>x.Location))
             {
-                List<List<ReferencedSymbol>> chains = GetSymbolChains(reference);
+                List<List<Location>> chains = GetSymbolChains(compilation, referenceLocation);
 
                 foreach (var chain in chains)
                 {
-                    chain.Add(symbol);
+                    chain.Add(location);
                     result.Add(chain);
                 }
             }
