@@ -14,8 +14,8 @@ namespace Prometheus.Engine.UnitTests {
         public void Init()
         {
             workspace = MSBuildWorkspace.Create();
-            var solution = workspace.OpenSolutionAsync(@"C:\Work\Projects\Prometheus\Prometheus\Prometheus.sln").Result;
-            threadAnalyzer = new ThreadAnalyzer();
+            var solution = workspace.OpenSolutionAsync(@"C:\Users\Tamas Ionut\Documents\Prometheus\Prometheus\Prometheus.sln").Result;
+            threadAnalyzer = new ThreadAnalyzer(solution);
         }
 
         [TearDown]
@@ -26,7 +26,8 @@ namespace Prometheus.Engine.UnitTests {
 
         [Test]
         public void ThreadAnalyzer_WithAtomicityAnalyzer() {
-            var result = threadAnalyzer.GetThreadHierarchy(workspace.CurrentSolution.Projects.First(x=>x.Name=="TestProject.GUI"));
+            //startProjects = solution.Projects.Where(x => x.CompilationOptions.OutputKind == OutputKind.ConsoleApplication).ToList();
+            var result = threadAnalyzer.GetThreadSchedule(workspace.CurrentSolution.Projects.First(x=>x.Name=="TestProject.GUI"));
         }
     }
 }
