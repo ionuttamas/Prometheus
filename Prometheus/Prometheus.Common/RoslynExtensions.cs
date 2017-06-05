@@ -32,7 +32,7 @@ namespace Prometheus.Common
 
         public static SemanticModel GetSemanticModel(this SyntaxNode node, Compilation compilation)
         {
-            SemanticModel model = compilation.GetSemanticModel(node.SyntaxTree);
+            SemanticModel model = compilation.GetSemanticModel(node.SyntaxTree, true);
             return model;
         }
 

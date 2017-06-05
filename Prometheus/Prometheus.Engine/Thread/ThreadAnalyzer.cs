@@ -23,20 +23,17 @@ namespace Prometheus.Engine.Thread
 
         public ThreadSchedule GetThreadSchedule(Project entryProject)
         {
+            var threadSchedule = new ThreadSchedule
+            {
+                Paths = new List<ThreadPath>()
+            };
             Compilation compilation = entryProject.GetCompilationAsync(CancellationToken.None).Result;
             compilation = compilation.AddReferences(MetadataReference.CreateFromFile(typeof (System.Threading.Thread).Assembly.Location));
-            var entryMethodLocation = compilation.GetEntryPoint(CancellationToken.None).Locations[0];
-            var callingMethodSpan = entryMethodLocation
-                .SourceTree
-                .GetRoot()
-                .FindToken(entryMethodLocation.SourceSpan.Start)
-                .Parent
-                .As<MethodDeclarationSyntax>()
-                .Body
-                .Span;
+
             foreach (var project in solution.Projects.Where(x => x.CompilationOptions.OutputKind == OutputKind.DynamicallyLinkedLibrary))
             {
-                var threadSchedule = AnalyzeProject(project, );
+                var threadPaths = AnalyzeProject(project, compilation.GetEntryPoint(CancellationToken.None));
+                threadSchedule.Paths.AddRange(threadPaths);
             }
 
             return threadSchedule;
@@ -45,21 +42,11 @@ namespace Prometheus.Engine.Thread
         /// <summary>
         /// Analyzes the project and tracks the thread paths to the entry point of the entry project.
         /// </summary>
-        private List<ThreadPath> AnalyzeProject(Project project)
+        private List<ThreadPath> AnalyzeProject(Project project, IMethodSymbol entryPoint)
         {
             Compilation compilation = project.GetCompilationAsync(CancellationToken.None).Result;
             compilation = compilation.AddReferences(MetadataReference.CreateFromFile(typeof (System.Threading.Thread).Assembly.Location));
-            var entryMethodLocation = compilation.GetEntryPoint(CancellationToken.None).Locations[0];
-            var callingMethodSpan = entryMethodLocation
-                .SourceTree
-                .GetRoot()
-                .FindToken(entryMethodLocation.SourceSpan.Start)
-                .Parent
-                .As<MethodDeclarationSyntax>()
-                .Body
-                .Span;
-            SymbolDisplayFormat typeDisplayFormat =
-                new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
+            SymbolDisplayFormat typeDisplayFormat = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
             var threadVariables = compilation
                 .SyntaxTrees
                 .Select(x => new
@@ -81,18 +68,18 @@ namespace Prometheus.Engine.Thread
                                 .Variables.Contains(x.Expression.As<MemberAccessExpressionSyntax>().Expression.As<IdentifierNameSyntax>().Identifier.Text))
                 .ToList();
             List<ThreadPath> threadPaths = threadInvocations
-                .SelectMany(x => GetPaths(compilation, callingMethodSpan, x))
+                .SelectMany(x => GetPaths(compilation, entryPoint, x))
                 .ToList();
 
             return threadPaths;
         }
 
-        private List<ThreadPath> GetPaths(Compilation compilation, TextSpan entrySpan, InvocationExpressionSyntax threadStart)
+        private List<ThreadPath> GetPaths(Compilation compilation, IMethodSymbol entryPoint, InvocationExpressionSyntax threadStart)
         {
             // Get the method that calls the thread start and track it to a executable project entry point
             MethodDeclarationSyntax methodDeclaration = threadStart.AncestorNodes<MethodDeclarationSyntax>().First();
-            ISymbol methodSymbol = methodDeclaration.GetSemanticModel(compilation).GetSymbolInfo(methodDeclaration).Symbol;
-            List<List<Location>> callChains = GetSymbolChains(compilation, entrySpan, methodSymbol.Locations[0]);
+            ISymbol methodSymbol = methodDeclaration.GetSemanticModel(compilation).GetDeclaredSymbol(methodDeclaration);
+            List<List<Location>> callChains = GetSymbolChains(compilation, entryPoint, methodSymbol);
             List<ThreadPath> threadPaths = callChains.Select(x => new ThreadPath
             {
                 Invocations = x
@@ -101,19 +88,43 @@ namespace Prometheus.Engine.Thread
             return threadPaths;
         }
 
-        private List<List<Location>> GetSymbolChains(Compilation compilation, TextSpan entrySpan, Location location)
+        private List<List<Location>> GetSymbolChains(Compilation compilation, IMethodSymbol entryPoint, ISymbol referencedSymbol)
         {
+            var entryMethodLocation = entryPoint.Locations.First();
+            var entryMethodSpan = entryMethodLocation
+                .SourceTree
+                .GetRoot()
+                .FindToken(entryMethodLocation.SourceSpan.Start)
+                .Parent
+                .As<MethodDeclarationSyntax>()
+                .Body
+                .Span;
+
+            var location = referencedSymbol.Locations.First();
+
+            if (referencedSymbol.ContainingType == entryPoint.ContainingType &&
+                Equals(referencedSymbol.ContainingAssembly, entryPoint.ContainingAssembly) &&
+                entryMethodSpan.Contains(location.SourceSpan))
+            {
+                var chain = new List<Location> {location};
+                return new List<List<Location>> {chain};
+            }
+
             var result = new List<List<Location>>();
-            MethodDeclarationSyntax callingMethod = location.SourceTree.GetRoot().FindToken(location.SourceSpan.Start).Parent.Ancestors().OfType<MethodDeclarationSyntax>().First();
-            ISymbol methodSymbol = callingMethod.GetSemanticModel(compilation).GetSymbolInfo(callingMethod).Symbol;
+            MethodDeclarationSyntax callingMethod = location
+                .SourceTree
+                .GetRoot()
+                .FindToken(location.SourceSpan.Start)
+                .Parent
+                .AncestorsAndSelf()
+                .OfType<MethodDeclarationSyntax>()
+                .First();
+            ISymbol methodSymbol = callingMethod.GetSemanticModel(compilation).GetDeclaredSymbol(callingMethod);
             IEnumerable<ReferencedSymbol> references = SymbolFinder.FindReferencesAsync(methodSymbol, solution).Result;
 
-            foreach (var referenceLocation in references.SelectMany(x=>x.Locations).Select(x=>x.Location))
+            foreach (var reference in references)
             {
-                if(entrySpan.Contains(referenceLocation.SourceSpan))
-                    continue;
-
-                List<List<Location>> chains = GetSymbolChains(compilation, entrySpan, referenceLocation);
+                List<List<Location>> chains = GetSymbolChains(compilation, entryPoint, reference.Definition);
 
                 foreach (var chain in chains)
                 {
