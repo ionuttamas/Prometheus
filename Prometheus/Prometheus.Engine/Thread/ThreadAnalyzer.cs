@@ -15,7 +15,6 @@ namespace Prometheus.Engine.Thread
     public class ThreadAnalyzer : IThreadAnalyzer
     {
         private readonly Solution solution;
-
         public ThreadAnalyzer(Solution solution)
         {
             this.solution = solution;
@@ -63,23 +62,24 @@ namespace Prometheus.Engine.Thread
                 .ToList();
             List<InvocationExpressionSyntax> threadInvocations = threadVariables
                 .SelectMany(x => x.Tree.GetRoot().DescendantNodes<InvocationExpressionSyntax>())
-                .Where(x => x.Expression.As<MemberAccessExpressionSyntax>().Name.Identifier.Text == "Start" &&
+                .Where(x => x.Expression is MemberAccessExpressionSyntax && x.Expression.As<MemberAccessExpressionSyntax>().Name.Identifier.Text == "Start" &&
                             threadVariables.First(tv => tv.Tree == x.SyntaxTree)
                                 .Variables.Contains(x.Expression.As<MemberAccessExpressionSyntax>().Expression.As<IdentifierNameSyntax>().Identifier.Text))
                 .ToList();
             List<ThreadPath> threadPaths = threadInvocations
-                .SelectMany(x => GetPaths(compilation, entryPoint, x))
+                .SelectMany(x => GetPaths(project, entryPoint, x))
                 .ToList();
 
             return threadPaths;
         }
 
-        private List<ThreadPath> GetPaths(Compilation compilation, IMethodSymbol entryPoint, InvocationExpressionSyntax threadStart)
+        private List<ThreadPath> GetPaths(Project project, IMethodSymbol entryPoint, InvocationExpressionSyntax threadStart)
         {
+            Compilation compilation = project.GetCompilationAsync(CancellationToken.None).Result;
             // Get the method that calls the thread start and track it to a executable project entry point
             MethodDeclarationSyntax methodDeclaration = threadStart.AncestorNodes<MethodDeclarationSyntax>().First();
             ISymbol methodSymbol = methodDeclaration.GetSemanticModel(compilation).GetDeclaredSymbol(methodDeclaration);
-            List<List<Location>> callChains = GetSymbolChains(compilation, entryPoint, methodSymbol);
+            List<List<Location>> callChains = GetSymbolChains(project, entryPoint, methodSymbol);
             List<ThreadPath> threadPaths = callChains.Select(x => new ThreadPath
             {
                 Invocations = x
@@ -88,7 +88,7 @@ namespace Prometheus.Engine.Thread
             return threadPaths;
         }
 
-        private List<List<Location>> GetSymbolChains(Compilation compilation, IMethodSymbol entryPoint, ISymbol referencedSymbol)
+        private List<List<Location>> GetSymbolChains(Project project, IMethodSymbol entryPoint, ISymbol referencedSymbol)
         {
             var entryMethodLocation = entryPoint.Locations.First();
             var entryMethodSpan = entryMethodLocation
@@ -99,7 +99,6 @@ namespace Prometheus.Engine.Thread
                 .As<MethodDeclarationSyntax>()
                 .Body
                 .Span;
-
             var location = referencedSymbol.Locations.First();
 
             if (referencedSymbol.ContainingType == entryPoint.ContainingType &&
@@ -119,12 +118,16 @@ namespace Prometheus.Engine.Thread
                 .AncestorsAndSelf()
                 .OfType<MethodDeclarationSyntax>()
                 .First();
-            ISymbol methodSymbol = callingMethod.GetSemanticModel(compilation).GetDeclaredSymbol(callingMethod);
+            Document document = project.Documents.First(x => x.FilePath == callingMethod.SyntaxTree.FilePath);
+            IMethodSymbol methodSymbol = (IMethodSymbol)ModelExtensions.GetDeclaredSymbol(document.GetSemanticModelAsync().Result, callingMethod);
             IEnumerable<ReferencedSymbol> references = SymbolFinder.FindReferencesAsync(methodSymbol, solution).Result;
 
-            foreach (var reference in references)
+            foreach (var referenceLocation in references.SelectMany(x=>x.Locations))
             {
-                List<List<Location>> chains = GetSymbolChains(compilation, entryPoint, reference.Definition);
+                if (reference.Definition.Equals(referencedSymbol))
+                    continue;
+
+                List<List<Location>> chains = GetSymbolChains(project, entryPoint, reference.Definition);
 
                 foreach (var chain in chains)
                 {

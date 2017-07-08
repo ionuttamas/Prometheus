@@ -228,6 +228,10 @@
     <Analyzer Include="..\packages\Microsoft.CodeAnalysis.Analyzers.1.1.0\analyzers\dotnet\cs\Microsoft.CodeAnalysis.CSharp.Analyzers.dll" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Prometheus.Common\Prometheus.Common.csproj">
+      <Project>{3BD30A4C-160B-45E5-9700-2D1D8C4CF21E}</Project>
+      <Name>Prometheus.Common</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Prometheus.Engine\Prometheus.Engine.csproj">
       <Project>{F7F4E934-570F-452C-B55E-2D9AFD52453C}</Project>
       <Name>Prometheus.Engine</Name>
