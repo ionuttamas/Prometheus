@@ -20,11 +20,6 @@ namespace TestProject.Services
             processThread.Start();
         }
 
-        public void Foo()
-        {
-            Start();
-        }
-
         private void ProcessOrders()
         {
             while (true)

@@ -80,30 +80,18 @@ namespace Prometheus.Engine.Thread
             MethodDeclarationSyntax methodDeclaration = threadStart.AncestorNodes<MethodDeclarationSyntax>().First();
             ISymbol methodSymbol = methodDeclaration.GetSemanticModel(compilation).GetDeclaredSymbol(methodDeclaration);
             List<List<Location>> callChains = GetSymbolChains(project, entryPoint, methodSymbol);
-            List<ThreadPath> threadPaths = callChains.Select(x => new ThreadPath
-            {
-                Invocations = x
-            }).ToList();
+            List<ThreadPath> threadPaths = callChains
+                .Select(x => new ThreadPath { Invocations = x })
+                .ToList();
 
             return threadPaths;
         }
 
         private List<List<Location>> GetSymbolChains(Project project, IMethodSymbol entryPoint, ISymbol referencedSymbol)
         {
-            var entryMethodLocation = entryPoint.Locations.First();
-            var entryMethodSpan = entryMethodLocation
-                .SourceTree
-                .GetRoot()
-                .FindToken(entryMethodLocation.SourceSpan.Start)
-                .Parent
-                .As<MethodDeclarationSyntax>()
-                .Body
-                .Span;
             var location = referencedSymbol.Locations.First();
 
-            if (referencedSymbol.ContainingType == entryPoint.ContainingType &&
-                Equals(referencedSymbol.ContainingAssembly, entryPoint.ContainingAssembly) &&
-                entryMethodSpan.Contains(location.SourceSpan))
+            if(entryPoint.Name==referencedSymbol.Name && entryPoint.ContainingType.Equals(referencedSymbol.ContainingType))
             {
                 var chain = new List<Location> {location};
                 return new List<List<Location>> {chain};
@@ -124,20 +112,30 @@ namespace Prometheus.Engine.Thread
 
             foreach (var referenceLocation in references.SelectMany(x=>x.Locations))
             {
-                if (reference.Definition.Equals(referencedSymbol))
+                SyntaxNode referencingRoot = referenceLocation
+                    .Document
+                    .GetSyntaxRootAsync()
+                    .Result;
+                MethodDeclarationSyntax callingMethodDeclaration = referencingRoot
+                    .DescendantNodes<InvocationExpressionSyntax>()
+                    .First(x=>x.GetLocation().SourceSpan.Contains(referenceLocation.Location.SourceSpan))
+                    .AncestorNodes<MethodDeclarationSyntax>()
+                    .First();
+                IMethodSymbol callingReferenceSymbol = (IMethodSymbol)ModelExtensions.GetDeclaredSymbol(referenceLocation.Document.GetSemanticModelAsync().Result, callingMethodDeclaration);
+
+                if(callingReferenceSymbol.Equals(referencedSymbol))
                     continue;
 
-                List<List<Location>> chains = GetSymbolChains(project, entryPoint, reference.Definition);
+                List<List<Location>> chains = GetSymbolChains(project, entryPoint, callingReferenceSymbol);
 
                 foreach (var chain in chains)
                 {
-                    chain.Add(location);
+                    chain.Add(referenceLocation.Location);
                     result.Add(chain);
                 }
             }
 
             return result;
         }
-
     }
 }
