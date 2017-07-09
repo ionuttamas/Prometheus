@@ -79,7 +79,7 @@ namespace Prometheus.Engine.Thread
             // Get the method that calls the thread start and track it to a executable project entry point
             MethodDeclarationSyntax methodDeclaration = threadStart.AncestorNodes<MethodDeclarationSyntax>().First();
             ISymbol methodSymbol = methodDeclaration.GetSemanticModel(compilation).GetDeclaredSymbol(methodDeclaration);
-            List<List<Location>> callChains = GetSymbolChains(project, entryPoint, methodSymbol);
+            List<List<Location>> callChains = GetSymbolChains(entryPoint, methodSymbol);
             List<ThreadPath> threadPaths = callChains
                 .Select(x => new ThreadPath { Invocations = x })
                 .ToList();
@@ -87,11 +87,13 @@ namespace Prometheus.Engine.Thread
             return threadPaths;
         }
 
-        private List<List<Location>> GetSymbolChains(Project project, IMethodSymbol entryPoint, ISymbol referencedSymbol)
+        private List<List<Location>> GetSymbolChains(IMethodSymbol entryPoint, ISymbol referencedSymbol)
         {
-            var location = referencedSymbol.Locations.First();
+            Location location = referencedSymbol.Locations.First();
+            Project project = GetProject(referencedSymbol);
 
-            if(entryPoint.Name==referencedSymbol.Name && entryPoint.ContainingType.Equals(referencedSymbol.ContainingType))
+            if(entryPoint.Name==referencedSymbol.Name &&
+               entryPoint.ContainingType.ToString()==referencedSymbol.ContainingType.ToString())
             {
                 var chain = new List<Location> {location};
                 return new List<List<Location>> {chain};
@@ -126,16 +128,24 @@ namespace Prometheus.Engine.Thread
                 if(callingReferenceSymbol.Equals(referencedSymbol))
                     continue;
 
-                List<List<Location>> chains = GetSymbolChains(project, entryPoint, callingReferenceSymbol);
+                List<List<Location>> chains = GetSymbolChains(entryPoint, callingReferenceSymbol);
 
                 foreach (var chain in chains)
                 {
                     chain.Add(referenceLocation.Location);
+                    chain.Add(location);
                     result.Add(chain);
                 }
             }
 
             return result;
+        }
+
+        private Project GetProject(ISymbol symbol)
+        {
+            Project project = solution.Projects.First(x => x.AssemblyName == symbol.ContainingAssembly.Name);
+
+            return project;
         }
     }
 }
