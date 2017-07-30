@@ -11,6 +11,11 @@ namespace Prometheus.Common
             return node.DescendantNodes().OfType<T>();
         }
 
+        public static MethodDeclarationSyntax GetMethod(this SyntaxNode node, string name)
+        {
+            return node.DescendantNodes().OfType<MethodDeclarationSyntax>().FirstOrDefault(x=>x.Identifier.Text==name);
+        }
+
         public static IEnumerable<T> AncestorNodes<T>(this SyntaxNode node) {
             return node.Ancestors(false).OfType<T>();
         }

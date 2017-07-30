@@ -29,7 +29,7 @@ namespace Prometheus.Engine.Thread
             Compilation compilation = entryProject.GetCompilationAsync(CancellationToken.None).Result;
             compilation = compilation.AddReferences(MetadataReference.CreateFromFile(typeof (System.Threading.Thread).Assembly.Location));
 
-            foreach (var project in solution.Projects.Where(x => x.CompilationOptions.OutputKind == OutputKind.DynamicallyLinkedLibrary))
+            foreach (var project in solution.Projects)
             {
                 var threadPaths = AnalyzeProject(project, compilation.GetEntryPoint(CancellationToken.None));
                 threadSchedule.Paths.AddRange(threadPaths);
@@ -57,23 +57,38 @@ namespace Prometheus.Engine.Thread
                         .Where(v =>
                                 v.GetSemanticModel(compilation).GetTypeInfo(v.Type).Type.ToDisplayString(typeDisplayFormat) ==
                                 typeof (System.Threading.Thread).FullName)
-                        .Select(v => v.Variables[0].Identifier.Text)})
+                        .Select(v => new
+                        {
+                            Variable = v.Variables[0].Identifier.Text,
+                            ThreadMethodName = ((IdentifierNameSyntax)((ObjectCreationExpressionSyntax)v.Variables[0].Initializer.Value).ArgumentList.Arguments[0].Expression).Identifier.Text
+                        })})
                 .Where(x => x.Variables.Any())
                 .ToList();
-            List<InvocationExpressionSyntax> threadInvocations = threadVariables
+            var threadInvocations = threadVariables
                 .SelectMany(x => x.Tree.GetRoot().DescendantNodes<InvocationExpressionSyntax>())
-                .Where(x => x.Expression is MemberAccessExpressionSyntax && x.Expression.As<MemberAccessExpressionSyntax>().Name.Identifier.Text == "Start" &&
-                            threadVariables.First(tv => tv.Tree == x.SyntaxTree)
-                                .Variables.Contains(x.Expression.As<MemberAccessExpressionSyntax>().Expression.As<IdentifierNameSyntax>().Identifier.Text))
-                .ToList();
+                .Where(x => x.Expression is MemberAccessExpressionSyntax &&
+                            x.Expression.As<MemberAccessExpressionSyntax>().Name.Identifier.Text == "Start" &&
+                            threadVariables
+                                .First(tv => tv.Tree == x.SyntaxTree)
+                                .Variables
+                                .Select(v=>v.Variable)
+                                .Contains(x.Expression.As<MemberAccessExpressionSyntax>().Expression.As<IdentifierNameSyntax>().Identifier.Text))
+                .ToDictionary(x =>  x,
+                              x => x.SyntaxTree
+                                    .GetRoot()
+                                    .GetMethod(threadVariables
+                                                .First(tv => tv.Tree == x.SyntaxTree)
+                                                .Variables
+                                                .First(v => v.Variable== x.Expression.As<MemberAccessExpressionSyntax>().Expression.As<IdentifierNameSyntax>().Identifier.Text)
+                                                .ThreadMethodName));
             List<ThreadPath> threadPaths = threadInvocations
-                .SelectMany(x => GetPaths(project, entryPoint, x))
+                .SelectMany(x => GetPaths(project, entryPoint, x.Key, x.Value))
                 .ToList();
 
             return threadPaths;
         }
 
-        private List<ThreadPath> GetPaths(Project project, IMethodSymbol entryPoint, InvocationExpressionSyntax threadStart)
+        private List<ThreadPath> GetPaths(Project project, IMethodSymbol entryPoint, InvocationExpressionSyntax threadStart, MethodDeclarationSyntax threadMethod)
         {
             Compilation compilation = project.GetCompilationAsync(CancellationToken.None).Result;
             // Get the method that calls the thread start and track it to a executable project entry point
@@ -81,7 +96,7 @@ namespace Prometheus.Engine.Thread
             ISymbol methodSymbol = methodDeclaration.GetSemanticModel(compilation).GetDeclaredSymbol(methodDeclaration);
             List<List<Location>> callChains = GetSymbolChains(entryPoint, methodSymbol);
             List<ThreadPath> threadPaths = callChains
-                .Select(x => new ThreadPath { Invocations = x })
+                .Select(x => new ThreadPath { Invocations = x, ThreadMethod = threadMethod })
                 .ToList();
 
             return threadPaths;
