@@ -22,8 +22,6 @@ namespace Prometheus.Engine.UnitTests {
         {
             workspace = MSBuildWorkspace.Create();
             var solution = workspace.OpenSolutionAsync(@"C:\Users\tamas\Documents\Prometheus\Prometheus\Prometheus.sln").Result;
-            //var sol2 = GetSolution(workspace.CurrentSolution);
-
             threadAnalyzer = new ThreadAnalyzer(solution);
         }
 
