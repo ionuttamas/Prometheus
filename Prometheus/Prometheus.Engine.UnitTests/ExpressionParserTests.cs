@@ -65,7 +65,6 @@ namespace Prometheus.Engine.UnitTests
         {
             private int SecretProperty { get; set; }
             private int secretField;
-
             public int Id { get; set; }
             public decimal Balance { get; set; }
 

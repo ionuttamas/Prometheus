@@ -8,6 +8,8 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.FindSymbols;
 using Prometheus.Common;
+using Prometheus.Engine.Analyzer;
+using Prometheus.Engine.Invariant;
 
 namespace Prometheus.Engine
 {
@@ -25,50 +27,11 @@ namespace Prometheus.Engine
             markingMethod = nameof(Extensions.ModelExtensions.IsModifiedAtomic);
         }
 
-        public IAnalysis Analyze(Expression expression)
+        public IAnalysis Analyze(IInvariant invariant)
         {
-            Type type = expression.GetParameterType();
-            string parameterName = expression.GetParameterName();
-            string textExpression = expression.ToString();
-            List<MemberInfo> publicMembers = GetPublicMembers(type, parameterName, textExpression);
-            List<MemberInfo> privateMembers = GetPrivateMembers(type, textExpression);
-            AnalyzePrivateMember(privateMembers.First());
+            AnalyzePrivateMember();
 
             return new AtomicAnalysis();
-        }
-
-        private List<MemberInfo> GetPublicMembers(Type type, string parameter, string expression)
-        {
-            var pattern = $"{markingMethod}\\(\\)";
-            var matches = Regex.Matches(expression, pattern).Cast<Match>().Select(x => x.Groups[0]).ToList();
-            var result = new List<MemberInfo>();
-
-            foreach (var match in matches) {
-                expression = expression.Substring(0, match.Index);
-                expression = expression.Substring(expression.LastIndexOf($"{parameter}.", StringComparison.InvariantCultureIgnoreCase));
-                var memberName = expression.Trim('.');
-                var member = type.GetMember(memberName, BindingFlags.Instance | BindingFlags.Public).First();
-                result.Add(member);
-            }
-
-            return result;
-        }
-
-        private List<MemberInfo> GetPrivateMembers(Type type, string expression)
-        {
-            string pattern = $"{markingMethod}\\(\"[^\"]*\"\\)";
-            var matches = Regex.Matches(expression, pattern).Cast<Match>().Select(x => x.Groups[0]).ToList();
-            var result = new List<MemberInfo>();
-
-            foreach (var match in matches)
-            {
-                string memberName = match.Value.TrimStart(markingMethod, StringComparison.InvariantCultureIgnoreCase);
-                memberName = memberName.Substring(2, memberName.Length - 4);
-                var member = type.GetMember(memberName, BindingFlags.Instance | BindingFlags.NonPublic).First();
-                result.Add(member);
-            }
-
-            return result;
         }
 
         private void AnalyzePrivateMember(MemberInfo member)

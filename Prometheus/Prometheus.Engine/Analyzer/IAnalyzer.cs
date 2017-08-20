@@ -1,18 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.CodeAnalysis;
+﻿using Prometheus.Engine.Invariant;
 
-namespace Prometheus.Engine
+namespace Prometheus.Engine.Analyzer
 {
-    /// <summary>
-    /// Marker interface for code analyzer.
-    /// </summary>
     public interface IAnalyzer
     {
-        IAnalysis Analyze(Expression expression);
+        IAnalysis Analyze(IInvariant invariant);
     }
 }
