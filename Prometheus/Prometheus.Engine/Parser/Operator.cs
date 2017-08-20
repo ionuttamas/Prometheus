@@ -1,6 +1,6 @@
 namespace Prometheus.Engine.Parser
 {
-    public enum NumericOperator
+    public enum Operator
     {
         None,
         GreaterThan,

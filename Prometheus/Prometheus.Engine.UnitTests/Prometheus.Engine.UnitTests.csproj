@@ -216,6 +216,7 @@
   </Choose>
   <ItemGroup>
     <Compile Include="AtomicAnalyzerTests.cs" />
+    <Compile Include="ExpressionParserTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ThreadAnalyzerTests.cs" />
   </ItemGroup>
@@ -235,10 +236,6 @@
     <ProjectReference Include="..\Prometheus.Engine\Prometheus.Engine.csproj">
       <Project>{F7F4E934-570F-452C-B55E-2D9AFD52453C}</Project>
       <Name>Prometheus.Engine</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Prometheus.Extensions\Prometheus.Extensions.csproj">
-      <Project>{D7EEAFFC-A7DC-49B8-AE0D-60D0B906DB59}</Project>
-      <Name>Prometheus.Extensions</Name>
     </ProjectReference>
     <ProjectReference Include="..\TestProject.Common\TestProject.Common.csproj">
       <Project>{0B17B989-0D3A-4AE0-A2FE-FEB03490DBF3}</Project>

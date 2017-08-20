@@ -14,7 +14,6 @@ namespace TestProject.GUI {
             var queue = new AtomicQueue<Order>();
             var orderService = new OrderService(queue);
             var orderProcessor = new OrderProcessor(queue, 10);
-            //todo: new Thread(Do).Start();
             var thread = new Thread(Do);
             thread.Start();
             orderProcessor.Start();

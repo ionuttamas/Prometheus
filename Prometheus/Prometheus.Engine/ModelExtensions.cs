@@ -1,4 +1,6 @@
-﻿namespace Prometheus.Extensions
+﻿using System.Collections.Generic;
+
+namespace Prometheus.Extensions
 {
     /// <summary>
     /// Class that contains various marking extensions for formal model state verification.
@@ -6,7 +8,7 @@
     public static class ModelExtensions
     {
         /// <summary>
-        /// Marks the value property or field as needed to be atomically modified.
+        /// Marks the value property or field as needed to be atomically modified; currently, it accepts only simple properties/fields, not nesting is currently allowed.
         /// Primitive values (numeric, boolean, char) can be read without locks, but reference types cannot.
         /// E.g. for class "Account", marking "x => x.Balance.IsModifiedAtomic()" sets the "Balance" property as modifiable only within synchronized access.
         /// </summary>
@@ -17,7 +19,7 @@
         }
 
         /// <summary>
-        /// Marks the value property or field as needed to be atomically modified.
+        /// Marks the value property or field as needed to be atomically modified; currently, it accepts only simple properties/fields, not nesting is currently allowed.
         /// This check is intended for private fields.
         /// Primitive values (numeric, boolean, char) can be read without locks, but reference types cannot.
         /// E.g. for class "Account", marking "x => x.IsModifiedAtomic("Address")" sets the "Address" property as modifiable only within synchronized access.
@@ -70,6 +72,17 @@
         /// specifies that the "Initialized" method is called only once when the flag "IsActive" is true.
         /// </summary>
         public static bool IsCalledOnce<T>(this T value)
+        {
+            // Return value does not matter - is only used for method marking
+            return false;
+        }
+
+        /// <summary>
+        /// Marks a function as modifies the state of an object.
+        /// E.g. for class "List<T>", the expression "x => x.ChangesState("Add")"
+        /// specifies that the "Add" method causes state modification to the List<T> instance.
+        /// </summary>
+        public static bool ChangesState<T>(this T value, string name)
         {
             // Return value does not matter - is only used for method marking
             return false;

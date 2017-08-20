@@ -5,8 +5,6 @@ VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Prometheus.Engine", "Prometheus.Engine\Prometheus.Engine.csproj", "{F7F4E934-570F-452C-B55E-2D9AFD52453C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Prometheus.Extensions", "Prometheus.Extensions\Prometheus.Extensions.csproj", "{D7EEAFFC-A7DC-49B8-AE0D-60D0B906DB59}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Prometheus.Engine.UnitTests", "Prometheus.Engine.UnitTests\Prometheus.Engine.UnitTests.csproj", "{3E82312C-4A61-46E4-9F86-9E00FFDCDE18}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Prometheus.Common", "Prometheus.Common\Prometheus.Common.csproj", "{3BD30A4C-160B-45E5-9700-2D1D8C4CF21E}"
@@ -29,10 +27,6 @@ Global
 		{F7F4E934-570F-452C-B55E-2D9AFD52453C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F7F4E934-570F-452C-B55E-2D9AFD52453C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F7F4E934-570F-452C-B55E-2D9AFD52453C}.Release|Any CPU.Build.0 = Release|Any CPU
-		{D7EEAFFC-A7DC-49B8-AE0D-60D0B906DB59}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{D7EEAFFC-A7DC-49B8-AE0D-60D0B906DB59}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{D7EEAFFC-A7DC-49B8-AE0D-60D0B906DB59}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{D7EEAFFC-A7DC-49B8-AE0D-60D0B906DB59}.Release|Any CPU.Build.0 = Release|Any CPU
 		{3E82312C-4A61-46E4-9F86-9E00FFDCDE18}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{3E82312C-4A61-46E4-9F86-9E00FFDCDE18}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3E82312C-4A61-46E4-9F86-9E00FFDCDE18}.Release|Any CPU.ActiveCfg = Release|Any CPU

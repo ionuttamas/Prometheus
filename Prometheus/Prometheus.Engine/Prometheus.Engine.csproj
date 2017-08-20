@@ -187,11 +187,14 @@
     <Compile Include="Atomic\AtomicAnalyzer.cs" />
     <Compile Include="Analyzer\IAnalysis.cs" />
     <Compile Include="Analyzer\IAnalyzer.cs" />
+    <Compile Include="Invariant\AtomicInvariant.cs" />
+    <Compile Include="ModelExtensions.cs" />
     <Compile Include="Parser\BooleanCondition.cs" />
     <Compile Include="Parser\ExpressionParser.cs" />
     <Compile Include="Parser\ICondition.cs" />
+    <Compile Include="Invariant\IInvariant.cs" />
     <Compile Include="Parser\NumericCondition.cs" />
-    <Compile Include="Parser\NumericOperator.cs" />
+    <Compile Include="Parser\Operator.cs" />
     <Compile Include="Parser\TypeConstraint.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Thread\IThreadAnalyzer.cs" />
@@ -211,10 +214,6 @@
     <ProjectReference Include="..\Prometheus.Common\Prometheus.Common.csproj">
       <Project>{3bd30a4c-160b-45e5-9700-2d1d8c4cf21e}</Project>
       <Name>Prometheus.Common</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Prometheus.Extensions\Prometheus.Extensions.csproj">
-      <Project>{d7eeaffc-a7dc-49b8-ae0d-60d0b906db59}</Project>
-      <Name>Prometheus.Extensions</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
