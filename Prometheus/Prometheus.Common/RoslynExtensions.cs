@@ -16,6 +16,20 @@ namespace Prometheus.Common
             return node.DescendantNodes().OfType<MethodDeclarationSyntax>().FirstOrDefault(x=>x.Identifier.Text==name);
         }
 
+        public static MethodDeclarationSyntax GetContainingMethod(this Location location)
+        {
+            MethodDeclarationSyntax callingMethod = location
+                .SourceTree
+                .GetRoot()
+                .FindToken(location.SourceSpan.Start)
+                .Parent
+                .AncestorsAndSelf()
+                .OfType<MethodDeclarationSyntax>()
+                .First();
+
+            return callingMethod;
+        }
+
         public static IEnumerable<T> AncestorNodes<T>(this SyntaxNode node) {
             return node.Ancestors(false).OfType<T>();
         }

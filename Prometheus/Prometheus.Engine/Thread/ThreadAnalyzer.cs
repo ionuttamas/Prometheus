@@ -115,14 +115,7 @@ namespace Prometheus.Engine.Thread
             }
 
             var result = new List<List<Location>>();
-            MethodDeclarationSyntax callingMethod = location
-                .SourceTree
-                .GetRoot()
-                .FindToken(location.SourceSpan.Start)
-                .Parent
-                .AncestorsAndSelf()
-                .OfType<MethodDeclarationSyntax>()
-                .First();
+            MethodDeclarationSyntax callingMethod = location.GetContainingMethod();
             Document document = project.Documents.First(x => x.FilePath == callingMethod.SyntaxTree.FilePath);
             IMethodSymbol methodSymbol = (IMethodSymbol)ModelExtensions.GetDeclaredSymbol(document.GetSemanticModelAsync().Result, callingMethod);
             IEnumerable<ReferencedSymbol> references = SymbolFinder.FindReferencesAsync(methodSymbol, solution).Result;

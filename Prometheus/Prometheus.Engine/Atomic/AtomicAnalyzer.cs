@@ -10,6 +10,7 @@ using Microsoft.CodeAnalysis.FindSymbols;
 using Prometheus.Common;
 using Prometheus.Engine.Analyzer;
 using Prometheus.Engine.Invariant;
+using Prometheus.Engine.Thread;
 
 namespace Prometheus.Engine
 {
@@ -18,18 +19,19 @@ namespace Prometheus.Engine
     /// </summary>
     public class AtomicAnalyzer : IAnalyzer
     {
-        private readonly string markingMethod;
         private readonly Workspace workspace;
+        private readonly ThreadSchedule threadSchedule;
 
-        public AtomicAnalyzer(Workspace workspace)
+        public AtomicAnalyzer(Workspace workspace, ThreadSchedule threadSchedule)
         {
             this.workspace = workspace;
-            markingMethod = nameof(Extensions.ModelExtensions.IsModifiedAtomic);
+            this.threadSchedule = threadSchedule;
         }
 
         public IAnalysis Analyze(IInvariant invariant)
         {
-            AnalyzePrivateMember();
+            var atomicInvariant = (AtomicInvariant) invariant;
+            AnalyzePrivateMember(atomicInvariant.Member);
 
             return new AtomicAnalysis();
         }
@@ -46,7 +48,7 @@ namespace Prometheus.Engine
             SemanticModel semanticModel = compilation.GetSemanticModel(classDeclaration.SyntaxTree);
             ISymbol memberSymbol = semanticModel.GetSymbolInfo(memberDeclaration).Symbol;
             IEnumerable<ReferencedSymbol> references = SymbolFinder.FindReferencesAsync(memberSymbol, solution).Result;
-
+            //references.
         }
     }
 }

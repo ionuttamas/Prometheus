@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq.Expressions;
 
 namespace Prometheus.Extensions
 {
@@ -79,6 +81,17 @@ namespace Prometheus.Extensions
 
         /// <summary>
         /// Marks a function as modifies the state of an object.
+        /// E.g. for class "List<T>", the expression "x => x.Remove(Args.Any()).ChangesState("Add")"
+        /// specifies that the "Remove" method causes state modification to the List<T> instance.
+        /// </summary>
+        public static bool ChangesState<T>(this T value)
+        {
+            // Return value does not matter - is only used for method marking
+            return false;
+        }
+
+        /// <summary>
+        /// Marks a function as modifies the state of an object.
         /// E.g. for class "List<T>", the expression "x => x.ChangesState("Add")"
         /// specifies that the "Add" method causes state modification to the List<T> instance.
         /// </summary>
@@ -86,6 +99,39 @@ namespace Prometheus.Extensions
         {
             // Return value does not matter - is only used for method marking
             return false;
+        }
+    }
+
+    public class Account
+    {
+        private List<Guid> transactionIds;
+
+        public decimal Balance { get; set; }
+        public bool IsApproved { get; set; }
+        public bool Initialize() { return true; }
+        public bool Transfer(int recipient, decimal amount) { return true; }
+    }
+
+    public class TestRunner
+    {
+        public void SetUp()
+        {
+            Expression<Func<List<object>, bool>> setup = x => x.Remove(Args.Any<object>()).ChangesState();
+        }
+
+        public void Run()
+        {
+            var account = new Account();
+            Expression<Func<Account, bool>> expression1 = x => x.IsCalledOnce("Initialize");
+            Expression<Func<Account, bool>> expression3 = x => x.Balance < 0 && x.Transfer(Args.Any<int>(), Args.Any<decimal>()).IsCalledOnce();
+        }
+    }
+
+    public static class Args
+    {
+        public static T Any<T>()
+        {
+            return default(T);
         }
     }
 }

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using Prometheus.Engine.Invariant;
 
@@ -57,67 +58,11 @@ namespace Prometheus.Engine.Parser
         private IInvariant ParseMethodCallExpression(Dictionary<string, Type> parameters, MethodCallExpression expression)
         {
             if (expression.ToString().Contains(IS_MODIFIED_ATOMIC_MARKER))
-                return GetAtomicInvariant(parameters, expression);
+                return null;
 
             //..TODO rest of invariants
 
             return null;
-        }
-
-        private AtomicInvariant GetAtomicInvariant(Dictionary<string, Type> parameters, MethodCallExpression expression)
-        {
-            if (expression.Arguments.Count == 1)
-                return GetPublicAtomicInvariant(parameters, expression);
-
-            return GetPrivateAtomicInvariant(parameters, expression);
-        }
-
-        private AtomicInvariant GetPublicAtomicInvariant(Dictionary<string, Type> parameters, MethodCallExpression expression)
-        {
-            string argument = expression.Arguments[0].ToString();
-            string[] memberTokens = convertAtomicMemberRegex.IsMatch(argument) ?
-                                    convertAtomicMemberRegex.Match(argument).Groups[1].Value.Split('.'):
-                                    argument.Split('.');
-
-            if(memberTokens.Length > 2)
-                throw new ArgumentException("Specified invariant contains nested arguments; only one level member reference is allowed");
-
-            if (memberTokens.Length != 2)
-                throw new ArgumentException("A member must be specified for the given type");
-
-            string parameter = memberTokens[0];
-            string member = memberTokens[1];
-
-            if (!parameters.ContainsKey(parameter))
-                throw new ArgumentException("Specified invariant is invalid; only one level member reference is allowed per type (either private or public member)");
-
-            var invariant = new AtomicInvariant
-            {
-                Type = parameters[parameter],
-                Member = member
-            };
-
-            return invariant;
-        }
-
-        private AtomicInvariant GetPrivateAtomicInvariant(Dictionary<string, Type> parameters, MethodCallExpression expression)
-        {
-            string parameter = expression.Arguments[0].ToString();
-            string member = expression.Arguments[1].ToString();
-
-            if (member.Contains("."))
-                throw new ArgumentException("Specified invariant contains nested arguments; only one level member reference is allowed");
-
-            if (!parameters.ContainsKey(parameter))
-                throw new ArgumentException("Specified invariant is invalid; only one level member reference is allowed per type (either private or public member)");
-
-            var invariant = new AtomicInvariant
-            {
-                Type = parameters[parameter],
-                Member = member
-            };
-
-            return invariant;
         }
     }
 
