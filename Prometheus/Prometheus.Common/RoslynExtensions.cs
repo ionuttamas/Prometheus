@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Linq;
+using Microsoft.CodeAnalysis.FindSymbols;
 
 namespace Prometheus.Common
 {
@@ -9,6 +11,10 @@ namespace Prometheus.Common
     {
         public static IEnumerable<T> DescendantNodes<T>(this SyntaxNode node) {
             return node.DescendantNodes().OfType<T>();
+        }
+
+        public static SyntaxNode GetSyntaxNode(this SyntaxTree tree, ReferenceLocation location) {
+            return tree.GetRoot().FindNode(location.Location.SourceSpan);
         }
 
         public static MethodDeclarationSyntax GetMethod(this SyntaxNode node, string name)
@@ -34,12 +40,15 @@ namespace Prometheus.Common
             return node.Ancestors(false).OfType<T>();
         }
 
-        public static ClassDeclarationSyntax GetClassDeclaration(this Compilation compilation, string fullClassName)
+        public static ClassDeclarationSyntax GetClassDeclaration(this Compilation compilation, Type type)
         {
             ClassDeclarationSyntax classDeclaration = compilation
                 .SyntaxTrees
                 .SelectMany(x => x.GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>())
-                .First(x => x.GetFullName() == fullClassName);
+                .Select(x=> new { Symbol = x.GetSemanticModel(compilation).GetDeclaredSymbol(x), Declaration = x})
+                .First(x => x.Symbol.ContainingNamespace.ToString() == type.Namespace && //TODO: x.Symbol.ContainingAssembly.Identity.ToString() == type.Assembly.FullName &&
+                            x.Symbol.MetadataName==type.Name)
+                .Declaration;
 
             return classDeclaration;
         }

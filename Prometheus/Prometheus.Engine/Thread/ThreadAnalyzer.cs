@@ -15,6 +15,7 @@ namespace Prometheus.Engine.Thread
     public class ThreadAnalyzer : IThreadAnalyzer
     {
         private readonly Solution solution;
+
         public ThreadAnalyzer(Solution solution)
         {
             this.solution = solution;

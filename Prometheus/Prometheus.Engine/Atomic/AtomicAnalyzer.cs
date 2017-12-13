@@ -4,6 +4,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.FindSymbols;
@@ -19,13 +20,19 @@ namespace Prometheus.Engine
     /// </summary>
     public class AtomicAnalyzer : IAnalyzer
     {
-        private readonly Workspace workspace;
+        private readonly Solution solution;
         private readonly ThreadSchedule threadSchedule;
+        private ModelStateConfiguration configuration;
 
-        public AtomicAnalyzer(Workspace workspace, ThreadSchedule threadSchedule)
+        public AtomicAnalyzer(Solution solution, ThreadSchedule threadSchedule)
         {
-            this.workspace = workspace;
+            this.solution = solution;
             this.threadSchedule = threadSchedule;
+        }
+
+        public void AddConfiguration(ModelStateConfiguration configuration)
+        {
+            this.configuration = configuration;
         }
 
         public IAnalysis Analyze(IInvariant invariant)
@@ -40,15 +47,36 @@ namespace Prometheus.Engine
         {
             Type type = member.DeclaringType;
             string assemblyName = type.Assembly.GetName().Name;
-            Solution solution = workspace.CurrentSolution;
             Project project = solution.Projects.First(x => x.AssemblyName == assemblyName);
             Compilation compilation = project.GetCompilation();
-            ClassDeclarationSyntax classDeclaration = compilation.GetClassDeclaration(type.FullName);
-            MemberDeclarationSyntax memberDeclaration = classDeclaration.GetMemberDeclaration(member.Name);
-            SemanticModel semanticModel = compilation.GetSemanticModel(classDeclaration.SyntaxTree);
-            ISymbol memberSymbol = semanticModel.GetSymbolInfo(memberDeclaration).Symbol;
-            IEnumerable<ReferencedSymbol> references = SymbolFinder.FindReferencesAsync(memberSymbol, solution).Result;
-            //references.
+            ISymbol memberSymbol = compilation.GetTypeByMetadataName($"{type.Namespace}.{type.Name}").GetMembers(member.Name).First();
+            List<ReferenceLocation> locations = SymbolFinder.FindReferencesAsync(memberSymbol, solution).Result.SelectMany(x=>x.Locations).ToList();
+
+            foreach (ReferenceLocation location in locations)
+            {
+                var identifierNode = compilation
+                    .SyntaxTrees
+                    .First(x => x.FilePath == location.Document.FilePath)
+                    .GetSyntaxNode(location) as IdentifierNameSyntax;
+                var memberAccessNode = identifierNode.Parent as MemberAccessExpressionSyntax;
+
+                if (memberAccessNode?.Expression is IdentifierNameSyntax)
+                {
+                    var methodName = ((IdentifierNameSyntax) memberAccessNode?.Expression).Identifier.Text; //TODO: check method signature, not only its name
+                    var changesState = configuration.IsStateChanging(type, methodName);
+                }
+
+                Console.WriteLine(identifierNode.GetType());
+            }
+        }
+
+        private void AnalyzeStateChanges()
+        {
+
+        }
+
+        private void AnalyzeModelWrites() {
+
         }
     }
 }
