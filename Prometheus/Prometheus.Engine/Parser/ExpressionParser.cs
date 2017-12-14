@@ -4,7 +4,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using Prometheus.Engine.Invariant;
+using Prometheus.Engine.Models;
 
 namespace Prometheus.Engine.Parser
 {

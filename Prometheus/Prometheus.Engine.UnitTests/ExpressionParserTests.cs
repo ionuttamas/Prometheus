@@ -3,9 +3,9 @@ using System.Linq;
 using System.Linq.Expressions;
 using Microsoft.CodeAnalysis.MSBuild;
 using NUnit.Framework;
-using Prometheus.Engine.Invariant;
+using Prometheus.Engine.Atomic;
+using Prometheus.Engine.Models;
 using Prometheus.Engine.Parser;
-using Prometheus.Extensions;
 
 namespace Prometheus.Engine.UnitTests
 {

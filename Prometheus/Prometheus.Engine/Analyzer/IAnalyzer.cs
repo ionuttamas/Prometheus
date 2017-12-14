@@ -1,10 +1,14 @@
-﻿using Prometheus.Engine.Invariant;
+﻿using Microsoft.CodeAnalysis;
+using Prometheus.Engine.Models;
+using Prometheus.Engine.Thread;
 
 namespace Prometheus.Engine.Analyzer
 {
     public interface IAnalyzer
     {
-        void AddConfiguration(ModelStateConfiguration configuration);
+        Solution Solution { get; set; }
+        ThreadSchedule ThreadSchedule { get; set; }
+        ModelStateConfiguration ModelStateConfiguration { get; set; }
         IAnalysis Analyze(IInvariant invariant);
     }
 }

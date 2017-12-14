@@ -8,9 +8,10 @@ using Microsoft.CodeAnalysis.Text;
 using NUnit.Framework;
 using Prometheus.Common;
 using Prometheus.Engine.Analyzer;
-using Prometheus.Engine.Invariant;
+using Prometheus.Engine.Atomic;
+using Prometheus.Engine.Models;
 using Prometheus.Engine.Thread;
-using Prometheus.Extensions;
+using Prometheus.Engine.Verifier;
 using TestProject.Common;
 
 namespace Prometheus.Engine.UnitTests
@@ -27,7 +28,11 @@ namespace Prometheus.Engine.UnitTests
             workspace.LoadMetadataForReferencedProjects = true;
             var solution = workspace.OpenSolutionAsync(@"C:\Users\tamas\Documents\Github\Prometheus\Prometheus\Prometheus.sln").Result;
             ThreadSchedule threadSchedule = new ThreadAnalyzer(solution).GetThreadSchedule(solution.Projects.First(x => x.Name == "TestProject.GUI"));
-            atomicAnalyzer = new AtomicAnalyzer(solution, threadSchedule);
+            atomicAnalyzer = new AtomicAnalyzer
+            {
+                Solution = solution,
+                ThreadSchedule = threadSchedule
+            };
         }
 
         [TearDown]
@@ -46,7 +51,7 @@ namespace Prometheus.Engine.UnitTests
             var atomicInvariant = AtomicInvariant
                 .Empty
                 .WithExpression<AtomicQueue<object>>(x => x.IsModifiedAtomic("list"));
-            atomicAnalyzer.AddConfiguration(modelStateConfig);
+            atomicAnalyzer.ModelStateConfiguration = modelStateConfig;
             var analysis = atomicAnalyzer.Analyze(atomicInvariant).As<AtomicAnalysis>();
 
             Assert.True(analysis.UnmatchedLock==null);
@@ -63,7 +68,7 @@ namespace Prometheus.Engine.UnitTests
             var atomicInvariant = AtomicInvariant
                 .Empty
                 .WithExpression<DeadlockedQueue<object>>(x => x.IsModifiedAtomic("list"));
-            atomicAnalyzer.AddConfiguration(modelStateConfig);
+            atomicAnalyzer.ModelStateConfiguration = modelStateConfig;
             var analysis = atomicAnalyzer.Analyze(atomicInvariant).As<AtomicAnalysis>();
 
             Assert.True(analysis.UnmatchedLock == null);
@@ -80,7 +85,7 @@ namespace Prometheus.Engine.UnitTests
             var atomicInvariant = AtomicInvariant
                 .Empty
                 .WithExpression<NonAtomicQueue<object>>(x => x.IsModifiedAtomic("list"));
-            atomicAnalyzer.AddConfiguration(modelStateConfig);
+            atomicAnalyzer.ModelStateConfiguration = modelStateConfig;
             var analysis = atomicAnalyzer.Analyze(atomicInvariant).As<AtomicAnalysis>();
 
             Assert.True(analysis.UnmatchedLock != null);

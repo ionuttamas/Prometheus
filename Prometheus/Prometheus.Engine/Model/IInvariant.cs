@@ -1,4 +1,4 @@
-﻿namespace Prometheus.Engine.Invariant
+﻿namespace Prometheus.Engine.Models
 {
     public interface IInvariant
     {

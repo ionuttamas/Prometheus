@@ -1,39 +1,25 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Reflection;
-using System.Text.RegularExpressions;
-using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.FindSymbols;
 using Prometheus.Common;
 using Prometheus.Engine.Analyzer;
-using Prometheus.Engine.Invariant;
+using Prometheus.Engine.Models;
 using Prometheus.Engine.Thread;
 
-namespace Prometheus.Engine
+namespace Prometheus.Engine.Atomic
 {
     /// <summary>
     /// This checker verifies if a variable is updated atomically within a code base.
     /// </summary>
-    public class AtomicAnalyzer : IAnalyzer
+    internal class AtomicAnalyzer : IAnalyzer
     {
-        private readonly Solution solution;
-        private readonly ThreadSchedule threadSchedule;
-        private ModelStateConfiguration configuration;
-
-        public AtomicAnalyzer(Solution solution, ThreadSchedule threadSchedule)
-        {
-            this.solution = solution;
-            this.threadSchedule = threadSchedule;
-        }
-
-        public void AddConfiguration(ModelStateConfiguration configuration)
-        {
-            this.configuration = configuration;
-        }
+        public Solution Solution { get; set; }
+        public ThreadSchedule ThreadSchedule { get; set; }
+        public ModelStateConfiguration ModelStateConfiguration { get; set; }
 
         public IAnalysis Analyze(IInvariant invariant)
         {
@@ -46,10 +32,10 @@ namespace Prometheus.Engine
             Type type = member.DeclaringType;
             string assemblyName = type.Assembly.GetName().Name;
             var typeName = $"{type.Namespace}.{type.Name}";
-            Project project = solution.Projects.First(x => x.AssemblyName == assemblyName);
+            Project project = Solution.Projects.First(x => x.AssemblyName == assemblyName);
             Compilation compilation = project.GetCompilation();
             ISymbol memberSymbol = compilation.GetTypeByMetadataName(typeName).GetMembers(member.Name).First();
-            List<ReferenceLocation> locations = SymbolFinder.FindReferencesAsync(memberSymbol, solution).Result.SelectMany(x=>x.Locations).ToList();
+            List<ReferenceLocation> locations = SymbolFinder.FindReferencesAsync(memberSymbol, Solution).Result.SelectMany(x=>x.Locations).ToList();
             var classDeclaration = compilation.GetTypeByMetadataName(typeName).DeclaringSyntaxReferences[0].GetSyntax().As<ClassDeclarationSyntax>();
             var lockChains = new List<List<LockContext>>();
 
@@ -65,7 +51,7 @@ namespace Prometheus.Engine
                 if (memberAccessNode?.Expression is IdentifierNameSyntax)
                 {
                     var methodName = ((IdentifierNameSyntax) memberAccessNode.Name).Identifier.Text; //TODO: check method signature, not only its name
-                    var changesState = configuration.ChangesState(member.GetUnderlyingType(), methodName);
+                    var changesState = ModelStateConfiguration.ChangesState(member.GetUnderlyingType(), methodName);
 
                     if (!changesState)
                         continue;
@@ -103,7 +89,7 @@ namespace Prometheus.Engine
 
             var methodSymbol = methodDeclaration.GetSemanticModel(compilation).GetSymbolInfo(methodDeclaration).Symbol;
 
-            foreach (ReferenceLocation location in SymbolFinder.FindReferencesAsync(methodSymbol, solution).Result.SelectMany(x => x.Locations))
+            foreach (ReferenceLocation location in SymbolFinder.FindReferencesAsync(methodSymbol, Solution).Result.SelectMany(x => x.Locations))
             {
                 if (!classNode.GetLocation().SourceSpan.Contains(location.Location.SourceSpan))
                     continue;
@@ -236,26 +222,6 @@ namespace Prometheus.Engine
             {
                 MatchingLocks = new List<LockContext>();
             }
-        }
-    }
-
-    public class LockContext {
-        public string LockInstance { get; set; }
-        public LockStatementSyntax LockStatementSyntax { get; set; }
-        public MethodDeclarationSyntax Method { get; set; }
-
-        public override bool Equals(object obj)
-        {
-            if (!(obj is LockContext))
-                return false;
-
-            var lockContext = (LockContext) obj;
-
-            return LockInstance == lockContext.LockInstance && Method.GetLocation() == lockContext.Method.GetLocation();
-        }
-
-        public override int GetHashCode() {
-            return LockInstance.GetHashCode();
         }
     }
 }

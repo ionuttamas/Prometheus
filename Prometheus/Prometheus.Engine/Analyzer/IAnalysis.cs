@@ -1,4 +1,4 @@
-﻿namespace Prometheus.Engine
+﻿namespace Prometheus.Engine.Analyzer
 {
     /// <summary>
     /// Marker interface for code analysis result.
