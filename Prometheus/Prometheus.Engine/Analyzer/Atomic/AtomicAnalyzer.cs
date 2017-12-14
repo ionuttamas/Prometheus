@@ -6,11 +6,10 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.FindSymbols;
 using Prometheus.Common;
-using Prometheus.Engine.Analyzer;
-using Prometheus.Engine.Models;
+using Prometheus.Engine.Model;
 using Prometheus.Engine.Thread;
 
-namespace Prometheus.Engine.Atomic
+namespace Prometheus.Engine.Analyzer.Atomic
 {
     /// <summary>
     /// This checker verifies if a variable is updated atomically within a code base.

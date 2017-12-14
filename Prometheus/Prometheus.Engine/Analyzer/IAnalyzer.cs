@@ -1,5 +1,5 @@
 ﻿using Microsoft.CodeAnalysis;
-using Prometheus.Engine.Models;
+using Prometheus.Engine.Model;
 using Prometheus.Engine.Thread;
 
 namespace Prometheus.Engine.Analyzer

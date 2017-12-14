@@ -1,6 +1,6 @@
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Prometheus.Engine.Models
+namespace Prometheus.Engine.Analyzer
 {
     public class LockContext {
         public string LockInstance { get; set; }

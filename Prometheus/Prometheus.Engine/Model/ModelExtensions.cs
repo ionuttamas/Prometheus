@@ -1,4 +1,4 @@
-﻿namespace Prometheus.Engine.Models
+﻿namespace Prometheus.Engine.Model
 {
     /// <summary>
     /// Class that contains various marking extensions for formal model state verification.

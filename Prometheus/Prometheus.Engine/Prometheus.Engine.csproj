@@ -185,17 +185,17 @@
   <ItemGroup>
     <Compile Include="Verifier\Args.cs" />
     <Compile Include="Model\ModelStateConfiguration.cs" />
-    <Compile Include="Atomic\AtomicAnalysis.cs" />
-    <Compile Include="Atomic\AtomicAnalyzer.cs" />
+    <Compile Include="Analyzer\Atomic\AtomicAnalysis.cs" />
+    <Compile Include="Analyzer\Atomic\AtomicAnalyzer.cs" />
     <Compile Include="Analyzer\IAnalysis.cs" />
     <Compile Include="Analyzer\IAnalyzer.cs" />
-    <Compile Include="Model\LockContext.cs" />
-    <Compile Include="Atomic\AtomicInvariant.cs" />
+    <Compile Include="Analyzer\LockContext.cs" />
+    <Compile Include="Analyzer\Atomic\AtomicInvariant.cs" />
     <Compile Include="Model\ModelExtensions.cs" />
     <Compile Include="Parser\BooleanCondition.cs" />
     <Compile Include="Parser\ExpressionParser.cs" />
     <Compile Include="Parser\ICondition.cs" />
-    <Compile Include="Model\IInvariant.cs" />
+    <Compile Include="Analyzer\IInvariant.cs" />
     <Compile Include="Parser\NumericCondition.cs" />
     <Compile Include="Parser\Operator.cs" />
     <Compile Include="Parser\TypeConstraint.cs" />

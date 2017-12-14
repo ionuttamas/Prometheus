@@ -3,9 +3,8 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using Prometheus.Engine.Models;
 
-namespace Prometheus.Engine.Atomic
+namespace Prometheus.Engine.Analyzer.Atomic
 {
     public class AtomicInvariant : IInvariant
     {

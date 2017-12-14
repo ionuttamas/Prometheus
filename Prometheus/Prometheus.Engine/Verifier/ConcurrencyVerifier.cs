@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Prometheus.Engine.Analyzer;
-using Prometheus.Engine.Atomic;
-using Prometheus.Engine.Models;
+using Prometheus.Engine.Analyzer.Atomic;
+using Prometheus.Engine.Model;
 using Prometheus.Engine.Thread;
 
 namespace Prometheus.Engine.Verifier
@@ -22,6 +22,13 @@ namespace Prometheus.Engine.Verifier
             {
                 {typeof(AtomicInvariant), new AtomicAnalyzer()}
             };
+        }
+
+        public ConcurrencyVerifier WithAnalyzer(IAnalyzer analyzer)
+        {
+            analyzers[analyzer.GetType()] = analyzer;
+
+            return this;
         }
 
         public ConcurrencyVerifier WithSolution(string solutionPath)

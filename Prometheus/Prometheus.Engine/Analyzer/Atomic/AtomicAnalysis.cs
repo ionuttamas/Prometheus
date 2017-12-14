@@ -1,7 +1,4 @@
-using Prometheus.Engine.Analyzer;
-using Prometheus.Engine.Model;
-
-namespace Prometheus.Engine.Atomic
+namespace Prometheus.Engine.Analyzer.Atomic
 {
     public class AtomicAnalysis : IAnalysis
     {

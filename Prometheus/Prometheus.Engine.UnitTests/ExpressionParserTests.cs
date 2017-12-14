@@ -3,8 +3,8 @@ using System.Linq;
 using System.Linq.Expressions;
 using Microsoft.CodeAnalysis.MSBuild;
 using NUnit.Framework;
-using Prometheus.Engine.Atomic;
-using Prometheus.Engine.Models;
+using Prometheus.Engine.Analyzer.Atomic;
+using Prometheus.Engine.Model;
 using Prometheus.Engine.Parser;
 
 namespace Prometheus.Engine.UnitTests

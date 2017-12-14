@@ -4,7 +4,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace Prometheus.Engine.Models
+namespace Prometheus.Engine.Model
 {
     public class ModelStateConfiguration
     {
