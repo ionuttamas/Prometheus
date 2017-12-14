@@ -23,6 +23,24 @@ namespace Prometheus.Common
             throw new InvalidCastException("Only FieldInfo and PropertyInfo are supported");
         }
 
+        public static Type GetUnderlyingType(this MemberInfo member) {
+            switch (member.MemberType) {
+                case MemberTypes.Event:
+                    return ((EventInfo)member).EventHandlerType;
+                case MemberTypes.Field:
+                    return ((FieldInfo)member).FieldType;
+                case MemberTypes.Method:
+                    return ((MethodInfo)member).ReturnType;
+                case MemberTypes.Property:
+                    return ((PropertyInfo)member).PropertyType;
+                default:
+                    throw new ArgumentException
+                    (
+                     "Input MemberInfo must be if type EventInfo, FieldInfo, MethodInfo, or PropertyInfo"
+                    );
+            }
+        }
+
         public static Expression GetExpression(this PropertyInfo propertyInfo, Type type)
         {
             ParameterExpression parameter = Expression.Parameter(type, "x");

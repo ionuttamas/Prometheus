@@ -21,7 +21,7 @@ namespace Prometheus.Engine.Analyzer
         {
             var type = typeof (T);
 
-            if (stateChangeMethods.ContainsKey(type))
+            if (!stateChangeMethods.ContainsKey(type))
             {
                 stateChangeMethods[type] = new List<MethodInfo>();
             }
@@ -31,7 +31,7 @@ namespace Prometheus.Engine.Analyzer
         }
 
         //TODO: need to check the method as a whole not just its name
-        public bool IsStateChanging(Type type, string methodName)
+        public bool ChangesState(Type type, string methodName)
         {
             if (!stateChangeMethods.ContainsKey(type))
                 return false;

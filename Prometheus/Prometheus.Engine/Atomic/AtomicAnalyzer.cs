@@ -38,45 +38,224 @@ namespace Prometheus.Engine
         public IAnalysis Analyze(IInvariant invariant)
         {
             var atomicInvariant = (AtomicInvariant) invariant;
-            AnalyzePrivateMember(atomicInvariant.Member);
-
-            return new AtomicAnalysis();
+            return AnalyzePrivateMember(atomicInvariant.Member);
         }
 
-        private void AnalyzePrivateMember(MemberInfo member)
+        private IAnalysis AnalyzePrivateMember(MemberInfo member)
         {
             Type type = member.DeclaringType;
             string assemblyName = type.Assembly.GetName().Name;
+            var typeName = $"{type.Namespace}.{type.Name}";
             Project project = solution.Projects.First(x => x.AssemblyName == assemblyName);
             Compilation compilation = project.GetCompilation();
-            ISymbol memberSymbol = compilation.GetTypeByMetadataName($"{type.Namespace}.{type.Name}").GetMembers(member.Name).First();
+            ISymbol memberSymbol = compilation.GetTypeByMetadataName(typeName).GetMembers(member.Name).First();
             List<ReferenceLocation> locations = SymbolFinder.FindReferencesAsync(memberSymbol, solution).Result.SelectMany(x=>x.Locations).ToList();
+            var classDeclaration = compilation.GetTypeByMetadataName(typeName).DeclaringSyntaxReferences[0].GetSyntax().As<ClassDeclarationSyntax>();
+            var lockChains = new List<List<LockContext>>();
 
             foreach (ReferenceLocation location in locations)
             {
-                var identifierNode = compilation
+                var identifierNode = (IdentifierNameSyntax)compilation
                     .SyntaxTrees
                     .First(x => x.FilePath == location.Document.FilePath)
-                    .GetSyntaxNode(location) as IdentifierNameSyntax;
+                    .GetSyntaxNode(location);
                 var memberAccessNode = identifierNode.Parent as MemberAccessExpressionSyntax;
 
+                //TODO: need to also check field referencing and changing: e.g. "var newList = list;" => track if newList is modified atomically
                 if (memberAccessNode?.Expression is IdentifierNameSyntax)
                 {
-                    var methodName = ((IdentifierNameSyntax) memberAccessNode?.Expression).Identifier.Text; //TODO: check method signature, not only its name
-                    var changesState = configuration.IsStateChanging(type, methodName);
+                    var methodName = ((IdentifierNameSyntax) memberAccessNode.Name).Identifier.Text; //TODO: check method signature, not only its name
+                    var changesState = configuration.ChangesState(member.GetUnderlyingType(), methodName);
+
+                    if (!changesState)
+                        continue;
+
+                    var locks = ExtractLocks(memberAccessNode, compilation, classDeclaration);
+                    lockChains.AddRange(locks);
+                }
+            }
+
+            var result = ProcessAnalysis(lockChains);
+
+            return result;
+        }
+
+        private List<List<LockContext>> ExtractLocks(SyntaxNode node, Compilation compilation, ClassDeclarationSyntax classNode)
+        {
+            var currentNode = node;
+            var methodDeclaration = node.AncestorNodes<MethodDeclarationSyntax>().FirstOrDefault();
+            var lockNode = currentNode.AncestorNodes<LockStatementSyntax>().FirstOrDefault();
+            var lockContexts = new List<LockContext>();
+            var result = new List<List<LockContext>>();
+
+            while (lockNode!=null)
+            {
+                var lockContext = new LockContext
+                {
+                    LockInstance = lockNode.Expression.ToString(),
+                    LockStatementSyntax = lockNode,
+                    Method = methodDeclaration
+                };
+                lockContexts.Add(lockContext);
+                currentNode = lockNode;
+                lockNode = currentNode.AncestorNodes<LockStatementSyntax>().FirstOrDefault();
+            }
+
+            var methodSymbol = methodDeclaration.GetSemanticModel(compilation).GetSymbolInfo(methodDeclaration).Symbol;
+
+            foreach (ReferenceLocation location in SymbolFinder.FindReferencesAsync(methodSymbol, solution).Result.SelectMany(x => x.Locations))
+            {
+                if (!classNode.GetLocation().SourceSpan.Contains(location.Location.SourceSpan))
+                    continue;
+
+                var invocationNode = compilation
+                    .SyntaxTrees
+                    .First(x => x.FilePath == location.Document.FilePath)
+                    .GetSyntaxNode(location) as InvocationExpressionSyntax;
+                var invocationCallsLocks = ExtractLocks(invocationNode, compilation, classNode);
+
+                foreach (List<LockContext> invocationLocks in invocationCallsLocks)
+                {
+                    invocationLocks.InsertRange(0, lockContexts);
+                    result.Add(invocationLocks);
+                }
+            }
+
+            if (!result.Any())
+            {
+                result.Add(lockContexts);
+            }
+
+            return result;
+        }
+
+        private AtomicAnalysis ProcessAnalysis(List<List<LockContext>> locks)
+        {
+            var lockInterleavings = new List<LockInterleaving>();
+
+            for (int i = 0; i < locks.Count-1; i++)
+            {
+                for (int j = i+1; j < locks.Count; j++)
+                {
+                    var lockInterleaving = ProcessLocksInterleaving(locks[i], locks[j]);
+
+                    if (lockInterleaving.HasErrors)
+                    {
+                        return new AtomicAnalysis
+                        {
+                            FirstDeadlockLock = lockInterleaving.FirstDeadlockLock,
+                            SecondDeadlockLock = lockInterleaving.SecondDeadlockLock,
+                            UnmatchedLock = lockInterleaving.UnmatchedLock
+                        };
+                    }
+
+                    lockInterleavings.Add(lockInterleaving);
+                }
+            }
+
+            /* TODO: not necessary var matchingLocks = lockInterleavings.Select(x => x.MatchingLocks).ToList();
+            var protectionLocks = matchingLocks
+                .Skip(1)
+                .Aggregate(new HashSet<LockContext>(matchingLocks.First()),
+                        (agg, x) =>
+                        {
+                            agg.IntersectWith(x);
+                            return agg;
+                        });
+
+            if(protectionLocks.Count==0)*/
+            return new AtomicAnalysis();
+        }
+
+        private LockInterleaving ProcessLocksInterleaving(List<LockContext> firstLocks, List<LockContext> secondLocks)
+        {
+            var result = new LockInterleaving();
+
+            if(firstLocks.Count==0 && secondLocks.Count==0)
+                return result;
+
+            if (firstLocks.Count == 0) {
+                result.UnmatchedLock = secondLocks[0];
+                return result;
+            }
+
+            if (secondLocks.Count == 0)
+            {
+                result.UnmatchedLock = firstLocks[0];
+                return result;
+            }
+
+            for (int i = 0; i < firstLocks.Count; i++)
+            {
+                var matchSecondLockIndex = secondLocks.FindIndex(x => x.LockInstance==firstLocks[i].LockInstance);
+
+                if (matchSecondLockIndex > i)
+                {
+                    for (int j = 0; j < matchSecondLockIndex; j++)
+                    {
+                        var matchFirstLockIndex = firstLocks.FindIndex(x => x.LockInstance == secondLocks[j].LockInstance);
+
+                        if (matchFirstLockIndex > i)
+                        {
+                            result.FirstDeadlockLock = firstLocks[i];
+                            result.SecondDeadlockLock = secondLocks[j];
+                            result.MatchingLocks.Clear();
+
+                            return result;
+                        }
+                    }
                 }
 
-                Console.WriteLine(identifierNode.GetType());
+                if (matchSecondLockIndex >= 0)
+                {
+                    result.MatchingLocks.Add(firstLocks[i]);
+                }
+                else
+                {
+                    result.UnmatchedLock = firstLocks[i];
+                }
+            }
+
+            if (result.MatchingLocks.Any())
+            {
+                result.UnmatchedLock = null;
+            }
+
+            return result;
+        }
+
+        private class LockInterleaving
+        {
+            public List<LockContext> MatchingLocks { get; set; }
+            public LockContext FirstDeadlockLock { get; set; }
+            public LockContext SecondDeadlockLock { get; set; }
+            public LockContext UnmatchedLock { get; set; }
+            public bool HasErrors => MatchingLocks.Count == 0 || FirstDeadlockLock != null || UnmatchedLock != null;
+
+            public LockInterleaving()
+            {
+                MatchingLocks = new List<LockContext>();
             }
         }
+    }
 
-        private void AnalyzeStateChanges()
+    public class LockContext {
+        public string LockInstance { get; set; }
+        public LockStatementSyntax LockStatementSyntax { get; set; }
+        public MethodDeclarationSyntax Method { get; set; }
+
+        public override bool Equals(object obj)
         {
+            if (!(obj is LockContext))
+                return false;
 
+            var lockContext = (LockContext) obj;
+
+            return LockInstance == lockContext.LockInstance && Method.GetLocation() == lockContext.Method.GetLocation();
         }
 
-        private void AnalyzeModelWrites() {
-
+        public override int GetHashCode() {
+            return LockInstance.GetHashCode();
         }
     }
 }

@@ -37,19 +37,55 @@ namespace Prometheus.Engine.UnitTests
         }
 
         [Test]
-        public void AtomicAnalyzer_WithAtomicityAnalyzer()
+        public void AtomicAnalyzer_ForAtomicQueue_AnalyzesCorrectly()
         {
             var modelStateConfig = ModelStateConfiguration
                 .Empty
                 .ChangesState<LinkedList<object>>(x => x.RemoveLast())
-                .ChangesState<LinkedList<object>>(x => x.AddFirst(Args.Any<object>()))
-                .ChangesState<AtomicQueue<object>>(x => x.Enqueue(Args.Any<object>()))
-                .ChangesState<AtomicQueue<object>>(x => x.Dequeue());
+                .ChangesState<LinkedList<object>>(x => x.AddFirst(Args.Any<object>()));
             var atomicInvariant = AtomicInvariant
                 .Empty
                 .WithExpression<AtomicQueue<object>>(x => x.IsModifiedAtomic("list"));
             atomicAnalyzer.AddConfiguration(modelStateConfig);
-            atomicAnalyzer.Analyze(atomicInvariant);
+            var analysis = atomicAnalyzer.Analyze(atomicInvariant).As<AtomicAnalysis>();
+
+            Assert.True(analysis.UnmatchedLock==null);
+            Assert.True(analysis.FirstDeadlockLock==null);
+            Assert.True(analysis.FirstDeadlockLock == null);
+        }
+
+        [Test]
+        public void AtomicAnalyzer_ForDeadlockedQueue_AnalyzesCorrectly() {
+            var modelStateConfig = ModelStateConfiguration
+                .Empty
+                .ChangesState<LinkedList<object>>(x => x.RemoveLast())
+                .ChangesState<LinkedList<object>>(x => x.AddFirst(Args.Any<object>()));
+            var atomicInvariant = AtomicInvariant
+                .Empty
+                .WithExpression<DeadlockedQueue<object>>(x => x.IsModifiedAtomic("list"));
+            atomicAnalyzer.AddConfiguration(modelStateConfig);
+            var analysis = atomicAnalyzer.Analyze(atomicInvariant).As<AtomicAnalysis>();
+
+            Assert.True(analysis.UnmatchedLock == null);
+            Assert.True(analysis.FirstDeadlockLock != null);
+            Assert.True(analysis.SecondDeadlockLock != null);
+        }
+
+        [Test]
+        public void AtomicAnalyzer_ForNonAtomicQueue_AnalyzesCorrectly() {
+            var modelStateConfig = ModelStateConfiguration
+                .Empty
+                .ChangesState<LinkedList<object>>(x => x.RemoveLast())
+                .ChangesState<LinkedList<object>>(x => x.AddFirst(Args.Any<object>()));
+            var atomicInvariant = AtomicInvariant
+                .Empty
+                .WithExpression<NonAtomicQueue<object>>(x => x.IsModifiedAtomic("list"));
+            atomicAnalyzer.AddConfiguration(modelStateConfig);
+            var analysis = atomicAnalyzer.Analyze(atomicInvariant).As<AtomicAnalysis>();
+
+            Assert.True(analysis.UnmatchedLock != null);
+            Assert.True(analysis.FirstDeadlockLock == null);
+            Assert.True(analysis.SecondDeadlockLock == null);
         }
     }
 }
