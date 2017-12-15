@@ -2,7 +2,8 @@ using System.Collections.Generic;
 
 namespace TestProject.Common
 {
-    public class NonAtomicUsedStack<T> {
+    public class NonAtomicUsedStack<T>
+    {
         public LinkedList<T> List { get; set; }
 
         public NonAtomicUsedStack() {

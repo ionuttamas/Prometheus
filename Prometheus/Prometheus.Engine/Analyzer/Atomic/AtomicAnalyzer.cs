@@ -101,21 +101,29 @@ namespace Prometheus.Engine.Analyzer.Atomic
                 if (ThreadSchedule.GetThreadPath(Solution, location.Location) == null)
                     continue;
 
+                compilation = Solution.Projects.First(x => x.ContainsDocument(location.Document.Id)).GetCompilation();
+
                 var identifierNode = (IdentifierNameSyntax)compilation
                     .SyntaxTrees
                     .First(x => x.FilePath == location.Document.FilePath)
                     .GetSyntaxNode(location);
-                var memberAccessNode = identifierNode.Parent as MemberAccessExpressionSyntax;
+                MemberAccessExpressionSyntax memberAccessNode = identifierNode.Parent.Parent as MemberAccessExpressionSyntax;
+
+                if (memberAccessNode == null)
+                {
+                    memberAccessNode = identifierNode.Parent as MemberAccessExpressionSyntax;
+                }
 
                 //TODO: need to also check field referencing and changing: e.g. "var newList = list;" => track if newList is modified atomically
-                if (memberAccessNode?.Expression is IdentifierNameSyntax) {
+                //TODO: instance reference tracking and equivalence checking
+                if (memberAccessNode !=null) {
                     var methodName = ((IdentifierNameSyntax)memberAccessNode.Name).Identifier.Text; //TODO: check method signature, not only its name
                     var changesState = ModelStateConfiguration.ChangesState(member.GetUnderlyingType(), methodName);
 
                     if (!changesState)
                         continue;
 
-                    var locks = ExtractSolutionLocks(memberAccessNode, compilation);
+                    var locks = ExtractSolutionLocks(memberAccessNode);
                     lockChains.AddRange(locks);
                 }
             }
@@ -174,7 +182,7 @@ namespace Prometheus.Engine.Analyzer.Atomic
             return result;
         }
 
-        private List<List<LockContext>> ExtractSolutionLocks(SyntaxNode node, Compilation compilation) {
+        private List<List<LockContext>> ExtractSolutionLocks(SyntaxNode node) {
             var currentNode = node;
             var methodDeclaration = node.AncestorNodes<MethodDeclarationSyntax>().FirstOrDefault();
             var lockNode = currentNode.AncestorNodes<LockStatementSyntax>().FirstOrDefault();
@@ -192,14 +200,16 @@ namespace Prometheus.Engine.Analyzer.Atomic
                 lockNode = currentNode.AncestorNodes<LockStatementSyntax>().FirstOrDefault();
             }
 
+            var compilation = Solution.Projects.First(x => x.Documents.Any(doc=>doc.FilePath == methodDeclaration.SyntaxTree.FilePath)).GetCompilation();
             var methodSymbol = methodDeclaration.GetSemanticModel(compilation).GetSymbolInfo(methodDeclaration).Symbol;
 
             foreach (ReferenceLocation location in SymbolFinder.FindReferencesAsync(methodSymbol, Solution).Result.SelectMany(x => x.Locations)) {
+                compilation = Solution.Projects.First(x => x.ContainsDocument(location.Document.Id)).GetCompilation();
                 var invocationNode = compilation
                     .SyntaxTrees
                     .First(x => x.FilePath == location.Document.FilePath)
                     .GetSyntaxNode(location) as InvocationExpressionSyntax;
-                var invocationCallsLocks = ExtractSolutionLocks(invocationNode, compilation);
+                var invocationCallsLocks = ExtractSolutionLocks(invocationNode);
 
                 foreach (List<LockContext> invocationLocks in invocationCallsLocks) {
                     invocationLocks.InsertRange(0, lockContexts);

@@ -46,10 +46,13 @@ namespace Prometheus.Engine.Thread {
                     .AncestorNodes<MethodDeclarationSyntax>()
                     .First();
 
-                if (callingMethodDeclaration.GetLocation().SourceSpan.Contains(location.SourceSpan))
+                if (callingMethodDeclaration.GetLocation().SourceSpan.Contains(referenceLocation.Location.SourceSpan))
+                {
+                    result.Add(new List<Location> { referenceLocation.Location });
                     continue;
+                }
 
-                List<List<Location>> chains = GetInvocationChains(solution, location, visitedMethods);
+                List<List<Location>> chains = GetInvocationChains(solution, referenceLocation.Location, visitedMethods);
 
                 foreach (var chain in chains) {
                     chain.Add(referenceLocation.Location);
@@ -60,6 +63,5 @@ namespace Prometheus.Engine.Thread {
 
             return result;
         }
-
     }
 }
