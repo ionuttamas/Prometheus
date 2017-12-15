@@ -33,7 +33,6 @@ namespace TestProject.Common
 
         public int Count()
         {
-            Dequeue();
             return list.Count;
         }
     }

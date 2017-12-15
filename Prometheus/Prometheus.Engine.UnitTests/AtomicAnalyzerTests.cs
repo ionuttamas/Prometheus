@@ -92,5 +92,39 @@ namespace Prometheus.Engine.UnitTests
             Assert.True(analysis.FirstDeadlockLock == null);
             Assert.True(analysis.SecondDeadlockLock == null);
         }
+
+        [Test]
+        public void AtomicAnalyzer_ForAtomicStack_WithPublicMember_AnalyzesCorrectly() {
+            var modelStateConfig = ModelStateConfiguration
+                .Empty
+                .ChangesState<LinkedList<object>>(x => x.RemoveLast())
+                .ChangesState<LinkedList<object>>(x => x.AddLast(Args.Any<object>()));
+            var atomicInvariant = AtomicInvariant
+                .Empty
+                .WithExpression<AtomicStack<object>>(x => x.List.IsModifiedAtomic());
+            atomicAnalyzer.ModelStateConfiguration = modelStateConfig;
+            var analysis = atomicAnalyzer.Analyze(atomicInvariant).As<AtomicAnalysis>();
+
+            Assert.True(analysis.UnmatchedLock == null);
+            Assert.True(analysis.FirstDeadlockLock == null);
+            Assert.True(analysis.SecondDeadlockLock == null);
+        }
+
+        [Test]
+        public void AtomicAnalyzer_ForNonAtomicUsedStack_WithPublicMember_AnalyzesCorrectly() {
+            var modelStateConfig = ModelStateConfiguration
+                .Empty
+                .ChangesState<LinkedList<object>>(x => x.RemoveLast())
+                .ChangesState<LinkedList<object>>(x => x.AddLast(Args.Any<object>()));
+            var atomicInvariant = AtomicInvariant
+                .Empty
+                .WithExpression<NonAtomicUsedStack<object>>(x => x.List.IsModifiedAtomic());
+            atomicAnalyzer.ModelStateConfiguration = modelStateConfig;
+            var analysis = atomicAnalyzer.Analyze(atomicInvariant).As<AtomicAnalysis>();
+
+            Assert.True(analysis.UnmatchedLock != null);
+            Assert.True(analysis.FirstDeadlockLock == null);
+            Assert.True(analysis.SecondDeadlockLock == null);
+        }
     }
 }

@@ -31,7 +31,7 @@ namespace Prometheus.Common
                 .Parent
                 .AncestorsAndSelf()
                 .OfType<MethodDeclarationSyntax>()
-                .First();
+                .FirstOrDefault();
 
             return callingMethod;
         }

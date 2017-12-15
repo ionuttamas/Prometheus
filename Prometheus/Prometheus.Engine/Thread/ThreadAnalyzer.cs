@@ -103,7 +103,7 @@ namespace Prometheus.Engine.Thread
         private List<List<Location>> GetSymbolChains(IMethodSymbol entryPoint, ISymbol referencedSymbol)
         {
             Location location = referencedSymbol.Locations.First();
-            Project project = GetProject(referencedSymbol);
+            Project project = solution.Projects.First(x => x.AssemblyName == referencedSymbol.ContainingAssembly.Name);
 
             if(entryPoint.Name==referencedSymbol.Name &&
                entryPoint.ContainingType.ToString()==referencedSymbol.ContainingType.ToString())
@@ -114,6 +114,11 @@ namespace Prometheus.Engine.Thread
 
             var result = new List<List<Location>>();
             MethodDeclarationSyntax callingMethod = location.GetContainingMethod();
+
+            if (callingMethod == null) {
+                return new List<List<Location>>();
+            }
+
             Document document = project.Documents.First(x => x.FilePath == callingMethod.SyntaxTree.FilePath);
             IMethodSymbol methodSymbol = (IMethodSymbol)ModelExtensions.GetDeclaredSymbol(document.GetSemanticModelAsync().Result, callingMethod);
             IEnumerable<ReferencedSymbol> references = SymbolFinder.FindReferencesAsync(methodSymbol, solution).Result;
@@ -145,13 +150,6 @@ namespace Prometheus.Engine.Thread
             }
 
             return result;
-        }
-
-        private Project GetProject(ISymbol symbol)
-        {
-            Project project = solution.Projects.First(x => x.AssemblyName == symbol.ContainingAssembly.Name);
-
-            return project;
         }
     }
 }
