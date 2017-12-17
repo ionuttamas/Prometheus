@@ -16,9 +16,4 @@ namespace TestProject.Services
             orderQueue.Enqueue(order);
         }
     }
-
-    public class Order {
-        public string Customer { get; set; }
-        public string Product { get; set; }
-    }
 }
