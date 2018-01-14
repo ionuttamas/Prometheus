@@ -34,22 +34,15 @@ namespace Prometheus.Common
                 propertyLambda.Body) as MemberExpression;
 
             if (member == null)
-                throw new ArgumentException(string.Format(
-                    "Expression '{0}' refers to a method, not a property.",
-                    propertyLambda));
+                throw new ArgumentException($"Expression '{propertyLambda}' refers to a method, not a property.");
 
             PropertyInfo propertyInfo = member.Member as PropertyInfo;
-            if (propertyInfo == null)
-                throw new ArgumentException(string.Format(
-                    "Expression '{0}' refers to a field, not a property.",
-                    propertyLambda));
 
-            if (type != propertyInfo.ReflectedType &&
-                !type.IsSubclassOf(propertyInfo.ReflectedType))
-                throw new ArgumentException(string.Format(
-                    "Expresion '{0}' refers to a property that is not from type {1}.",
-                    propertyLambda,
-                    type));
+            if (propertyInfo == null)
+                throw new ArgumentException($"Expression '{propertyLambda}' refers to a field, not a property.");
+
+            if (type != propertyInfo.ReflectedType && !type.IsSubclassOf(propertyInfo.ReflectedType))
+                throw new ArgumentException($"Expresion '{propertyLambda}' refers to a property that is not from type {type}.");
 
             return propertyInfo;
         }

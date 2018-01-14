@@ -5,6 +5,9 @@
     /// </summary>
     public static class ModelExtensions
     {
+        //TODO: this can be used in conjucture with boolean flag properties and numeric properties testing
+        //TODO: for external dll methods that are used for these fields, all values will be allowed
+
         /// <summary>
         /// Marks the value property or field as needed to be atomically modified; currently, it accepts only simple properties/fields, not nesting is currently allowed.
         /// Primitive values (numeric, boolean, char) can be read without locks, but reference types cannot.

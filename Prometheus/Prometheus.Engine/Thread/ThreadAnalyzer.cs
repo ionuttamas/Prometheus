@@ -4,13 +4,13 @@ using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.FindSymbols;
 using Prometheus.Common;
 
 namespace Prometheus.Engine.Thread
 {
     internal class ThreadAnalyzer
     {
+        private const string START_THREAD_METHOD_NAME = "Start";
         private readonly Solution solution;
 
         public ThreadAnalyzer(Solution solution)
@@ -41,7 +41,7 @@ namespace Prometheus.Engine.Thread
         /// </summary>
         private List<ThreadPath> AnalyzeProject(Project project, IMethodSymbol entryPoint)
         {
-            Compilation compilation = project.GetCompilationAsync(CancellationToken.None).Result;
+            Compilation compilation = project.GetCompilation();
             compilation = compilation.AddReferences(MetadataReference.CreateFromFile(typeof (System.Threading.Thread).Assembly.Location));
             SymbolDisplayFormat typeDisplayFormat = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
             var threadVariables = compilation
@@ -65,7 +65,7 @@ namespace Prometheus.Engine.Thread
             var threadInvocations = threadVariables
                 .SelectMany(x => x.Tree.GetRoot().DescendantNodes<InvocationExpressionSyntax>())
                 .Where(x => x.Expression is MemberAccessExpressionSyntax &&
-                            x.Expression.As<MemberAccessExpressionSyntax>().Name.Identifier.Text == "Start" &&
+                            x.Expression.As<MemberAccessExpressionSyntax>().Name.Identifier.Text == START_THREAD_METHOD_NAME &&
                             threadVariables
                                 .First(tv => tv.Tree == x.SyntaxTree)
                                 .Variables
@@ -105,11 +105,9 @@ namespace Prometheus.Engine.Thread
             Location location = referencedSymbol.Locations.First();
             Project project = solution.Projects.First(x => x.AssemblyName == referencedSymbol.ContainingAssembly.Name);
 
-            if(entryPoint.Name==referencedSymbol.Name &&
-               entryPoint.ContainingType.ToString()==referencedSymbol.ContainingType.ToString())
+            if(entryPoint.Name==referencedSymbol.Name && entryPoint.ContainingType.ToString()==referencedSymbol.ContainingType.ToString())
             {
-                var chain = new List<Location> {location};
-                return new List<List<Location>> {chain};
+                return new List<List<Location>> { new List<Location> { location } };
             }
 
             var result = new List<List<Location>>();
@@ -121,9 +119,8 @@ namespace Prometheus.Engine.Thread
 
             Document document = project.Documents.First(x => x.FilePath == callingMethod.SyntaxTree.FilePath);
             IMethodSymbol methodSymbol = (IMethodSymbol)ModelExtensions.GetDeclaredSymbol(document.GetSemanticModelAsync().Result, callingMethod);
-            IEnumerable<ReferencedSymbol> references = SymbolFinder.FindReferencesAsync(methodSymbol, solution).Result;
 
-            foreach (var referenceLocation in references.SelectMany(x=>x.Locations))
+            foreach (var referenceLocation in solution.FindReferences(methodSymbol))
             {
                 SyntaxNode referencingRoot = referenceLocation
                     .Document

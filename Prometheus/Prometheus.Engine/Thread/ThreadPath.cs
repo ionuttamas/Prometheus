@@ -33,9 +33,8 @@ namespace Prometheus.Engine.Thread {
             visitedMethods.Add(callingMethod);
             Document document = project.Documents.First(x => x.FilePath == callingMethod.SyntaxTree.FilePath);
             IMethodSymbol methodSymbol = (IMethodSymbol)document.GetSemanticModelAsync().Result.GetDeclaredSymbol(callingMethod);
-            IEnumerable<ReferencedSymbol> references = SymbolFinder.FindReferencesAsync(methodSymbol, solution).Result;
 
-            foreach (var referenceLocation in references.SelectMany(x => x.Locations)) {
+            foreach (var referenceLocation in solution.FindReferences(methodSymbol)) {
                 SyntaxNode referencingRoot = referenceLocation
                     .Document
                     .GetSyntaxRootAsync()

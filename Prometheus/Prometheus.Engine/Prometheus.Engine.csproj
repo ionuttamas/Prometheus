@@ -183,6 +183,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ReferenceTrack\ConditionalAssignment.cs" />
     <Compile Include="ReferenceTrack\ReferenceTracker.cs" />
     <Compile Include="Thread\InvocationPath.cs" />
     <Compile Include="Verifier\Args.cs" />

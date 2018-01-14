@@ -36,8 +36,26 @@ namespace Prometheus.Common
             return callingMethod;
         }
 
+        public static Compilation GetCompilation(this Solution solution, ReferenceLocation location)
+        {
+            return solution.Projects.First(x => x.ContainsDocument(location.Document.Id)).GetCompilation();
+        }
+
+        public static Compilation GetCompilation(this Solution solution, SyntaxNode node) {
+            return solution.Projects.First(x => x.Documents.Any(doc => doc.FilePath == node.SyntaxTree.FilePath)).GetCompilation();
+        }
+
+        public static IEnumerable<ReferenceLocation> FindReferences(this Solution solution, ISymbol symbol)
+        {
+            return SymbolFinder.FindReferencesAsync(symbol, solution).Result.SelectMany(x => x.Locations);
+        }
+
         public static IEnumerable<T> AncestorNodes<T>(this SyntaxNode node) {
             return node.Ancestors(false).OfType<T>();
+        }
+
+        public static T FirstAncestor<T>(this SyntaxNode node) {
+            return node.Ancestors(false).OfType<T>().FirstOrDefault();
         }
 
         public static ClassDeclarationSyntax GetClassDeclaration(this Compilation compilation, Type type)
