@@ -26,6 +26,22 @@ namespace Prometheus.Engine.ReferenceTrack {
         /// </summary>
         public bool HaveCommonValue(IdentifierNameSyntax first, IdentifierNameSyntax second)
         {
+            if (threadSchedule.GetThreadPath(solution, first.GetLocation()) != null)
+                return false;
+
+            if (threadSchedule.GetThreadPath(solution, second.GetLocation()) != null)
+                return false;
+
+            //TODO: need to check scoping: if "first" is a local variable => it cannot match a variable from another function/thread
+            var firstAssignments = GetAssignments(first);
+            var secondAssignments = GetAssignments(second);
+
+
+            return false;
+        }
+
+        private bool IsSatisfiable(ConditionalAssignment first, ConditionalAssignment second)
+        {
             return false;
         }
 
@@ -89,7 +105,11 @@ namespace Prometheus.Engine.ReferenceTrack {
         {
             var elseClause = assignment.FirstAncestor<ElseClauseSyntax>();
             var ifClause = assignment.FirstAncestor<IfStatementSyntax>();
-            var conditionalAssignment = new ConditionalAssignment();
+            var conditionalAssignment = new ConditionalAssignment
+            {
+                Reference = assignment.Right,
+                ReferenceLocation = assignment.GetLocation()
+            };
             SyntaxNode currentNode = assignment;
 
             while (currentNode != null) {
@@ -162,6 +182,29 @@ namespace Prometheus.Engine.ReferenceTrack {
                 }
             }
             return instance;
+        }
+
+        private object instance;
+
+        public void Do(object person)
+        {
+            if (person.ToString().Length > 2)
+            {
+                instance = person;
+            }
+        }
+
+        public void Bar(object person)
+        {
+            if (person.ToString().Length < 2)
+            {
+                Foo(person);
+            }
+        }
+
+        public void Foo(object person)
+        {
+            instance = person;
         }
     }
 

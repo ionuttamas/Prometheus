@@ -1,4 +1,6 @@
 ﻿using System.Collections.Generic;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Prometheus.Engine.ReferenceTrack
 {
@@ -9,9 +11,9 @@ namespace Prometheus.Engine.ReferenceTrack
         //TODO: split to members
         public List<string> Conditions { get; set; }
         //TODO: more context here
-        public string Reference { get; set; }
+        public SyntaxNode Reference { get; set; }
         //TODO: assigned identifier: more context here on location
-        public string ReferenceLocation { get; set; }
+        public Location ReferenceLocation { get; set; }
 
         public ConditionalAssignment()
         {
