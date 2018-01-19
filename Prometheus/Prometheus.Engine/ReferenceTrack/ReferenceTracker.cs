@@ -26,16 +26,71 @@ namespace Prometheus.Engine.ReferenceTrack {
         /// </summary>
         public bool HaveCommonValue(IdentifierNameSyntax first, IdentifierNameSyntax second)
         {
-            if (threadSchedule.GetThreadPath(solution, first.GetLocation()) != null)
+            var firstAssignment = new ConditionalAssignment
+            {
+                Reference = first,
+                AssignmentLocation = first.GetLocation()
+            };
+            var secondAssignment = new ConditionalAssignment {
+                Reference = second,
+                AssignmentLocation = second.GetLocation()
+            };
+            return HaveCommonValueInternal(firstAssignment, secondAssignment);
+        }
+
+        private bool HaveCommonValueInternal(ConditionalAssignment first, ConditionalAssignment second) {
+            if (threadSchedule.GetThreadPath(solution, first.Reference.GetLocation()) != null)
                 return false;
 
-            if (threadSchedule.GetThreadPath(solution, second.GetLocation()) != null)
+            if (threadSchedule.GetThreadPath(solution, second.Reference.GetLocation()) != null)
                 return false;
 
             //TODO: need to check scoping: if "first" is a local variable => it cannot match a variable from another function/thread
-            var firstAssignments = GetAssignments(first);
-            var secondAssignments = GetAssignments(second);
+            var firstAssignments = GetAssignments((IdentifierNameSyntax)first.Reference); //todo: this needs checking
+            var secondAssignments = GetAssignments((IdentifierNameSyntax)second.Reference);
 
+            foreach (ConditionalAssignment assignment in firstAssignments) {
+                assignment.Conditions.AddRange(first.Conditions);
+            }
+
+            foreach (ConditionalAssignment assignment in secondAssignments) {
+                assignment.Conditions.AddRange(second.Conditions);
+            }
+
+            foreach (ConditionalAssignment firstAssignment in firstAssignments) {
+                foreach (ConditionalAssignment secondAssignment in secondAssignments) {
+                    if (ValidateReachability(firstAssignment, secondAssignment))
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool ValidateReachability(ConditionalAssignment first, ConditionalAssignment second)
+        {
+            if (!IsSatisfiable(first, second))
+                return false;
+
+            //TODO: this is simplistic check
+            if (first.Reference.ToString() != second.Reference.ToString() ||
+                first.Reference.GetLocation() != second.Reference.GetLocation())
+            {
+                var firstReferenceAssignment = new ConditionalAssignment
+                {
+                    Reference = first.Reference,
+                    AssignmentLocation = first.AssignmentLocation,
+                    Conditions = first.Conditions
+                };
+                var secondReferenceAssignment = new ConditionalAssignment {
+                    Reference = second.Reference,
+                    AssignmentLocation = second.AssignmentLocation,
+                    Conditions = second.Conditions
+                };
+
+                return HaveCommonValueInternal(firstReferenceAssignment, second) ||
+                       HaveCommonValueInternal(first, secondReferenceAssignment);
+            }
 
             return false;
         }
@@ -108,7 +163,7 @@ namespace Prometheus.Engine.ReferenceTrack {
             var conditionalAssignment = new ConditionalAssignment
             {
                 Reference = assignment.Right,
-                ReferenceLocation = assignment.GetLocation()
+                AssignmentLocation = assignment.GetLocation()
             };
             SyntaxNode currentNode = assignment;
 
@@ -184,27 +239,41 @@ namespace Prometheus.Engine.ReferenceTrack {
             return instance;
         }
 
-        private object instance;
+        private Person instance;
 
-        public void Do(object person)
+        private void Do(Person person)
         {
             if (person.ToString().Length > 2)
             {
-                instance = person;
+                instance.Age--;
             }
         }
 
-        public void Bar(object person)
+        private void Bar(Person person)
         {
+            Person currentPerson;
+
             if (person.ToString().Length < 2)
             {
-                Foo(person);
+                currentPerson= instance;
             }
+            else
+            {
+                currentPerson = person;
+            }
+
+            Foo(currentPerson);
         }
 
-        public void Foo(object person)
+        private void Foo(Person person)
         {
-            instance = person;
+            person.Age++;
+        }
+
+        private class Person
+        {
+             public string Name { get; set; }
+             public int Age { get; set; }
         }
     }
 

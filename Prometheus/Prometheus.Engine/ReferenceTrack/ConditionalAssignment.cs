@@ -13,7 +13,7 @@ namespace Prometheus.Engine.ReferenceTrack
         //TODO: more context here
         public SyntaxNode Reference { get; set; }
         //TODO: assigned identifier: more context here on location
-        public Location ReferenceLocation { get; set; }
+        public Location AssignmentLocation { get; set; }
 
         public ConditionalAssignment()
         {
