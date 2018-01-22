@@ -1,8 +1,10 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.FindSymbols;
 using Prometheus.Common;
 using Prometheus.Engine.Thread;
 
@@ -132,8 +134,23 @@ namespace Prometheus.Engine.ReferenceTrack {
         /// </summary>
         private List<ConditionalAssignment> GetAssignments(IdentifierNameSyntax identifier)
         {
-            //TODO: complete this with method invocation matching
-            return GetMethodAssignments(identifier);
+            //TODO: this does not take into account previous assignments to parameters
+            var method = identifier.GetLocation().GetContainingMethod();
+            var parameter = method.ParameterList.Parameters.IndexOf(x => x.Identifier.Text == identifier.Identifier.Text);
+
+            if (parameter >= 0)
+            {
+                var methodInvocations = solution
+                    .FindReferenceLocations(method)
+                    .Where(x => threadSchedule.GetThreadPath(solution, x.Location) != null)
+                    .Select(x => x.GetNode<InvocationExpressionSyntax>());
+
+                throw new NotImplementedException();
+            }
+            else
+            {
+                return GetMethodAssignments(identifier);
+            }
         }
 
         /// <summary>
@@ -191,7 +208,7 @@ namespace Prometheus.Engine.ReferenceTrack {
 
             if (ifClause != null)
             {
-                conditionalAssignment.Conditions.Add(ifClause.Condition.ToString());
+                conditionalAssignment.AddCondition(ifClause.Condition.ToString(), ifClause.GetLocation());
             }
 
             return conditionalAssignment;
@@ -205,7 +222,7 @@ namespace Prometheus.Engine.ReferenceTrack {
 
             while (elseClause != null) {
                 var ifStatement = elseClause.FirstAncestor<IfStatementSyntax>();
-                conditionalAssignment.Conditions.Add("!" + ifStatement.Condition);
+                conditionalAssignment.AddCondition("!" + ifStatement.Condition, ifStatement.GetLocation());
                 lastNode = ifStatement;
                 elseClause = ifStatement.FirstAncestor<ElseClauseSyntax>();
             }

@@ -45,7 +45,32 @@ namespace Prometheus.Common
             return solution.Projects.First(x => x.Documents.Any(doc => doc.FilePath == node.SyntaxTree.FilePath)).GetCompilation();
         }
 
-        public static IEnumerable<ReferenceLocation> FindReferences(this Solution solution, ISymbol symbol)
+        public static IEnumerable<ReferencedSymbol> FindReferences(this Solution solution, SyntaxNode node)
+        {
+            var methodSymbol = node.GetSemanticModel(GetCompilation(solution, node)).GetDeclaredSymbol(node);
+            return SymbolFinder.FindReferencesAsync(methodSymbol, solution).Result;
+        }
+
+        public static IEnumerable<ReferenceLocation> FindReferenceLocations(this Solution solution, SyntaxNode node) {
+            var methodSymbol = node.GetSemanticModel(GetCompilation(solution, node)).GetDeclaredSymbol(node);
+            return FindReferenceLocations(solution, methodSymbol);
+        }
+
+        public static T GetNode<T>(this ReferenceLocation referenceLocation)
+            where T:SyntaxNode
+        {
+            SyntaxNode referencingRoot = referenceLocation
+                    .Document
+                    .GetSyntaxRootAsync()
+                    .Result;
+            T node = referencingRoot
+                    .DescendantNodes<T>()
+                    .FirstOrDefault(x => x.GetLocation().SourceSpan.Contains(referenceLocation.Location.SourceSpan));
+
+            return node;
+        }
+
+        public static IEnumerable<ReferenceLocation> FindReferenceLocations(this Solution solution, ISymbol symbol)
         {
             return SymbolFinder.FindReferencesAsync(symbol, solution).Result.SelectMany(x => x.Locations);
         }

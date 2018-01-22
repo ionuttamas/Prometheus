@@ -53,7 +53,7 @@ namespace Prometheus.Engine.Analyzer.Atomic
             Project project = Solution.Projects.First(x => x.AssemblyName == assemblyName);
             Compilation compilation = project.GetCompilation();
             ISymbol memberSymbol = compilation.GetTypeByMetadataName(typeName).GetMembers(member.Name).First();
-            List<ReferenceLocation> locations = Solution.FindReferences(memberSymbol).ToList();
+            List<ReferenceLocation> locations = Solution.FindReferenceLocations(memberSymbol).ToList();
             var classDeclaration = compilation.GetTypeByMetadataName(typeName).DeclaringSyntaxReferences[0].GetSyntax().As<ClassDeclarationSyntax>();
             var lockChains = new List<List<LockContext>>();
 
@@ -94,7 +94,7 @@ namespace Prometheus.Engine.Analyzer.Atomic
             Project project = Solution.Projects.First(x => x.AssemblyName == assemblyName);
             Compilation compilation = project.GetCompilation();
             ISymbol memberSymbol = compilation.GetTypeByMetadataName(typeName).GetMembers(member.Name).First();
-            List<ReferenceLocation> locations = Solution.FindReferences(memberSymbol).ToList();
+            List<ReferenceLocation> locations = Solution.FindReferenceLocations(memberSymbol).ToList();
             var lockChains = new List<List<LockContext>>();
 
             foreach (ReferenceLocation location in locations) {
@@ -152,7 +152,7 @@ namespace Prometheus.Engine.Analyzer.Atomic
 
             var methodSymbol = methodDeclaration.GetSemanticModel(compilation).GetSymbolInfo(methodDeclaration).Symbol;
 
-            foreach (ReferenceLocation location in Solution.FindReferences(methodSymbol).ToList())
+            foreach (ReferenceLocation location in Solution.FindReferenceLocations(methodSymbol).ToList())
             {
                 if (!classNode.GetLocation().SourceSpan.Contains(location.Location.SourceSpan))
                     continue;
@@ -199,7 +199,7 @@ namespace Prometheus.Engine.Analyzer.Atomic
             var compilation = Solution.GetCompilation(methodDeclaration);
             var methodSymbol = methodDeclaration.GetSemanticModel(compilation).GetSymbolInfo(methodDeclaration).Symbol;
 
-            foreach (ReferenceLocation location in Solution.FindReferences(methodSymbol).ToList()) {
+            foreach (ReferenceLocation location in Solution.FindReferenceLocations(methodSymbol).ToList()) {
                 compilation = Solution.Projects.First(x => x.ContainsDocument(location.Document.Id)).GetCompilation();
                 var invocationNode = compilation
                     .SyntaxTrees

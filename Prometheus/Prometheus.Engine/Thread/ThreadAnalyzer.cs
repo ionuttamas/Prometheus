@@ -120,7 +120,7 @@ namespace Prometheus.Engine.Thread
             Document document = project.Documents.First(x => x.FilePath == callingMethod.SyntaxTree.FilePath);
             IMethodSymbol methodSymbol = (IMethodSymbol)ModelExtensions.GetDeclaredSymbol(document.GetSemanticModelAsync().Result, callingMethod);
 
-            foreach (var referenceLocation in solution.FindReferences(methodSymbol))
+            foreach (var referenceLocation in solution.FindReferenceLocations(methodSymbol))
             {
                 SyntaxNode referencingRoot = referenceLocation
                     .Document
