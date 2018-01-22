@@ -4,7 +4,6 @@ using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.FindSymbols;
 using Prometheus.Common;
 using Prometheus.Engine.Thread;
 
@@ -136,21 +135,20 @@ namespace Prometheus.Engine.ReferenceTrack {
         {
             //TODO: this does not take into account previous assignments to parameters
             var method = identifier.GetLocation().GetContainingMethod();
-            var parameter = method.ParameterList.Parameters.IndexOf(x => x.Identifier.Text == identifier.Identifier.Text);
+            var parameterIndex =
+                method.ParameterList.Parameters.IndexOf(x => x.Identifier.Text == identifier.Identifier.Text);
 
-            if (parameter >= 0)
-            {
-                var methodInvocations = solution
-                    .FindReferenceLocations(method)
-                    .Where(x => threadSchedule.GetThreadPath(solution, x.Location) != null)
-                    .Select(x => x.GetNode<InvocationExpressionSyntax>());
-
-                throw new NotImplementedException();
-            }
-            else
-            {
+            if (parameterIndex < 0)
                 return GetMethodAssignments(identifier);
-            }
+
+            var methodInvocations = solution
+                .FindReferenceLocations(method)
+                .Where(x => threadSchedule.GetThreadPath(solution, x.Location) != null)
+                .Select(x => x.GetNode<InvocationExpressionSyntax>())
+                .Select(x => GetConditionalAssignment(x, parameterIndex))
+                .ToList();
+
+            return methodInvocations;
         }
 
         /// <summary>
@@ -165,7 +163,7 @@ namespace Prometheus.Engine.ReferenceTrack {
                 .Where(x=>x.Kind()==SyntaxKind.SimpleAssignmentExpression)
                 .Where(x=>x.Left is IdentifierNameSyntax)
                 .Where(x=>x.Left.As<IdentifierNameSyntax>().Identifier.Text == identifierName);
-            var conditionalAssignments = assignments.Select(GetAssignment).ToList();
+            var conditionalAssignments = assignments.Select(GetConditionalAssignment).ToList();
 
             return conditionalAssignments;
         }
@@ -173,7 +171,7 @@ namespace Prometheus.Engine.ReferenceTrack {
         /// <summary>
         /// Gets the conditional assignment for the given assignment within its method.
         /// </summary>
-        private ConditionalAssignment GetAssignment(AssignmentExpressionSyntax assignment)
+        private ConditionalAssignment GetConditionalAssignment(AssignmentExpressionSyntax assignment)
         {
             var elseClause = assignment.FirstAncestor<ElseClauseSyntax>();
             var ifClause = assignment.FirstAncestor<IfStatementSyntax>();
@@ -191,6 +189,32 @@ namespace Prometheus.Engine.ReferenceTrack {
                 }
                 else if (elseClause != null)
                 {
+                    conditionalAssignment.Conditions.AddRange(ProcessElseStatement(currentNode, out currentNode).Conditions);
+                }
+
+                elseClause = currentNode.FirstAncestor<ElseClauseSyntax>();
+                ifClause = currentNode.FirstAncestor<IfStatementSyntax>();
+            }
+
+            return conditionalAssignment;
+        }
+
+        /// <summary>
+        /// Gets the conditional assignment for the given assignment within its method.
+        /// </summary>
+        private ConditionalAssignment GetConditionalAssignment(InvocationExpressionSyntax invocation, int argumentIndex) {
+            var elseClause = invocation.FirstAncestor<ElseClauseSyntax>();
+            var ifClause = invocation.FirstAncestor<IfStatementSyntax>();
+            var conditionalAssignment = new ConditionalAssignment {
+                Reference = invocation.ArgumentList.Arguments[argumentIndex],
+                AssignmentLocation = invocation.GetLocation()
+            };
+            SyntaxNode currentNode = invocation;
+
+            while (currentNode != null) {
+                if (ifClause != null) {
+                    conditionalAssignment.Conditions.AddRange(ProcessIfStatement(currentNode, out currentNode).Conditions);
+                } else if (elseClause != null) {
                     conditionalAssignment.Conditions.AddRange(ProcessElseStatement(currentNode, out currentNode).Conditions);
                 }
 
