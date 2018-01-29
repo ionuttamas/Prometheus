@@ -22,6 +22,7 @@ namespace TestProject.GUI {
             var orderService = new OrderService(queue);
             var orderProcessor = new OrderProcessor(queue, 10);
             var thread = new Thread(Do);
+
             atomicStack.Pop();
             nonAtomicUsedStack.Pop();
             nonAtomicUsedStack.List.AddLast(2);

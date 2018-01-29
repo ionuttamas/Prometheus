@@ -73,30 +73,42 @@ namespace Prometheus.Engine.ReferenceTrack {
             if (!IsSatisfiable(first, second))
                 return false;
 
-            //TODO: this is simplistic check
-            if (first.Reference.ToString() != second.Reference.ToString() ||
-                first.Reference.GetLocation() != second.Reference.GetLocation())
+            if (AreEquivalent(first.Reference, second.Reference))
+                return false;
+
+            var firstReferenceAssignment = new ConditionalAssignment
             {
-                var firstReferenceAssignment = new ConditionalAssignment
-                {
-                    Reference = first.Reference,
-                    AssignmentLocation = first.AssignmentLocation,
-                    Conditions = first.Conditions
-                };
-                var secondReferenceAssignment = new ConditionalAssignment {
-                    Reference = second.Reference,
-                    AssignmentLocation = second.AssignmentLocation,
-                    Conditions = second.Conditions
-                };
+                Reference = first.Reference,
+                AssignmentLocation = first.AssignmentLocation,
+                Conditions = first.Conditions
+            };
+            var secondReferenceAssignment = new ConditionalAssignment {
+                Reference = second.Reference,
+                AssignmentLocation = second.AssignmentLocation,
+                Conditions = second.Conditions
+            };
 
-                return HaveCommonValueInternal(firstReferenceAssignment, second) ||
-                       HaveCommonValueInternal(first, secondReferenceAssignment);
-            }
-
-            return false;
+            return HaveCommonValueInternal(firstReferenceAssignment, second) ||
+                   HaveCommonValueInternal(first, secondReferenceAssignment);
         }
 
-        private bool IsSatisfiable(ConditionalAssignment first, ConditionalAssignment second)
+        /// <summary>
+        /// This checks whether two nodes are the same reference (the shared memory of two threads).
+        /// This can be a class field/property used by both thread functions or parameters passed to threads that are the same
+        /// TODO: currently this checks only for field equivalence
+        /// </summary>
+        private static bool AreEquivalent(SyntaxNode first, SyntaxNode second)
+        {
+            if (first.ToString() != second.ToString())
+                return false;
+
+            if (first.GetLocation() != second.GetLocation())
+                return false;
+
+            return true;
+        }
+
+        private static bool IsSatisfiable(ConditionalAssignment first, ConditionalAssignment second)
         {
             return false;
         }
@@ -134,21 +146,47 @@ namespace Prometheus.Engine.ReferenceTrack {
         private List<ConditionalAssignment> GetAssignments(IdentifierNameSyntax identifier)
         {
             //TODO: this does not take into account previous assignments to parameters
+            var identifierName = identifier.Identifier.Text;
             var method = identifier.GetLocation().GetContainingMethod();
-            var parameterIndex =
-                method.ParameterList.Parameters.IndexOf(x => x.Identifier.Text == identifier.Identifier.Text);
+            var classDeclaration = method.FirstAncestorOrSelf<ClassDeclarationSyntax>();
+            var matchingField = classDeclaration
+                .DescendantNodes<FieldDeclarationSyntax>()
+                .FirstOrDefault(x => x.Declaration.Variables.Any(v => v.Identifier.Text == identifierName));
 
-            if (parameterIndex < 0)
+            if (matchingField != null)
+            {
+                //TODO: we need to track exactly how the field gets initialized in the constructor; for now we enforce an argument with the same name in the constructor
+                //TODO: we dont't know if the field was reasigned in another place (other than the constructor) before assigned to the field
+                var constructorParameterIndex = identifier
+                    .GetLocation()
+                    .GetContainingConstructor()
+                    .ParameterList
+                    .Parameters
+                    .IndexOf(x => x.Identifier.Text == identifierName);
+                var constructorAssignments = FindObjectCreations(classDeclaration)
+                    .Where(x => threadSchedule.GetThreadPath(solution, x.GetLocation()) != null)
+                    .Select(x => GetConditionalAssignment(x, x.ArgumentList.Arguments[constructorParameterIndex]))
+                    .ToList();
+
+                return constructorAssignments;
+            }
+            var methodParameterIndex = method.ParameterList.Parameters.IndexOf(x => x.Identifier.Text == identifierName);
+
+            //The assignment is not from a method parameter, so we search for the assignment inside
+            if (methodParameterIndex < 0)
+            {
                 return GetMethodAssignments(identifier);
+            }
 
-            var methodInvocations = solution
+            //TODO: this does not take into account if a parameter was assigned to another value before being assigned again
+            var methodAssignments = solution
                 .FindReferenceLocations(method)
                 .Where(x => threadSchedule.GetThreadPath(solution, x.Location) != null)
                 .Select(x => x.GetNode<InvocationExpressionSyntax>())
-                .Select(x => GetConditionalAssignment(x, parameterIndex))
+                .Select(x => GetConditionalAssignment(x, x.ArgumentList.Arguments[methodParameterIndex]))
                 .ToList();
 
-            return methodInvocations;
+            return methodAssignments;
         }
 
         /// <summary>
@@ -200,16 +238,16 @@ namespace Prometheus.Engine.ReferenceTrack {
         }
 
         /// <summary>
-        /// Gets the conditional assignment for the given assignment within its method.
+        /// Gets the conditional assignment for the given invocation or object creation within its method.
         /// </summary>
-        private ConditionalAssignment GetConditionalAssignment(InvocationExpressionSyntax invocation, int argumentIndex) {
-            var elseClause = invocation.FirstAncestor<ElseClauseSyntax>();
-            var ifClause = invocation.FirstAncestor<IfStatementSyntax>();
+        private ConditionalAssignment GetConditionalAssignment(SyntaxNode bindingNode, SyntaxNode argument) {
+            var elseClause = bindingNode.FirstAncestor<ElseClauseSyntax>();
+            var ifClause = bindingNode.FirstAncestor<IfStatementSyntax>();
             var conditionalAssignment = new ConditionalAssignment {
-                Reference = invocation.ArgumentList.Arguments[argumentIndex],
-                AssignmentLocation = invocation.GetLocation()
+                Reference = argument,
+                AssignmentLocation = bindingNode.GetLocation()
             };
-            SyntaxNode currentNode = invocation;
+            SyntaxNode currentNode = bindingNode;
 
             while (currentNode != null) {
                 if (ifClause != null) {
@@ -252,6 +290,17 @@ namespace Prometheus.Engine.ReferenceTrack {
             }
 
             return conditionalAssignment;
+        }
+
+        private IEnumerable<ObjectCreationExpressionSyntax> FindObjectCreations(ClassDeclarationSyntax node) {
+            var className = node.Identifier.Text;
+            var objectCreations = solution.Projects
+                .SelectMany(x => x.GetCompilation()
+                                  .SyntaxTrees.SelectMany(st => st.GetRoot()
+                                                                  .DescendantNodes<ObjectCreationExpressionSyntax>()
+                                                                  .Where(oce => oce.GetTypeName() == className)));
+
+            return objectCreations;
         }
 
         public object DecrementAge(object person)
@@ -317,6 +366,4 @@ namespace Prometheus.Engine.ReferenceTrack {
              public int Age { get; set; }
         }
     }
-
-
 }

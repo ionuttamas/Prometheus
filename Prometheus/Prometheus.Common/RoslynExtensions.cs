@@ -36,6 +36,19 @@ namespace Prometheus.Common
             return callingMethod;
         }
 
+        public static ConstructorDeclarationSyntax GetContainingConstructor(this Location location) {
+            ConstructorDeclarationSyntax callingConstructor = location
+                .SourceTree
+                .GetRoot()
+                .FindToken(location.SourceSpan.Start)
+                .Parent
+                .AncestorsAndSelf()
+                .OfType<ConstructorDeclarationSyntax>()
+                .FirstOrDefault();
+
+            return callingConstructor;
+        }
+
         public static Compilation GetCompilation(this Solution solution, ReferenceLocation location)
         {
             return solution.Projects.First(x => x.ContainsDocument(location.Document.Id)).GetCompilation();
@@ -134,6 +147,17 @@ namespace Prometheus.Common
         public static Compilation GetCompilation(this Project project)
         {
             return project.GetCompilationAsync().Result;
+        }
+
+        public static string GetTypeName(this ObjectCreationExpressionSyntax objectCreation)
+        {
+            var identifierSyntax = objectCreation.Type as IdentifierNameSyntax;
+            if (identifierSyntax != null)
+            {
+                return identifierSyntax.Identifier.ToString();
+            }
+
+            throw new NotImplementedException("Currently only IdentiferNameSyntax are allowed");
         }
     }
 }
