@@ -50,6 +50,7 @@ namespace Prometheus.Engine.UnitTests
             var secondIdentifier = transferServiceClass.GetMethodDescendant(nameof(TestProject.Services.TransferService.Transfer)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "from").First();
 
             Assert.True(referenceTracker.HaveCommonValue(firstIdentifier, secondIdentifier));
+            Assert.True(referenceTracker.HaveCommonValue(firstIdentifier, secondIdentifier));
         }
     }
 }

@@ -39,7 +39,7 @@ namespace Prometheus.Engine.ReferenceTrack {
             return HaveCommonValueInternal(firstAssignment, secondAssignment);
         }
 
-        private bool HaveCommonValueInternal(ConditionalAssignment first, ConditionalAssignment second)
+        private bool HaveCommonValueInternal(ConditionalAssignment first, ConditionalAssignment second, out SyntaxNode common)
         {
             if (!threadSchedule.GetThreadPath(solution, first.Reference.GetLocation()).Invocations.Any())
                 return false;
@@ -75,7 +75,7 @@ namespace Prometheus.Engine.ReferenceTrack {
                 return false;
 
             if (AreEquivalent(first.Reference, second.Reference))
-                return false;
+                return true;
 
             var firstReferenceAssignment = new ConditionalAssignment
             {
@@ -111,7 +111,7 @@ namespace Prometheus.Engine.ReferenceTrack {
 
         private static bool IsSatisfiable(ConditionalAssignment first, ConditionalAssignment second)
         {
-            return false;
+            return true;
         }
 
         /// <summary>
@@ -154,44 +154,69 @@ namespace Prometheus.Engine.ReferenceTrack {
                 .DescendantNodes<FieldDeclarationSyntax>()
                 .FirstOrDefault(x => x.Declaration.Variables.Any(v => v.Identifier.Text == identifierName));
 
-            if (matchingField != null)
+            if (matchingField == null)
             {
-                //TODO: we need to track exactly how the field gets initialized in the constructor; for now we enforce an argument with the same name in the constructor
-                //TODO: we dont't know if the field was reasigned in another place (other than the constructor) before assigned to the field
-                var constructorParameterIndex = identifier
-                    .GetLocation()
-                    .GetContainingConstructor()
-                    .ParameterList
-                    .Parameters
-                    .IndexOf(x => x.Identifier.Text == identifierName);
-                var constructorAssignments = FindObjectCreations(classDeclaration)
-                    .Where(x => threadSchedule.GetThreadPath(solution, x.GetLocation()).Invocations.Any())
-                    .Select(x => GetConditionalAssignment(x, x.ArgumentList.Arguments[constructorParameterIndex]))
-                    .ToList();
+                var methodParameterIndex = method.ParameterList.Parameters.IndexOf(x => x.Identifier.Text == identifierName);
 
-                return constructorAssignments;
-            }
-            var methodParameterIndex = method.ParameterList.Parameters.IndexOf(x => x.Identifier.Text == identifierName);
-
-            //The assignment is not from a method parameter, so we search for the assignment inside
-            if (methodParameterIndex < 0)
-            {
-                return GetMethodAssignments(identifier);
+                //The assignment is not from a method parameter, so we search for the assignment inside
+                return methodParameterIndex < 0
+                    ? GetMethodAssignments(identifier)
+                    : GetMethodCallAssignments(method, methodParameterIndex);
             }
 
-            //TODO: this does not take into account if a parameter was assigned to another value before being assigned again
-            var methodAssignments = solution
-                .FindReferenceLocations(method)
-                .Where(x => threadSchedule.GetThreadPath(solution, x.Location).Invocations.Any())
-                .Select(x => x.GetNode<InvocationExpressionSyntax>())
-                .Select(x => GetConditionalAssignment(x, x.ArgumentList.Arguments[methodParameterIndex]))
-                .ToList();
-
-            return methodAssignments;
+            return GetConstructorAssignments(identifier, classDeclaration);
         }
 
         /// <summary>
-        /// Returns the list of assignments made for that identifier in the method in which the identifier is used.
+        /// Gets the assignments made from various calls to the given method along the binding parameter.
+        /// </summary>
+        private List<ConditionalAssignment> GetMethodCallAssignments(MethodDeclarationSyntax method, int parameterIndex)
+        {
+            //TODO: this does not take into account if a parameter was assigned to another value before being assigned again
+            var methodCallAssignments = solution
+                .FindReferenceLocations(method)
+                .Where(x =>
+                {
+                    var threadPath = threadSchedule.GetThreadPath(solution, x.Location);
+                    return threadPath != null && threadPath.Invocations.Any();
+                })
+                .Select(x => x.GetNode<InvocationExpressionSyntax>())
+                .Select(x => GetConditionalAssignment(x, x.ArgumentList.Arguments[parameterIndex]))
+                .ToList();
+
+            return methodCallAssignments;
+        }
+
+        /// <summary>
+        /// Gets the assignments made from the initializing the constructor in any thread path
+        /// The assignment comes from a field/property of the current class.
+        /// </summary>
+        /// <param name="identifier"></param>
+        /// <param name="classDeclaration"></param>
+        /// <returns></returns>
+        private List<ConditionalAssignment> GetConstructorAssignments(IdentifierNameSyntax identifier, ClassDeclarationSyntax classDeclaration)
+        {
+            //TODO: we need to track exactly how the field gets initialized in the constructor; for now we enforce an argument with the same name in the constructor
+            //TODO: we dont't know if the field was reasigned in another place (other than the constructor) before assigned to the field
+            var constructorParameterIndex = identifier
+                .GetLocation()
+                .GetContainingConstructor()
+                .ParameterList
+                .Parameters
+                .IndexOf(x => x.Identifier.Text == identifier.Identifier.Text);
+            var constructorAssignments = FindObjectCreations(classDeclaration)
+                .Where(x => {
+                    var threadPath = threadSchedule.GetThreadPath(solution, x.GetLocation());
+                    return threadPath != null && threadPath.Invocations.Any();
+                })
+                .Select(x => GetConditionalAssignment(x, x.ArgumentList.Arguments[constructorParameterIndex]))
+                .ToList();
+
+            return constructorAssignments;
+        }
+
+        /// <summary>
+        /// Returns the list of assignments made for that identifier within the method in which the identifier is used.
         /// </summary>
         private List<ConditionalAssignment> GetMethodAssignments(IdentifierNameSyntax identifier)
         {
@@ -221,6 +246,17 @@ namespace Prometheus.Engine.ReferenceTrack {
             };
             SyntaxNode currentNode = assignment;
 
+            var classDeclaration = assignment.FirstAncestorOrSelf<ClassDeclarationSyntax>();
+            var matchingField = classDeclaration
+                .DescendantNodes<FieldDeclarationSyntax>()
+                .FirstOrDefault(x => x.Declaration.Variables.Any(v => v.Identifier.Text == assignment.Right.ToString()));
+
+            if (matchingField != null)
+            {
+                //If the assignment is a shared class field/property, we overwrite the reference; otherwise we track its assignments
+                conditionalAssignment.Reference = matchingField;
+            }
+
             while (currentNode != null) {
                 if (ifClause!=null)
                 {
@@ -229,6 +265,8 @@ namespace Prometheus.Engine.ReferenceTrack {
                 else if (elseClause != null)
                 {
                     conditionalAssignment.Conditions.AddRange(ProcessElseStatement(currentNode, out currentNode).Conditions);
+                } else {
+                    return conditionalAssignment;
                 }
 
                 elseClause = currentNode.FirstAncestor<ElseClauseSyntax>();
@@ -242,6 +280,7 @@ namespace Prometheus.Engine.ReferenceTrack {
         /// Gets the conditional assignment for the given invocation or object creation within its method.
         /// </summary>
         private ConditionalAssignment GetConditionalAssignment(SyntaxNode bindingNode, SyntaxNode argument) {
+            //TODO: check if we can merge this method and the one above
             var elseClause = bindingNode.FirstAncestor<ElseClauseSyntax>();
             var ifClause = bindingNode.FirstAncestor<IfStatementSyntax>();
             var conditionalAssignment = new ConditionalAssignment {
@@ -249,12 +288,24 @@ namespace Prometheus.Engine.ReferenceTrack {
                 AssignmentLocation = bindingNode.GetLocation()
             };
             SyntaxNode currentNode = bindingNode;
+            var classDeclaration = argument.FirstAncestorOrSelf<ClassDeclarationSyntax>();
+            var matchingField = classDeclaration
+                .DescendantNodes<FieldDeclarationSyntax>()
+                .FirstOrDefault(x => x.Declaration.Variables.Any(v => v.Identifier.Text == argument.ToString()));
+
+            if (matchingField != null) {
+                //If the assignment is a shared class field/property, we overwrite the reference; otherwise we track its assignments
+                conditionalAssignment.Reference = matchingField;
+            }
 
             while (currentNode != null) {
                 if (ifClause != null) {
                     conditionalAssignment.Conditions.AddRange(ProcessIfStatement(currentNode, out currentNode).Conditions);
                 } else if (elseClause != null) {
                     conditionalAssignment.Conditions.AddRange(ProcessElseStatement(currentNode, out currentNode).Conditions);
+                }
+                else {
+                    return conditionalAssignment;
                 }
 
                 elseClause = currentNode.FirstAncestor<ElseClauseSyntax>();
@@ -302,69 +353,6 @@ namespace Prometheus.Engine.ReferenceTrack {
                                                                   .Where(oce => oce.GetTypeName() == className)));
 
             return objectCreations;
-        }
-
-        public object DecrementAge(object person)
-        {
-            object instance;
-
-            if (true)
-            {
-                if (person.ToString() == "ds")
-                {
-                    instance = person;
-                }
-                else if (person.ToString() == "dsd")
-                {
-                    instance = person;
-                }
-                else if (person.ToString() == "ddsd")
-                {
-                    instance = person;
-                }
-                else
-                {
-                    instance = new object();
-                }
-            }
-            return instance;
-        }
-
-        private Person instance;
-
-        private void Do(Person person)
-        {
-            if (person.ToString().Length > 2)
-            {
-                instance.Age--;
-            }
-        }
-
-        private void Bar(Person person)
-        {
-            Person currentPerson;
-
-            if (person.ToString().Length < 2)
-            {
-                currentPerson= instance;
-            }
-            else
-            {
-                currentPerson = person;
-            }
-
-            Foo(currentPerson);
-        }
-
-        private void Foo(Person person)
-        {
-            person.Age++;
-        }
-
-        private class Person
-        {
-             public string Name { get; set; }
-             public int Age { get; set; }
         }
     }
 }
