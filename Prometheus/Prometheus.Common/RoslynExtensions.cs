@@ -13,11 +13,16 @@ namespace Prometheus.Common
             return node.DescendantNodes().OfType<T>();
         }
 
+        public static IEnumerable<T> DescendantNodes<T>(this SyntaxNode node, Predicate<T> filter) {
+            return node.DescendantNodes().OfType<T>().Where(x=>filter(x));
+        }
+
+
         public static SyntaxNode GetSyntaxNode(this SyntaxTree tree, ReferenceLocation location) {
             return tree.GetRoot().FindNode(location.Location.SourceSpan);
         }
 
-        public static MethodDeclarationSyntax GetMethod(this SyntaxNode node, string name)
+        public static MethodDeclarationSyntax GetMethodDescendant(this SyntaxNode node, string name)
         {
             return node.DescendantNodes().OfType<MethodDeclarationSyntax>().FirstOrDefault(x=>x.Identifier.Text==name);
         }

@@ -39,11 +39,12 @@ namespace Prometheus.Engine.ReferenceTrack {
             return HaveCommonValueInternal(firstAssignment, secondAssignment);
         }
 
-        private bool HaveCommonValueInternal(ConditionalAssignment first, ConditionalAssignment second) {
-            if (threadSchedule.GetThreadPath(solution, first.Reference.GetLocation()) != null)
+        private bool HaveCommonValueInternal(ConditionalAssignment first, ConditionalAssignment second)
+        {
+            if (!threadSchedule.GetThreadPath(solution, first.Reference.GetLocation()).Invocations.Any())
                 return false;
 
-            if (threadSchedule.GetThreadPath(solution, second.Reference.GetLocation()) != null)
+            if (!threadSchedule.GetThreadPath(solution, second.Reference.GetLocation()).Invocations.Any())
                 return false;
 
             //TODO: need to check scoping: if "first" is a local variable => it cannot match a variable from another function/thread
@@ -164,7 +165,7 @@ namespace Prometheus.Engine.ReferenceTrack {
                     .Parameters
                     .IndexOf(x => x.Identifier.Text == identifierName);
                 var constructorAssignments = FindObjectCreations(classDeclaration)
-                    .Where(x => threadSchedule.GetThreadPath(solution, x.GetLocation()) != null)
+                    .Where(x => threadSchedule.GetThreadPath(solution, x.GetLocation()).Invocations.Any())
                     .Select(x => GetConditionalAssignment(x, x.ArgumentList.Arguments[constructorParameterIndex]))
                     .ToList();
 
@@ -181,7 +182,7 @@ namespace Prometheus.Engine.ReferenceTrack {
             //TODO: this does not take into account if a parameter was assigned to another value before being assigned again
             var methodAssignments = solution
                 .FindReferenceLocations(method)
-                .Where(x => threadSchedule.GetThreadPath(solution, x.Location) != null)
+                .Where(x => threadSchedule.GetThreadPath(solution, x.Location).Invocations.Any())
                 .Select(x => x.GetNode<InvocationExpressionSyntax>())
                 .Select(x => GetConditionalAssignment(x, x.ArgumentList.Arguments[methodParameterIndex]))
                 .ToList();

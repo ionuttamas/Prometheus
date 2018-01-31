@@ -2,7 +2,6 @@
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.FindSymbols;
 using Prometheus.Common;
 
 namespace Prometheus.Engine.Thread {
@@ -35,17 +34,7 @@ namespace Prometheus.Engine.Thread {
             IMethodSymbol methodSymbol = (IMethodSymbol)document.GetSemanticModelAsync().Result.GetDeclaredSymbol(callingMethod);
 
             foreach (var referenceLocation in solution.FindReferenceLocations(methodSymbol)) {
-                SyntaxNode referencingRoot = referenceLocation
-                    .Document
-                    .GetSyntaxRootAsync()
-                    .Result;
-                MethodDeclarationSyntax callingMethodDeclaration = referencingRoot
-                    .DescendantNodes<InvocationExpressionSyntax>()
-                    .First(x => x.GetLocation().SourceSpan.Contains(referenceLocation.Location.SourceSpan))
-                    .AncestorNodes<MethodDeclarationSyntax>()
-                    .First();
-
-                if (callingMethodDeclaration.GetLocation().SourceSpan.Contains(referenceLocation.Location.SourceSpan))
+                if (ThreadMethod.GetLocation().SourceSpan.Contains(referenceLocation.Location.SourceSpan))
                 {
                     result.Add(new List<Location> { referenceLocation.Location });
                     continue;

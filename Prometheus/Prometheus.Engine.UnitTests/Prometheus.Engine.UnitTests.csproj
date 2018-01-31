@@ -242,6 +242,14 @@
       <Project>{0B17B989-0D3A-4AE0-A2FE-FEB03490DBF3}</Project>
       <Name>TestProject.Common</Name>
     </ProjectReference>
+    <ProjectReference Include="..\TestProject.GUI\TestProject.GUI.csproj">
+      <Project>{d07fdaa3-a2a5-43ed-a9af-08ae9f337209}</Project>
+      <Name>TestProject.GUI</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\TestProject.Services\TestProject.Services.csproj">
+      <Project>{be76096b-9a08-4ac0-ab0d-bf1639091cdc}</Project>
+      <Name>TestProject.Services</Name>
+    </ProjectReference>
   </ItemGroup>
   <Choose>
     <When Condition="'$(VisualStudioVersion)' == '10.0' And '$(IsCodedUITest)' == 'True'">

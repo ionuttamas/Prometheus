@@ -8,13 +8,14 @@ using TestProject.Common;
 using TestProject.Services;
 
 namespace TestProject.GUI {
-    class Program
+    public class Program
     {
         private static AtomicStack<int> atomicStack;
         private static NonAtomicUsedStack<int> nonAtomicUsedStack;
         private static AtomicQueue<int> atomicQueue;
         private static NonAtomicQueue<int> nonAtomicQueue;
         private static DeadlockedQueue<int> deadlockedQueue;
+        private static Customer sharedCustomer;
 
         static void Main(string[] args)
         {
@@ -22,7 +23,9 @@ namespace TestProject.GUI {
             var orderService = new OrderService(queue);
             var orderProcessor = new OrderProcessor(queue, 10);
             var thread = new Thread(Do);
+            var transferService = new TransferService();
 
+            transferService.Transfer(sharedCustomer, null, 200);
             atomicStack.Pop();
             nonAtomicUsedStack.Pop();
             nonAtomicUsedStack.List.AddLast(2);
@@ -44,6 +47,8 @@ namespace TestProject.GUI {
             atomicQueue.Enqueue(1);
             nonAtomicQueue.Enqueue(1);
             deadlockedQueue.Enqueue(1);
+            var registrationService = new RegistrationService();
+            registrationService.Register(sharedCustomer);
         }
     }
 }

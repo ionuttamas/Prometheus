@@ -74,7 +74,7 @@ namespace Prometheus.Engine.Thread
                 .ToDictionary(x =>  x,
                               x => x.SyntaxTree
                                     .GetRoot()
-                                    .GetMethod(threadVariables
+                                    .GetMethodDescendant(threadVariables
                                                 .First(tv => tv.Tree == x.SyntaxTree)
                                                 .Variables
                                                 .First(v => v.Variable== x.Expression.As<MemberAccessExpressionSyntax>().Expression.As<IdentifierNameSyntax>().Identifier.Text)
