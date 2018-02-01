@@ -6,5 +6,13 @@
         {
             customer.IsActive = true;
         }
+
+        public void SimpleIfRegister(Customer customer)
+        {
+            if (customer.Type == CustomerType.Gold)
+            {
+                customer.IsActive = true;
+            }
+        }
     }
 }

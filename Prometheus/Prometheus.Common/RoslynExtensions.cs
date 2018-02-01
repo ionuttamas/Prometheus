@@ -83,9 +83,18 @@ namespace Prometheus.Common
                     .Result;
             T node = referencingRoot
                     .DescendantNodes<T>()
-                    .FirstOrDefault(x => x.GetLocation().SourceSpan.Contains(referenceLocation.Location.SourceSpan));
+                    .FirstOrDefault(x => x.ContainsLocation(referenceLocation.Location));
 
             return node;
+        }
+
+        public static bool ContainsLocation(this SyntaxNode node, Location location)
+        {
+            if(node.GetLocation().SourceSpan.Contains(location.SourceSpan) &&
+               node.SyntaxTree.FilePath== location.SourceTree.FilePath)
+                return true;
+
+            return false;
         }
 
         public static IEnumerable<ReferenceLocation> FindReferenceLocations(this Solution solution, ISymbol symbol)

@@ -1,20 +1,10 @@
-using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Linq.Expressions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.FindSymbols;
-using Microsoft.CodeAnalysis.Text;
 using NUnit.Framework;
 using Prometheus.Common;
-using Prometheus.Engine.Analyzer;
-using Prometheus.Engine.Analyzer.Atomic;
-using Prometheus.Engine.Model;
 using Prometheus.Engine.ReferenceTrack;
 using Prometheus.Engine.Thread;
-using Prometheus.Engine.Verifier;
-using TestProject.Common;
 
 namespace Prometheus.Engine.UnitTests
 {
@@ -49,8 +39,41 @@ namespace Prometheus.Engine.UnitTests
             var firstIdentifier = registrationServiceClass.GetMethodDescendant(nameof(TestProject.Services.RegistrationService.Register)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "customer").First();
             var secondIdentifier = transferServiceClass.GetMethodDescendant(nameof(TestProject.Services.TransferService.Transfer)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "from").First();
 
-            Assert.True(referenceTracker.HaveCommonValue(firstIdentifier, secondIdentifier));
-            Assert.True(referenceTracker.HaveCommonValue(firstIdentifier, secondIdentifier));
+            SyntaxNode commonValue;
+            var haveCommonValue = referenceTracker.HaveCommonValue(firstIdentifier, secondIdentifier, out commonValue);
+
+            Assert.True(haveCommonValue);
+            Assert.AreEqual("sharedCustomer", commonValue.ToString());
+        }
+
+        [Test]
+        public void ReferenceTracker_InstanceSharedField_ForOnSided_SimpleIfConditionalAssignments_TracksCorrectly() {
+            var project = solution.Projects.First(x => x.Name == "TestProject.Services");
+            var registrationServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.RegistrationService));
+            var transferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService));
+            var firstIdentifier = registrationServiceClass.GetMethodDescendant(nameof(TestProject.Services.RegistrationService.SimpleIfRegister)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "customer").First();
+            var secondIdentifier = transferServiceClass.GetMethodDescendant(nameof(TestProject.Services.TransferService.Transfer)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "from").First();
+
+            SyntaxNode commonValue;
+            var haveCommonValue = referenceTracker.HaveCommonValue(firstIdentifier, secondIdentifier, out commonValue);
+
+            Assert.True(haveCommonValue);
+            Assert.AreEqual("sharedCustomer", commonValue.ToString());
+        }
+
+        [Test]
+        public void ReferenceTracker_InstanceSharedField_ForTwoSided_SimpleIfConditionalAssignments_TracksCorrectly() {
+            var project = solution.Projects.First(x => x.Name == "TestProject.Services");
+            var registrationServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.RegistrationService));
+            var transferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService));
+            var firstIdentifier = registrationServiceClass.GetMethodDescendant(nameof(TestProject.Services.RegistrationService.SimpleIfRegister)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "customer").First();
+            var secondIdentifier = transferServiceClass.GetMethodDescendant(nameof(TestProject.Services.TransferService.SimpleIfTransfer)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "from").First();
+
+            SyntaxNode commonValue;
+            var haveCommonValue = referenceTracker.HaveCommonValue(firstIdentifier, secondIdentifier, out commonValue);
+
+            Assert.True(haveCommonValue);
+            Assert.AreEqual("sharedCustomer", commonValue.ToString());
         }
     }
 }

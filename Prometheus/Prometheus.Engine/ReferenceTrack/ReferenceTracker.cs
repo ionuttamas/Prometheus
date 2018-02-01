@@ -25,7 +25,7 @@ namespace Prometheus.Engine.ReferenceTrack {
         /// TODO: this does not consider the possible conditional cases for assigning a variable within loops ("for", "while" loops).
         /// TODO: this does not consider assignments like: "order = person.Orders.First()" and "order = instance" where "instance" and "person.Orders.First()" can be the same
         /// </summary>
-        public bool HaveCommonValue(IdentifierNameSyntax first, IdentifierNameSyntax second)
+        public bool HaveCommonValue(IdentifierNameSyntax first, IdentifierNameSyntax second, out SyntaxNode commonNode)
         {
             var firstAssignment = new ConditionalAssignment
             {
@@ -36,11 +36,13 @@ namespace Prometheus.Engine.ReferenceTrack {
                 Reference = second,
                 AssignmentLocation = second.GetLocation()
             };
-            return HaveCommonValueInternal(firstAssignment, secondAssignment);
+            return HaveCommonValueInternal(firstAssignment, secondAssignment, out commonNode);
         }
 
-        private bool HaveCommonValueInternal(ConditionalAssignment first, ConditionalAssignment second, out SyntaxNode common)
+        private bool HaveCommonValueInternal(ConditionalAssignment first, ConditionalAssignment second, out SyntaxNode commonNode)
         {
+            commonNode = null;
+
             if (!threadSchedule.GetThreadPath(solution, first.Reference.GetLocation()).Invocations.Any())
                 return false;
 
@@ -60,8 +62,9 @@ namespace Prometheus.Engine.ReferenceTrack {
             }
 
             foreach (ConditionalAssignment firstAssignment in firstAssignments) {
-                foreach (ConditionalAssignment secondAssignment in secondAssignments) {
-                    if (ValidateReachability(firstAssignment, secondAssignment))
+                foreach (ConditionalAssignment secondAssignment in secondAssignments)
+                {
+                    if (ValidateReachability(firstAssignment, secondAssignment, out commonNode))
                         return true;
                 }
             }
@@ -69,13 +72,18 @@ namespace Prometheus.Engine.ReferenceTrack {
             return false;
         }
 
-        private bool ValidateReachability(ConditionalAssignment first, ConditionalAssignment second)
+        private bool ValidateReachability(ConditionalAssignment first, ConditionalAssignment second, out SyntaxNode commonNode)
         {
+            commonNode = null;
+
             if (!IsSatisfiable(first, second))
                 return false;
 
             if (AreEquivalent(first.Reference, second.Reference))
+            {
+                commonNode = first.Reference;
                 return true;
+            }
 
             var firstReferenceAssignment = new ConditionalAssignment
             {
@@ -89,8 +97,10 @@ namespace Prometheus.Engine.ReferenceTrack {
                 Conditions = second.Conditions
             };
 
-            return HaveCommonValueInternal(firstReferenceAssignment, second) ||
-                   HaveCommonValueInternal(first, secondReferenceAssignment);
+            if (HaveCommonValueInternal(firstReferenceAssignment, second, out commonNode))
+                return true;
+
+            return HaveCommonValueInternal(first, secondReferenceAssignment, out commonNode);
         }
 
         /// <summary>
@@ -254,7 +264,7 @@ namespace Prometheus.Engine.ReferenceTrack {
             if (matchingField != null)
             {
                 //If the assignment is a shared class field/property, we overwrite the reference; otherwise we track its assignments
-                conditionalAssignment.Reference = matchingField;
+                conditionalAssignment.Reference = matchingField.Declaration.Variables[0];
             }
 
             while (currentNode != null) {
@@ -295,7 +305,7 @@ namespace Prometheus.Engine.ReferenceTrack {
 
             if (matchingField != null) {
                 //If the assignment is a shared class field/property, we overwrite the reference; otherwise we track its assignments
-                conditionalAssignment.Reference = matchingField;
+                conditionalAssignment.Reference = matchingField.Declaration.Variables[0];
             }
 
             while (currentNode != null) {

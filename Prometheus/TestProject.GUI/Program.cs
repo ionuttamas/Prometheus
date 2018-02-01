@@ -49,6 +49,7 @@ namespace TestProject.GUI {
             deadlockedQueue.Enqueue(1);
             var registrationService = new RegistrationService();
             registrationService.Register(sharedCustomer);
+            registrationService.SimpleIfRegister(sharedCustomer);
         }
     }
 }
