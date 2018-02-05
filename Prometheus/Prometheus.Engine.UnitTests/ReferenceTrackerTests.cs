@@ -31,85 +31,56 @@ namespace Prometheus.Engine.UnitTests
         }
 
         [Test]
-        public void ReferenceTracker_InstanceSharedField_ForNonConditionalAssignments_TracksCorrectly()
+        public void ReferenceTracker_ForNonConditionalAssignments_TracksCorrectly()
         {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var registrationServiceClass = project.GetCompilation().GetClassDeclaration(typeof (TestProject.Services.RegistrationService));
-            var transferServiceClass = project.GetCompilation().GetClassDeclaration(typeof (TestProject.Services.TransferService));
-            var firstIdentifier = registrationServiceClass.GetMethodDescendant(nameof(TestProject.Services.RegistrationService.Register)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "customer").First();
-            var secondIdentifier = transferServiceClass.GetMethodDescendant(nameof(TestProject.Services.TransferService.Transfer)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "from").First();
+            var identifier = registrationServiceClass.GetMethodDescendant(nameof(TestProject.Services.RegistrationService.Register)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "customer").First();
+            var assignments = referenceTracker.GetAssignments(identifier);
 
-            SyntaxNode commonValue;
-            var haveCommonValue = referenceTracker.HaveCommonValue(firstIdentifier, secondIdentifier, out commonValue);
-
-            Assert.True(haveCommonValue);
-            Assert.AreEqual("sharedCustomer", commonValue.ToString());
+            Assert.True(assignments.Any());
         }
 
         [Test]
-        public void ReferenceTracker_InstanceSharedField_ForOnSided_SimpleIfConditionalAssignments_TracksCorrectly() {
+        public void ReferenceTracker_For_SimpleIfConditionalAssignments_TracksCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var registrationServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.RegistrationService));
-            var transferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService));
-            var firstIdentifier = registrationServiceClass.GetMethodDescendant(nameof(TestProject.Services.RegistrationService.SimpleIfRegister)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "customer").First();
-            var secondIdentifier = transferServiceClass.GetMethodDescendant(nameof(TestProject.Services.TransferService.Transfer)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "from").First();
+            var identifier = registrationServiceClass.GetMethodDescendant(nameof(TestProject.Services.RegistrationService.SimpleIfRegister)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "customer").First();
+            var assignments = referenceTracker.GetAssignments(identifier);
 
-            SyntaxNode commonValue;
-            var haveCommonValue = referenceTracker.HaveCommonValue(firstIdentifier, secondIdentifier, out commonValue);
-
-            Assert.True(haveCommonValue);
-            Assert.AreEqual("sharedCustomer", commonValue.ToString());
+            Assert.True(assignments.Any());
+            Assert.True(assignments.First().Conditions.Any(x=>x.Expression=="customer.Type == CustomerType.Gold"));
         }
 
         [Test]
-        public void ReferenceTracker_InstanceSharedField_ForTwoSided_SimpleIfConditionalAssignments_TracksCorrectly() {
+        public void ReferenceTracker_For_SimpleIfSingleElseConditionalAssignments_TracksCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
-            var registrationServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.RegistrationService));
             var transferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService));
-            var firstIdentifier = registrationServiceClass.GetMethodDescendant(nameof(TestProject.Services.RegistrationService.SimpleIfRegister)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "customer").First();
-            var secondIdentifier = transferServiceClass.GetMethodDescendant(nameof(TestProject.Services.TransferService.SimpleIfTransfer)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "from").First();
+            var identifier = transferServiceClass.GetMethodDescendant(nameof(TestProject.Services.TransferService.SimpleIfSingleElseTransfer)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "from").Last();
+            var assignments = referenceTracker.GetAssignments(identifier);
 
-            SyntaxNode commonValue;
-            var haveCommonValue = referenceTracker.HaveCommonValue(firstIdentifier, secondIdentifier, out commonValue);
-
-            Assert.True(haveCommonValue);
-            Assert.AreEqual("sharedCustomer", commonValue.ToString());
+            Assert.AreEqual(2, assignments.Count);
+            Assert.True(assignments[0].Conditions.Any(x => x.Expression == "from.Type == CustomerType.Premium"));
+            Assert.True(assignments[0].Conditions.Any(x => x.Expression == "!from.Type == CustomerType.Premium"));
+            Assert.True(assignments[1].Conditions.Any(x => x.Expression == "from.Type == CustomerType.Premium"));
+            Assert.True(assignments[1].Conditions.Any(x => x.Expression == "!from.Type == CustomerType.Premium"));
         }
 
         [Test]
-        public void ReferenceTracker_InstanceSharedField_ForTwoSided_SimpleIfSingleElseConditionalAssignments_TracksCorrectly() {
+        public void ReferenceTracker_ForTwoSided_SimpleIfMultipleElseConditionalAssignments_TracksCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
-            var registrationServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.RegistrationService));
             var transferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService));
-            var firstIdentifier = registrationServiceClass.GetMethodDescendant(nameof(TestProject.Services.RegistrationService.SimpleIfRegister)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "customer").First();
-            var secondIdentifier = transferServiceClass.GetMethodDescendant(nameof(TestProject.Services.TransferService.SimpleIfSingleElseTransfer)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "from").Last();
+            var identifier = transferServiceClass.GetMethodDescendant(nameof(TestProject.Services.TransferService.SimpleIfMultipleElseTransfer)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "from").ToList()[3];
+            var assignments = referenceTracker.GetAssignments(identifier);
 
-            SyntaxNode commonValue;
-            var haveCommonValue = referenceTracker.HaveCommonValue(firstIdentifier, secondIdentifier, out commonValue);
+            Assert.AreEqual(3, assignments.Count);
+            Assert.True(assignments[0].Conditions.Any(x => x.Expression == "from.Type == CustomerType.Premium"));
 
-            Assert.True(haveCommonValue);
-            Assert.AreEqual("sharedCustomer", commonValue.ToString());
-        }
+            Assert.True(assignments[1].Conditions.Any(x => x.Expression == "!from.Type == CustomerType.Premium"));
+            Assert.True(assignments[1].Conditions.Any(x => x.Expression == "from.Type == CustomerType.Gold"));
 
-        [Test]
-        public void ReferenceTracker_InstanceSharedField_ForTwoSided_SimpleIfMultipleElseConditionalAssignments_TracksCorrectly() {
-            var project = solution.Projects.First(x => x.Name == "TestProject.Services");
-            var registrationServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.RegistrationService));
-            var transferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService));
-            var firstIdentifier = registrationServiceClass.GetMethodDescendant(nameof(TestProject.Services.RegistrationService.SimpleIfRegister)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "customer").First();
-            var secondIdentifier = transferServiceClass.GetMethodDescendant(nameof(TestProject.Services.TransferService.SimpleIfMultipleElseTransfer)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "from").ToList()[3];
-
-            SyntaxNode commonValue;
-            var haveCommonValue = referenceTracker.HaveCommonValue(firstIdentifier, secondIdentifier, out commonValue);
-
-            Assert.True(haveCommonValue);
-            Assert.AreEqual("sharedCustomer", commonValue.ToString());
-
-            secondIdentifier = transferServiceClass.GetMethodDescendant(nameof(TestProject.Services.TransferService.SimpleIfMultipleElseTransfer)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "from").Last();
-            haveCommonValue = referenceTracker.HaveCommonValue(firstIdentifier, secondIdentifier, out commonValue);
-
-            Assert.True(haveCommonValue);
-            Assert.AreEqual("sharedCustomer", commonValue.ToString());
+            Assert.True(assignments[2].Conditions.Any(x => x.Expression == "!from.Type == CustomerType.Premium"));
+            Assert.True(assignments[2].Conditions.Any(x => x.Expression == "!from.Type == CustomerType.Gold"));
         }
     }
 }

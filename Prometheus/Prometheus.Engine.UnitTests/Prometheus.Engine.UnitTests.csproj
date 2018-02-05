@@ -215,6 +215,7 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="ReferenceProverTests.cs" />
     <Compile Include="ReferenceTrackerTests.cs" />
     <Compile Include="AtomicAnalyzerTests.cs" />
     <Compile Include="ExpressionParserTests.cs" />

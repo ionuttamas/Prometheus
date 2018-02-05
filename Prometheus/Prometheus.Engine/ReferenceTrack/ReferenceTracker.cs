@@ -9,16 +9,13 @@ using Prometheus.Common;
 using Prometheus.Engine.Thread;
 
 namespace Prometheus.Engine.ReferenceTrack {
-    //TODO: this will be used for checking that 2 lock object or 2 instances under concurrency modifications are the same or not
-    internal class ReferenceTracker
+    internal class ReferenceProver
     {
-        private readonly Solution solution;
-        private readonly ThreadSchedule threadSchedule;
+        private readonly ReferenceTracker referenceTracker;
 
-        public ReferenceTracker(Solution solution, ThreadSchedule threadSchedule)
+        public ReferenceProver(ReferenceTracker referenceTracker)
         {
-            this.solution = solution;
-            this.threadSchedule = threadSchedule;
+            this.referenceTracker = referenceTracker;
         }
 
         /// <summary>
@@ -26,10 +23,8 @@ namespace Prometheus.Engine.ReferenceTrack {
         /// TODO: this does not consider the possible conditional cases for assigning a variable within loops ("for", "while" loops).
         /// TODO: this does not consider assignments like: "order = person.Orders.First()" and "order = instance" where "instance" and "person.Orders.First()" can be the same
         /// </summary>
-        public bool HaveCommonValue(IdentifierNameSyntax first, IdentifierNameSyntax second, out SyntaxNode commonNode)
-        {
-            var firstAssignment = new ConditionalAssignment
-            {
+        public bool HaveCommonValue(IdentifierNameSyntax first, IdentifierNameSyntax second, out SyntaxNode commonNode) {
+            var firstAssignment = new ConditionalAssignment {
                 Reference = first,
                 AssignmentLocation = first.GetLocation()
             };
@@ -40,19 +35,12 @@ namespace Prometheus.Engine.ReferenceTrack {
             return HaveCommonValueInternal(firstAssignment, secondAssignment, out commonNode);
         }
 
-        private bool HaveCommonValueInternal(ConditionalAssignment first, ConditionalAssignment second, out SyntaxNode commonNode)
-        {
+        private bool HaveCommonValueInternal(ConditionalAssignment first, ConditionalAssignment second, out SyntaxNode commonNode) {
             commonNode = null;
 
-            if (!threadSchedule.GetThreadPath(solution, first.Reference.GetLocation()).Invocations.Any())
-                return false;
-
-            if (!threadSchedule.GetThreadPath(solution, second.Reference.GetLocation()).Invocations.Any())
-                return false;
-
             //TODO: need to check scoping: if "first" is a local variable => it cannot match a variable from another function/thread
-            var firstAssignments = GetAssignments((IdentifierNameSyntax)first.Reference); //todo: this needs checking
-            var secondAssignments = GetAssignments((IdentifierNameSyntax)second.Reference);
+            var firstAssignments = referenceTracker.GetAssignments((IdentifierNameSyntax)first.Reference); //todo: this needs checking
+            var secondAssignments = referenceTracker.GetAssignments((IdentifierNameSyntax)second.Reference);
 
             foreach (ConditionalAssignment assignment in firstAssignments) {
                 assignment.Conditions.AddRange(first.Conditions);
@@ -63,8 +51,7 @@ namespace Prometheus.Engine.ReferenceTrack {
             }
 
             foreach (ConditionalAssignment firstAssignment in firstAssignments) {
-                foreach (ConditionalAssignment secondAssignment in secondAssignments)
-                {
+                foreach (ConditionalAssignment secondAssignment in secondAssignments) {
                     if (ValidateReachability(firstAssignment, secondAssignment, out commonNode))
                         return true;
                 }
@@ -73,21 +60,18 @@ namespace Prometheus.Engine.ReferenceTrack {
             return false;
         }
 
-        private bool ValidateReachability(ConditionalAssignment first, ConditionalAssignment second, out SyntaxNode commonNode)
-        {
+        private bool ValidateReachability(ConditionalAssignment first, ConditionalAssignment second, out SyntaxNode commonNode) {
             commonNode = null;
 
             if (!IsSatisfiable(first, second))
                 return false;
 
-            if (AreEquivalent(first.Reference, second.Reference))
-            {
+            if (AreEquivalent(first.Reference, second.Reference)) {
                 commonNode = first.Reference;
                 return true;
             }
 
-            var firstReferenceAssignment = new ConditionalAssignment
-            {
+            var firstReferenceAssignment = new ConditionalAssignment {
                 Reference = first.Reference,
                 AssignmentLocation = first.AssignmentLocation,
                 Conditions = first.Conditions
@@ -109,8 +93,7 @@ namespace Prometheus.Engine.ReferenceTrack {
         /// This can be a class field/property used by both thread functions or parameters passed to threads that are the same
         /// TODO: currently this checks only for field equivalence
         /// </summary>
-        private static bool AreEquivalent(SyntaxNode first, SyntaxNode second)
-        {
+        private static bool AreEquivalent(SyntaxNode first, SyntaxNode second) {
             if (first.ToString() != second.ToString())
                 return false;
 
@@ -120,9 +103,21 @@ namespace Prometheus.Engine.ReferenceTrack {
             return true;
         }
 
-        private static bool IsSatisfiable(ConditionalAssignment first, ConditionalAssignment second)
-        {
+        private static bool IsSatisfiable(ConditionalAssignment first, ConditionalAssignment second) {
             return true;
+        }
+    }
+
+    //TODO: this will be used for checking that 2 lock object or 2 instances under concurrency modifications are the same or not
+    internal class ReferenceTracker
+    {
+        private readonly Solution solution;
+        private readonly ThreadSchedule threadSchedule;
+
+        public ReferenceTracker(Solution solution, ThreadSchedule threadSchedule)
+        {
+            this.solution = solution;
+            this.threadSchedule = threadSchedule;
         }
 
         /// <summary>
@@ -155,8 +150,11 @@ namespace Prometheus.Engine.ReferenceTrack {
         /// </code>
         /// </example>
         /// </summary>
-        private List<ConditionalAssignment> GetAssignments(IdentifierNameSyntax identifier)
+        public List<ConditionalAssignment> GetAssignments(IdentifierNameSyntax identifier)
         {
+            if (!threadSchedule.GetThreadPath(solution, identifier.GetLocation()).Invocations.Any())
+                return new List<ConditionalAssignment>();
+
             //TODO: this does not take into account previous assignments to parameters
             var identifierName = identifier.Identifier.Text;
             var method = identifier.GetLocation().GetContainingMethod();
@@ -194,12 +192,12 @@ namespace Prometheus.Engine.ReferenceTrack {
                 .Select(x => x.GetNode<InvocationExpressionSyntax>())
                 .Select(x => GetConditionalAssignment(x, x.ArgumentList.Arguments[parameterIndex]))
                 .ToList();
-            var withinMethodAssignment = GetMethodAssignments(identifier).FirstOrDefault();
+            var withinMethodAssignments = GetMethodAssignments(identifier);
 
-            if (withinMethodAssignment != null && withinMethodAssignment.Conditions.Any())
+            if (withinMethodAssignments.Any())
             {
                 foreach (var assignment in methodCallAssignments) {
-                    assignment.Conditions.AddRange(withinMethodAssignment.Conditions);
+                    assignment.Conditions.AddRange(withinMethodAssignments.Conditions);
                 }
             }
 
@@ -241,9 +239,10 @@ namespace Prometheus.Engine.ReferenceTrack {
         {
             //TODO: needs further testing: need all references or only the one from the identifier bubbling up
             var method = identifier.GetLocation().GetContainingMethod();
+            var identifierName = identifier.Identifier.Text;
             var assignments = method
                 .DescendantNodes<AssignmentExpressionSyntax>()
-                .Where(x=>x.Left.ContainsLocation(identifier.GetLocation()));
+                .Where(x=>x.Left.ToString() == identifierName || x.Left.ToString().Contains($"{identifierName}.")); //TODO: quick and dirty hack
             var conditionalAssignments = assignments.Select(GetConditionalAssignment).ToList();
 
             return conditionalAssignments;
