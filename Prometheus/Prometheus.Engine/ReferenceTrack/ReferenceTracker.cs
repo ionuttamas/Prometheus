@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -171,7 +172,7 @@ namespace Prometheus.Engine.ReferenceTrack {
                 //The assignment is not from a method parameter, so we search for the assignment inside
                 return methodParameterIndex < 0
                     ? GetMethodAssignments(identifier)
-                    : GetMethodCallAssignments(method, methodParameterIndex);
+                    : GetMethodCallAssignments(identifier, method, methodParameterIndex);
             }
 
             return GetConstructorAssignments(identifier, classDeclaration);
@@ -180,7 +181,7 @@ namespace Prometheus.Engine.ReferenceTrack {
         /// <summary>
         /// Gets the assignments made from various calls to the given method along the binding parameter.
         /// </summary>
-        private List<ConditionalAssignment> GetMethodCallAssignments(MethodDeclarationSyntax method, int parameterIndex)
+        private List<ConditionalAssignment> GetMethodCallAssignments(IdentifierNameSyntax identifier, MethodDeclarationSyntax method, int parameterIndex)
         {
             //TODO: this does not take into account if a parameter was assigned to another value before being assigned again
             var methodCallAssignments = solution
@@ -193,6 +194,14 @@ namespace Prometheus.Engine.ReferenceTrack {
                 .Select(x => x.GetNode<InvocationExpressionSyntax>())
                 .Select(x => GetConditionalAssignment(x, x.ArgumentList.Arguments[parameterIndex]))
                 .ToList();
+            var withinMethodAssignment = GetMethodAssignments(identifier).FirstOrDefault();
+
+            if (withinMethodAssignment != null && withinMethodAssignment.Conditions.Any())
+            {
+                foreach (var assignment in methodCallAssignments) {
+                    assignment.Conditions.AddRange(withinMethodAssignment.Conditions);
+                }
+            }
 
             return methodCallAssignments;
         }
@@ -230,13 +239,11 @@ namespace Prometheus.Engine.ReferenceTrack {
         /// </summary>
         private List<ConditionalAssignment> GetMethodAssignments(IdentifierNameSyntax identifier)
         {
+            //TODO: needs further testing: need all references or only the one from the identifier bubbling up
             var method = identifier.GetLocation().GetContainingMethod();
-            var identifierName = identifier.Identifier.Text;
             var assignments = method
                 .DescendantNodes<AssignmentExpressionSyntax>()
-                .Where(x=>x.Kind()==SyntaxKind.SimpleAssignmentExpression)
-                .Where(x=>x.Left is IdentifierNameSyntax)
-                .Where(x=>x.Left.As<IdentifierNameSyntax>().Identifier.Text == identifierName);
+                .Where(x=>x.Left.ContainsLocation(identifier.GetLocation()));
             var conditionalAssignments = assignments.Select(GetConditionalAssignment).ToList();
 
             return conditionalAssignments;
@@ -268,7 +275,7 @@ namespace Prometheus.Engine.ReferenceTrack {
             }
 
             while (currentNode != null) {
-                if (ifClause!=null)
+                if (ifClause!=null && !ifClause.Contains(elseClause))
                 {
                     conditionalAssignment.Conditions.AddRange(ProcessIfStatement(currentNode, out currentNode).Conditions);
                 }
@@ -309,7 +316,7 @@ namespace Prometheus.Engine.ReferenceTrack {
             }
 
             while (currentNode != null) {
-                if (ifClause != null) {
+                if (ifClause != null && !ifClause.Contains(elseClause)) {
                     conditionalAssignment.Conditions.AddRange(ProcessIfStatement(currentNode, out currentNode).Conditions);
                 } else if (elseClause != null) {
                     conditionalAssignment.Conditions.AddRange(ProcessElseStatement(currentNode, out currentNode).Conditions);
