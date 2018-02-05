@@ -9,6 +9,11 @@ namespace Prometheus.Engine.Thread {
         public MethodDeclarationSyntax ThreadMethod { get; set; }
         public List<Location> Invocations { get; set; }
 
+        public ThreadPath()
+        {
+            Invocations = new List<Location>();
+        }
+
         public List<List<Location>> GetInvocationChains(Solution solution, Location location)
         {
             return GetInvocationChains(solution, location, new List<MethodDeclarationSyntax>());
@@ -16,10 +21,13 @@ namespace Prometheus.Engine.Thread {
 
         private List<List<Location>> GetInvocationChains(Solution solution, Location location, List<MethodDeclarationSyntax> visitedMethods) {
             Project project = solution.Projects.First(x => x.Documents.Any(doc => doc.FilePath == location.SourceTree.FilePath));
+            Location threadMethodLocation = ThreadMethod.GetLocation();
 
-            if (ThreadMethod.GetLocation().SourceSpan.Contains(location.SourceSpan)) {
-                var chain = new List<Location> { location };
-                return new List<List<Location>> { chain };
+            if (threadMethodLocation.SourceSpan.Contains(location.SourceSpan) &&
+                threadMethodLocation.SourceTree == location.SourceTree)
+            {
+                var chain = new List<Location> {location};
+                return new List<List<Location>> {chain};
             }
 
             var result = new List<List<Location>>();
@@ -34,7 +42,8 @@ namespace Prometheus.Engine.Thread {
             IMethodSymbol methodSymbol = (IMethodSymbol)document.GetSemanticModelAsync().Result.GetDeclaredSymbol(callingMethod);
 
             foreach (var referenceLocation in solution.FindReferenceLocations(methodSymbol)) {
-                if (ThreadMethod.GetLocation().SourceSpan.Contains(referenceLocation.Location.SourceSpan))
+                if (threadMethodLocation.SourceSpan.Contains(referenceLocation.Location.SourceSpan) &&
+                    ThreadMethod.SyntaxTree==referenceLocation.Location.SourceTree)
                 {
                     result.Add(new List<Location> { referenceLocation.Location });
                     continue;

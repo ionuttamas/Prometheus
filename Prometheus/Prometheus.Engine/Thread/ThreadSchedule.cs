@@ -24,7 +24,7 @@ namespace Prometheus.Engine.Thread
                 };
             }
 
-            return null;
+            return new InvocationPath();
         }
     }
 }

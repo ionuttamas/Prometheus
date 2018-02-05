@@ -82,6 +82,7 @@ namespace Prometheus.Engine.Thread
             List<ThreadPath> threadPaths = threadInvocations
                 .SelectMany(x => GetPaths(project, entryPoint, x.Key, x.Value))
                 .ToList();
+            threadPaths.Add(GetMainThreadPath(entryPoint));
 
             return threadPaths;
         }
@@ -98,6 +99,17 @@ namespace Prometheus.Engine.Thread
                 .ToList();
 
             return threadPaths;
+        }
+
+        private ThreadPath GetMainThreadPath(IMethodSymbol entryPoint)
+        {
+            var methodDeclaration = entryPoint.Locations.First().GetContainingMethod();
+            var mainThreadPath = new ThreadPath
+            {
+                ThreadMethod = methodDeclaration
+            };
+
+            return mainThreadPath;
         }
 
         private List<List<Location>> GetSymbolChains(IMethodSymbol entryPoint, ISymbol referencedSymbol)
@@ -128,7 +140,7 @@ namespace Prometheus.Engine.Thread
                     .Result;
                 MethodDeclarationSyntax callingMethodDeclaration = referencingRoot
                     .DescendantNodes<InvocationExpressionSyntax>()
-                    .First(x=>x.GetLocation().SourceSpan.Contains(referenceLocation.Location.SourceSpan))
+                    .First(x=>x.ContainsLocation(referenceLocation.Location))
                     .AncestorNodes<MethodDeclarationSyntax>()
                     .First();
                 IMethodSymbol callingReferenceSymbol = (IMethodSymbol)ModelExtensions.GetDeclaredSymbol(referenceLocation.Document.GetSemanticModelAsync().Result, callingMethodDeclaration);

@@ -91,7 +91,7 @@ namespace Prometheus.Common
         public static bool ContainsLocation(this SyntaxNode node, Location location)
         {
             if(node.GetLocation().SourceSpan.Contains(location.SourceSpan) &&
-               node.SyntaxTree.FilePath== location.SourceTree.FilePath)
+               node.SyntaxTree == location.SourceTree)
                 return true;
 
             return false;

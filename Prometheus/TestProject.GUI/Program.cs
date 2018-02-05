@@ -26,6 +26,7 @@ namespace TestProject.GUI {
             var transferService = new TransferService();
 
             transferService.Transfer(sharedCustomer, null, 200);
+            transferService.SimpleIfTransfer(sharedCustomer, null, 200);
             atomicStack.Pop();
             nonAtomicUsedStack.Pop();
             nonAtomicUsedStack.List.AddLast(2);

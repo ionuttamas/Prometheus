@@ -8,5 +8,10 @@ namespace Prometheus.Engine.Thread
     {
         public MethodDeclarationSyntax RootMethod { get; set; }
         public List<Location> Invocations { get; set; }
+
+        public InvocationPath()
+        {
+            Invocations = new List<Location>();
+        }
     }
 }
