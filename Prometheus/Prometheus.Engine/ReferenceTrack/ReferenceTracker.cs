@@ -193,15 +193,15 @@ namespace Prometheus.Engine.ReferenceTrack {
             var withinMethodAssignments = GetMethodAssignments(identifier);
             var result = new List<ConditionalAssignment>();
 
-            if (withinMethodAssignments.Any())
-            {
-                foreach (var assignment in methodCallAssignments) {
-                    foreach (ConditionalAssignment withinMethodAssignment in withinMethodAssignments)
-                    {
-                        var clonedAssignment = assignment.Clone();
-                        clonedAssignment.Conditions.AddRange(withinMethodAssignment.Conditions);
-                        result.Add(clonedAssignment);
-                    }
+            if (!withinMethodAssignments.Any())
+                return methodCallAssignments;
+
+            foreach (var assignment in methodCallAssignments) {
+                foreach (ConditionalAssignment withinMethodAssignment in withinMethodAssignments)
+                {
+                    var clonedAssignment = assignment.Clone();
+                    clonedAssignment.Conditions.AddRange(withinMethodAssignment.Conditions);
+                    result.Add(clonedAssignment);
                 }
             }
 

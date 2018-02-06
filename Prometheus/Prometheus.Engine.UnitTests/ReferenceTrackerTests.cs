@@ -133,5 +133,42 @@ namespace Prometheus.Engine.UnitTests
             Assert.True(assignments[5].Conditions.Any(x => x.Expression == "!(amount < 0)"));
             Assert.True(assignments[5].Conditions.Any(x => x.Expression == "!(amount > 0)"));
         }
+
+        [Test]
+        public void ReferenceTracker_For_NestedCall_SimpleIfConditionalAssignments_TracksCorrectly() {
+            var project = solution.Projects.First(x => x.Name == "TestProject.Services");
+            var transferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService));
+            var identifier = transferServiceClass.GetMethodDescendant("TransferInternal").Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "customer").First();
+            var assignments = referenceTracker.GetAssignments(identifier);
+
+            Assert.AreEqual(6, assignments.Count);
+            Assert.True(assignments[0].Conditions.Any(x => x.Expression == "from.Type == CustomerType.Premium"));
+            Assert.True(assignments[0].Conditions.Any(x => x.Expression == "amount > 0"));
+
+            Assert.True(assignments[1].Conditions.Any(x => x.Expression == "!(from.Type == CustomerType.Premium)"));
+            Assert.True(assignments[1].Conditions.Any(x => x.Expression == "from.Type == CustomerType.Gold"));
+            Assert.True(assignments[1].Conditions.Any(x => x.Expression == "amount > 0"));
+
+            Assert.True(assignments[2].Conditions.Any(x => x.Expression == "!(from.Type == CustomerType.Premium)"));
+            Assert.True(assignments[2].Conditions.Any(x => x.Expression == "!(from.Type == CustomerType.Gold)"));
+            Assert.True(assignments[2].Conditions.Any(x => x.Expression == "amount > 0"));
+
+            Assert.True(assignments[3].Conditions.Any(x => x.Expression == "!from.IsActive && from.AccountBalance < 0"));
+            Assert.True(assignments[3].Conditions.Any(x => x.Expression == "amount < 0"));
+            Assert.True(assignments[3].Conditions.Any(x => x.Expression == "!(amount > 0)"));
+
+            Assert.True(assignments[4].Conditions.Any(x => x.Expression == "!(!from.IsActive && from.AccountBalance < 0)"));
+            Assert.True(assignments[4].Conditions.Any(x => x.Expression == "from.Type == CustomerType.Gold && from.AccountBalance < 0"));
+            Assert.True(assignments[4].Conditions.Any(x => x.Expression == "amount < 0"));
+            Assert.True(assignments[4].Conditions.Any(x => x.Expression == "!(amount > 0)"));
+
+            Assert.True(assignments[5].Conditions.Any(x => x.Expression == "!from.IsActive && from.AccountBalance > 0"));
+            Assert.True(assignments[5].Conditions.Any(x => x.Expression == "!(amount < 0)"));
+            Assert.True(assignments[5].Conditions.Any(x => x.Expression == "!(amount > 0)"));
+
+            identifier = transferServiceClass.GetMethodDescendant("TransferInternal").Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "from").First();
+            assignments = referenceTracker.GetAssignments(identifier);
+            Assert.True(assignments[0].Conditions.Any(x => x.Expression == "from.Age > 30"));
+        }
     }
 }
