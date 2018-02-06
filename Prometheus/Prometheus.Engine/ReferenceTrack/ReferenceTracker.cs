@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Prometheus.Common;
 using Prometheus.Engine.Thread;
@@ -240,12 +241,12 @@ namespace Prometheus.Engine.ReferenceTrack {
         /// </summary>
         private List<ConditionalAssignment> GetMethodAssignments(IdentifierNameSyntax identifier)
         {
-            //TODO: needs further testing: need all references or only the one from the identifier bubbling up
             var method = identifier.GetLocation().GetContainingMethod();
             var identifierName = identifier.Identifier.Text;
             var assignments = method
                 .DescendantNodes<AssignmentExpressionSyntax>()
-                .Where(x=>x.Left.ToString() == identifierName || x.Left.ToString().Contains($"{identifierName}.")); //TODO: quick and dirty hack
+                .Where(x=>x.Kind() == SyntaxKind.SimpleAssignmentExpression)
+                .Where(x=>x.Left.ToString() == identifierName);
             var conditionalAssignments = assignments.Select(GetConditionalAssignment).ToList();
 
             return conditionalAssignments;
@@ -339,9 +340,21 @@ namespace Prometheus.Engine.ReferenceTrack {
             var conditionalAssignment = new ConditionalAssignment();
             lastNode = ifClause;
 
-            if (ifClause != null)
-            {
-                conditionalAssignment.AddCondition(ifClause.Condition.ToString(), ifClause.GetLocation());
+            if (ifClause == null)
+                return conditionalAssignment;
+
+            conditionalAssignment.AddCondition(ifClause.Condition.ToString(), ifClause.GetLocation());
+            var elseClause = ifClause.Parent as ElseClauseSyntax;
+
+            while (elseClause != null) {
+                var ifStatement = elseClause.Parent as IfStatementSyntax;
+
+                if (ifStatement == null)
+                    break;
+
+                conditionalAssignment.AddCondition($"!({ifStatement.Condition})", ifStatement.GetLocation());
+                lastNode = ifStatement;
+                elseClause = ifStatement.Parent as ElseClauseSyntax;
             }
 
             return conditionalAssignment;
@@ -354,10 +367,14 @@ namespace Prometheus.Engine.ReferenceTrack {
             lastNode = elseClause;
 
             while (elseClause != null) {
-                var ifStatement = elseClause.FirstAncestor<IfStatementSyntax>();
-                conditionalAssignment.AddCondition("!" + ifStatement.Condition, ifStatement.GetLocation());
+                var ifStatement = elseClause.Parent as IfStatementSyntax;
+
+                if (ifStatement == null)
+                    break;
+
+                conditionalAssignment.AddCondition($"!({ifStatement.Condition})", ifStatement.GetLocation());
                 lastNode = ifStatement;
-                elseClause = ifStatement.FirstAncestor<ElseClauseSyntax>();
+                elseClause = ifStatement.Parent as ElseClauseSyntax;
             }
 
             return conditionalAssignment;

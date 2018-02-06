@@ -29,6 +29,9 @@ namespace TestProject.GUI {
             transferService.SimpleIfTransfer(sharedCustomer, null, 200);
             transferService.SimpleIfSingleElseTransfer(sharedCustomer, null, 200);
             transferService.SimpleIfMultipleElseTransfer(sharedCustomer, null, 200);
+            transferService.NestedIfElseTransfer(sharedCustomer, null, 200);
+            transferService.NestedIfElse_With_IfElseTransfer(sharedCustomer, null, 200);
+
             atomicStack.Pop();
             nonAtomicUsedStack.Pop();
             nonAtomicUsedStack.List.AddLast(2);
