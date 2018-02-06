@@ -61,8 +61,6 @@ namespace Prometheus.Engine.UnitTests
 
             Assert.AreEqual(2, assignments.Count);
             Assert.True(assignments[0].Conditions.Any(x => x.Expression == "from.Type == CustomerType.Premium"));
-            Assert.True(assignments[0].Conditions.Any(x => x.Expression == "!from.Type == CustomerType.Premium"));
-            Assert.True(assignments[1].Conditions.Any(x => x.Expression == "from.Type == CustomerType.Premium"));
             Assert.True(assignments[1].Conditions.Any(x => x.Expression == "!from.Type == CustomerType.Premium"));
         }
 

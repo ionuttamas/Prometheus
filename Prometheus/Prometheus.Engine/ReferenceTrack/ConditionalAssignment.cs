@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using Microsoft.CodeAnalysis;
 
 namespace Prometheus.Engine.ReferenceTrack
@@ -27,11 +29,30 @@ namespace Prometheus.Engine.ReferenceTrack
                 Expression = expression
             });
         }
+
+        public ConditionalAssignment Clone()
+        {
+            return new ConditionalAssignment
+            {
+                Reference = Reference,
+                AssignmentLocation = AssignmentLocation,
+                Conditions = Conditions.Select(x=>x.Clone()).ToList()
+            };
+        }
     }
 
     public class Condition
     {
         public string Expression { get; set; }
         public Location Location { get; set; }
+
+        public Condition Clone()
+        {
+            return new Condition
+            {
+                Location = Location,
+                Expression = Expression
+            };
+        }
     }
 }

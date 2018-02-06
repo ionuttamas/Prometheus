@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
+﻿using System.Collections.Generic;
 using System.Linq;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Prometheus.Common;
 using Prometheus.Engine.Thread;
@@ -193,15 +190,21 @@ namespace Prometheus.Engine.ReferenceTrack {
                 .Select(x => GetConditionalAssignment(x, x.ArgumentList.Arguments[parameterIndex]))
                 .ToList();
             var withinMethodAssignments = GetMethodAssignments(identifier);
+            var result = new List<ConditionalAssignment>();
 
             if (withinMethodAssignments.Any())
             {
                 foreach (var assignment in methodCallAssignments) {
-                    assignment.Conditions.AddRange(withinMethodAssignments.Conditions);
+                    foreach (ConditionalAssignment withinMethodAssignment in withinMethodAssignments)
+                    {
+                        var clonedAssignment = assignment.Clone();
+                        clonedAssignment.Conditions.AddRange(withinMethodAssignment.Conditions);
+                        result.Add(clonedAssignment);
+                    }
                 }
             }
 
-            return methodCallAssignments;
+            return result;
         }
 
         /// <summary>
