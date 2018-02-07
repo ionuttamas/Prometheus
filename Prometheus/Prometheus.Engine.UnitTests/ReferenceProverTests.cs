@@ -3,14 +3,14 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using NUnit.Framework;
 using Prometheus.Common;
-using Prometheus.Engine.ReferenceTrack;
+using Prometheus.Engine.ReferenceProver;
 using Prometheus.Engine.Thread;
 
 namespace Prometheus.Engine.UnitTests
 {
     [TestFixture]
     public class ReferenceProverTests {
-        private ReferenceProver referenceProver;
+        private ReferenceProver.ReferenceProver referenceProver;
         private ReferenceTracker referenceTracker;
         private Solution solution;
 

@@ -1,9 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 
-namespace Prometheus.Engine.ReferenceTrack
+namespace Prometheus.Engine.ReferenceProver
 {
     /// <summary>
     /// Holds the conditional assignment for a given reference.

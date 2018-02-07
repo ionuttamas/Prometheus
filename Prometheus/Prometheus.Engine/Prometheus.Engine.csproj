@@ -183,8 +183,10 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ReferenceTrack\ConditionalAssignment.cs" />
-    <Compile Include="ReferenceTrack\ReferenceTracker.cs" />
+    <Compile Include="ReferenceProver\ConditionalAssignment.cs" />
+    <Compile Include="ReferenceProver\ConditionalProver.cs" />
+    <Compile Include="ReferenceProver\ReferenceProver.cs" />
+    <Compile Include="ReferenceProver\ReferenceTracker.cs" />
     <Compile Include="Thread\InvocationPath.cs" />
     <Compile Include="Verifier\Args.cs" />
     <Compile Include="Model\ModelStateConfiguration.cs" />
