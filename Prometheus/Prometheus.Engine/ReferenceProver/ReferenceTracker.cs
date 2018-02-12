@@ -244,7 +244,7 @@ namespace Prometheus.Engine.ReferenceProver {
             if (ifClause == null)
                 return conditionalAssignment;
 
-            conditionalAssignment.AddCondition(ifClause.Condition.ToString(), ifClause.GetLocation());
+            conditionalAssignment.AddCondition(ifClause, false);
             var elseClause = ifClause.Parent as ElseClauseSyntax;
 
             while (elseClause != null) {
@@ -253,7 +253,7 @@ namespace Prometheus.Engine.ReferenceProver {
                 if (ifStatement == null)
                     break;
 
-                conditionalAssignment.AddCondition($"!({ifStatement.Condition})", ifStatement.GetLocation());
+                conditionalAssignment.AddCondition(ifStatement, true);
                 lastNode = ifStatement;
                 elseClause = ifStatement.Parent as ElseClauseSyntax;
             }
@@ -273,7 +273,7 @@ namespace Prometheus.Engine.ReferenceProver {
                 if (ifStatement == null)
                     break;
 
-                conditionalAssignment.AddCondition($"!({ifStatement.Condition})", ifStatement.GetLocation());
+                conditionalAssignment.AddCondition(ifStatement, true);
                 lastNode = ifStatement;
                 elseClause = ifStatement.Parent as ElseClauseSyntax;
             }

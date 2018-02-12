@@ -68,8 +68,8 @@
       <Private>True</Private>
     </Reference>
     <Reference Include="Microsoft.Z3, Version=4.5.0.0, Culture=neutral, PublicKeyToken=9c8d792caae602a2, processorArchitecture=AMD64">
-      <HintPath>..\packages\z3x64win.4.5.0.1\lib\Microsoft.Z3.dll</HintPath>
-      <Private>True</Private>
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Microsoft Research\Z3-4.1\bin\Microsoft.Z3.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.AppContext, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
@@ -184,7 +184,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ReferenceProver\ConditionalAssignment.cs" />
-    <Compile Include="ReferenceProver\ConditionalProver.cs" />
     <Compile Include="ReferenceProver\ReferenceProver.cs" />
     <Compile Include="ReferenceProver\ReferenceTracker.cs" />
     <Compile Include="Thread\InvocationPath.cs" />

@@ -1,17 +1,16 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.Z3;
 
 namespace Prometheus.Engine.ReferenceProver
 {
     internal class ReferenceProver
     {
         private readonly ReferenceTracker referenceTracker;
-        private readonly ConditionalProver conditionalProver;
 
-        public ReferenceProver(ReferenceTracker referenceTracker, ConditionalProver conditionalProver)
+        public ReferenceProver(ReferenceTracker referenceTracker)
         {
             this.referenceTracker = referenceTracker;
-            this.conditionalProver = conditionalProver;
         }
 
         /// <summary>
@@ -59,7 +58,7 @@ namespace Prometheus.Engine.ReferenceProver
         private bool ValidateReachability(ConditionalAssignment first, ConditionalAssignment second, out SyntaxNode commonNode) {
             commonNode = null;
 
-            if (!conditionalProver.IsSatisfiable(first, second))
+            if (!IsSatisfiable(first, second))
                 return false;
 
             if (AreEquivalent(first.Reference, second.Reference)) {
@@ -98,5 +97,28 @@ namespace Prometheus.Engine.ReferenceProver
 
             return true;
         }
+
+        #region Conditional prover
+
+        private bool IsSatisfiable(ConditionalAssignment first, ConditionalAssignment second) {
+            using (Context ctx = new Context()) {
+                Expr x = ctx.MkConst("x", ctx.MkIntSort());
+                Expr y = ctx.MkConst("y", ctx.MkIntSort());
+                Expr zero = ctx.MkNumeral(0, ctx.MkIntSort());
+                Expr one = ctx.MkNumeral(1, ctx.MkIntSort());
+                Expr three = ctx.MkNumeral(3, ctx.MkIntSort());
+
+                Solver s = ctx.MkSolver();
+                s.Assert(ctx.MkAnd(ctx.MkGt((ArithExpr)x, (ArithExpr)zero), ctx.MkEq((ArithExpr)y,
+                    ctx.MkAdd((ArithExpr)x, (ArithExpr)one)), ctx.MkLt((ArithExpr)y, (ArithExpr)three)));
+
+
+                Microsoft.Z3.Model m = s.Model;
+            }
+            return true;
+        }
+
+        #endregion
+
     }
 }

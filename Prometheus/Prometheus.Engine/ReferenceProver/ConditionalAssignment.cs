@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Prometheus.Engine.ReferenceProver
 {
@@ -20,12 +21,12 @@ namespace Prometheus.Engine.ReferenceProver
             Conditions = new List<Condition>();
         }
 
-        public void AddCondition(string expression, Location location)
+        public void AddCondition(IfStatementSyntax ifStatement, bool isNegated)
         {
             Conditions.Add(new Condition
             {
-                Location = location,
-                Expression = expression
+                IfStatement = ifStatement,
+                IsNegated = isNegated
             });
         }
 
@@ -35,23 +36,14 @@ namespace Prometheus.Engine.ReferenceProver
             {
                 Reference = Reference,
                 AssignmentLocation = AssignmentLocation,
-                Conditions = Conditions.Select(x=>x.Clone()).ToList()
+                Conditions = Conditions.Select(x=>x).ToList()
             };
         }
     }
 
     public class Condition
     {
-        public string Expression { get; set; }
-        public Location Location { get; set; }
-
-        public Condition Clone()
-        {
-            return new Condition
-            {
-                Location = Location,
-                Expression = Expression
-            };
-        }
+        public IfStatementSyntax IfStatement { get; set; }
+        public bool IsNegated { get; set; }
     }
 }
