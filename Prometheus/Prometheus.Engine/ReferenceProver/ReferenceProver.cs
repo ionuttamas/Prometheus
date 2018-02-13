@@ -1,4 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Z3;
 
@@ -100,22 +104,126 @@ namespace Prometheus.Engine.ReferenceProver
 
         #region Conditional prover
 
-        private bool IsSatisfiable(ConditionalAssignment first, ConditionalAssignment second) {
-            using (Context ctx = new Context()) {
-                Expr x = ctx.MkConst("x", ctx.MkIntSort());
-                Expr y = ctx.MkConst("y", ctx.MkIntSort());
-                Expr zero = ctx.MkNumeral(0, ctx.MkIntSort());
-                Expr one = ctx.MkNumeral(1, ctx.MkIntSort());
-                Expr three = ctx.MkNumeral(3, ctx.MkIntSort());
+        private readonly Dictionary<string, Expr> hackTable = new Dictionary<string, Expr>();
 
-                Solver s = ctx.MkSolver();
-                s.Assert(ctx.MkAnd(ctx.MkGt((ArithExpr)x, (ArithExpr)zero), ctx.MkEq((ArithExpr)y,
-                    ctx.MkAdd((ArithExpr)x, (ArithExpr)one)), ctx.MkLt((ArithExpr)y, (ArithExpr)three)));
+        private bool IsSatisfiable(ConditionalAssignment first, ConditionalAssignment second)
+        {
+            using (var context = new Context())
+            {
+                var firstCondition = ParseConditionalAssignment(first, context);
+                var secondCondition = ParseConditionalAssignment(second, context);
+                Solver solver = context.MkSolver();
+                solver.Assert(firstCondition, secondCondition);
+                Status status = solver.Check();
 
-
-                Microsoft.Z3.Model m = s.Model;
+                return status == Status.SATISFIABLE;
             }
-            return true;
+        }
+
+        private BoolExpr ParseConditionalAssignment(ConditionalAssignment assignment, Context context)
+        {
+            BoolExpr[] conditions =
+                assignment.Conditions.Select(
+                    x =>
+                        x.IsNegated
+                            ? context.MkNot(ParseExpression(x.IfStatement.Condition, context))
+                            : ParseExpression(x.IfStatement.Condition, context)).ToArray();
+            BoolExpr expression = context.MkAnd(conditions);
+
+            return expression;
+        }
+
+        private BoolExpr ParseExpression(ExpressionSyntax expressionSyntax, Context context)
+        {
+            var expressionKind = expressionSyntax.Kind();
+
+            if (expressionKind == SyntaxKind.LogicalNotExpression)
+            {
+                return ParsePrefixUnaryExpression((PrefixUnaryExpressionSyntax)expressionSyntax, context);
+            }
+
+            var binaryExpression = (BinaryExpressionSyntax) expressionSyntax;
+
+            switch (expressionKind) {
+                case SyntaxKind.LogicalAndExpression:
+                case SyntaxKind.LogicalOrExpression:
+                case SyntaxKind.GreaterThanExpression:
+                case SyntaxKind.GreaterThanOrEqualExpression:
+                case SyntaxKind.LessThanExpression:
+                case SyntaxKind.LessThanOrEqualExpression:
+                case SyntaxKind.EqualsExpression:
+                case SyntaxKind.NotEqualsExpression:
+                    return ParseBinaryExpression(binaryExpression, context);
+                default:
+                    throw new NotImplementedException();
+            }
+
+        }
+
+        private BoolExpr ParseBinaryExpression(BinaryExpressionSyntax binaryExpression, Context context) {
+            SyntaxKind @operator = binaryExpression.OperatorToken.Kind();
+            Expr left = ParseBinaryExpressionMember(binaryExpression.Left, context);
+            Expr right = ParseBinaryExpressionMember(binaryExpression.Right, context);
+
+            switch (@operator) {
+                case SyntaxKind.LogicalAndExpression:
+                    return context.MkAnd((BoolExpr)left, (BoolExpr)right);
+                case SyntaxKind.LogicalOrExpression:
+                    return context.MkOr((BoolExpr)left, (BoolExpr)right);
+                case SyntaxKind.GreaterThanExpression:
+                    return context.MkGt((ArithExpr)left, (ArithExpr)right);
+                case SyntaxKind.GreaterThanOrEqualExpression:
+                    return context.MkGe((ArithExpr)left, (ArithExpr)right);
+                case SyntaxKind.LessThanExpression:
+                    return context.MkLt((ArithExpr)left, (ArithExpr)right);
+                case SyntaxKind.LessThanOrEqualExpression:
+                    return context.MkLe((ArithExpr)left, (ArithExpr)right);
+
+                //TODO: Fix this: since this is only for numeric values
+                case SyntaxKind.EqualsExpression:
+                    return context.MkEq((ArithExpr)left, (ArithExpr)right);
+                case SyntaxKind.NotEqualsExpression:
+                    return context.MkNot(context.MkEq((ArithExpr)left, (ArithExpr)right));
+                default:
+                    throw new NotImplementedException();
+            }
+        }
+
+        private BoolExpr ParsePrefixUnaryExpression(PrefixUnaryExpressionSyntax prefixUnaryExpression, Context context)
+        {
+            if (prefixUnaryExpression.Kind() == SyntaxKind.LogicalNotExpression)
+            {
+                var innerExpression = prefixUnaryExpression.Operand;
+                var parsedExpression = ParseExpression(innerExpression, context);
+                return context.MkNot(parsedExpression);
+            }
+
+            throw new NotImplementedException();
+        }
+
+        private Expr ParseBinaryExpressionMember(ExpressionSyntax memberExpression, Context context)
+        {
+            var expressionKind = memberExpression.Kind();
+            //todo: fix sort type: real vs int
+
+            if (expressionKind == SyntaxKind.NumericLiteralExpression)
+            {
+                return context.MkNumeral(memberExpression.ToString(), context.RealSort);
+            }
+
+            if (expressionKind == SyntaxKind.SimpleMemberAccessExpression ||
+                expressionKind == SyntaxKind.IdentifierName)
+            {
+                //TODO: this needs to see if the members can be the same or not
+                if(hackTable.ContainsKey(memberExpression.ToString()))
+                    return hackTable[memberExpression.ToString()];
+
+                var result = context.MkConst(memberExpression.ToString(), context.RealSort);
+                hackTable[memberExpression.ToString()] = result;
+                return result;
+            }
+
+            return ParseExpression(memberExpression, context);
         }
 
         #endregion

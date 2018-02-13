@@ -170,4 +170,35 @@
             }
         }
     }
+
+    public class TransferService2
+    {
+        public void SimpleIfTransfer(Customer from, Customer to, decimal amount) {
+            if (amount>0)
+            {
+                Customer customer = @from;
+                customer.AccountBalance -= 100;
+            }
+        }
+
+        public void SimpleIfTransfer2(Customer from, Customer to, decimal amount)
+        {
+            Customer customer;
+            if (amount < 0)
+            {
+                customer = @from;
+                customer.AccountBalance += 100;
+            }
+        }
+
+        public void SimpleIfTransfer3(Customer from, Customer to, decimal amount)
+        {
+            Customer customer;
+
+            if (amount < 2 && amount>-1) {
+                customer = @from;
+                customer.AccountBalance += 100;
+            }
+        }
+    }
 }

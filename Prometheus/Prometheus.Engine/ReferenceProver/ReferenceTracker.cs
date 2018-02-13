@@ -146,7 +146,7 @@ namespace Prometheus.Engine.ReferenceProver {
             var identifierName = identifier.Identifier.Text;
             var assignments = method
                 .DescendantNodes<AssignmentExpressionSyntax>()
-                .Where(x=>x.Kind() == SyntaxKind.SimpleAssignmentExpression)
+                .Where(x=>x.Kind() == SyntaxKind.SimpleAssignmentExpression) //TODO: need to handle local declaration contexts as well
                 .Where(x=>x.Left.ToString() == identifierName);
             var conditionalAssignments = assignments.Select(GetConditionalAssignment).ToList();
 

@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -21,12 +23,27 @@ namespace Prometheus.Engine.UnitTests
             solution = workspace.OpenSolutionAsync(@"C:\Users\tamas\Documents\Github\Prometheus\Prometheus\Prometheus.sln").Result;
             ThreadSchedule threadSchedule = new ThreadAnalyzer(solution).GetThreadSchedule(solution.Projects.First(x => x.Name == "TestProject.GUI"));
             referenceTracker = new ReferenceTracker(solution, threadSchedule);
+            referenceProver = new ReferenceProver.ReferenceProver(referenceTracker);
         }
 
         [TearDown]
         public void TearDown() {
             referenceProver = null;
         }
+
+        [Test]
+        public void ReferenceTracker_InstanceSharedField_TEST_TracksCorrectly() {
+            var project = solution.Projects.First(x => x.Name == "TestProject.Services");
+            var transferService2Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService2));
+            var firstIdentifier = transferService2Class.GetMethodDescendant(nameof(TestProject.Services.TransferService2.SimpleIfTransfer3)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "customer").First();
+            var secondIdentifier = transferService2Class.GetMethodDescendant(nameof(TestProject.Services.TransferService2.SimpleIfTransfer2)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "customer").First();
+            Console.WriteLine(Directory.GetCurrentDirectory());
+            SyntaxNode commonValue;
+            var haveCommonValue = referenceProver.HaveCommonValue(firstIdentifier, secondIdentifier, out commonValue);
+
+            Assert.False(haveCommonValue);
+        }
+
 
         [Test]
         public void ReferenceTracker_InstanceSharedField_ForNonConditionalAssignments_TracksCorrectly() {
