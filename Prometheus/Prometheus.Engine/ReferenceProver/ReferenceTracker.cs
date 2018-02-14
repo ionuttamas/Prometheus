@@ -144,57 +144,18 @@ namespace Prometheus.Engine.ReferenceProver {
         {
             var method = identifier.GetLocation().GetContainingMethod();
             var identifierName = identifier.Identifier.Text;
-            var assignments = method
+            var simpleAssignments = method
                 .DescendantNodes<AssignmentExpressionSyntax>()
-                .Where(x=>x.Kind() == SyntaxKind.SimpleAssignmentExpression) //TODO: need to handle local declaration contexts as well
-                .Where(x=>x.Left.ToString() == identifierName);
-            var conditionalAssignments = assignments.Select(GetConditionalAssignment).ToList();
+                .Where(x=>x.Kind() == SyntaxKind.SimpleAssignmentExpression)
+                .Where(x=>x.Left.ToString() == identifierName)
+                .Select(x=>GetConditionalAssignment(x, x.Right));
+            var localDeclarationAssignments = method
+                .DescendantNodes<LocalDeclarationStatementSyntax>()
+                .Where(x => x.Declaration.Variables[0].Identifier.Text == identifierName)
+                .Select(x=> GetConditionalAssignment(x, x.Declaration.Variables[0].Initializer.Value));
+            var conditionalAssignments = simpleAssignments.Concat(localDeclarationAssignments).ToList();
 
             return conditionalAssignments;
-        }
-
-        /// <summary>
-        /// Gets the conditional assignment for the given assignment within its method.
-        /// </summary>
-        private ConditionalAssignment GetConditionalAssignment(AssignmentExpressionSyntax assignment)
-        {
-            var elseClause = assignment.FirstAncestor<ElseClauseSyntax>();
-            var ifClause = assignment.FirstAncestor<IfStatementSyntax>();
-            var conditionalAssignment = new ConditionalAssignment
-            {
-                Reference = assignment.Right,
-                AssignmentLocation = assignment.GetLocation()
-            };
-            SyntaxNode currentNode = assignment;
-
-            var classDeclaration = assignment.FirstAncestorOrSelf<ClassDeclarationSyntax>();
-            var matchingField = classDeclaration
-                .DescendantNodes<FieldDeclarationSyntax>()
-                .FirstOrDefault(x => x.Declaration.Variables.Any(v => v.Identifier.Text == assignment.Right.ToString()));
-
-            if (matchingField != null)
-            {
-                //If the assignment is a shared class field/property, we overwrite the reference; otherwise we track its assignments
-                conditionalAssignment.Reference = matchingField.Declaration.Variables[0];
-            }
-
-            while (currentNode != null) {
-                if (ifClause!=null && !ifClause.Contains(elseClause))
-                {
-                    conditionalAssignment.Conditions.AddRange(ProcessIfStatement(currentNode, out currentNode).Conditions);
-                }
-                else if (elseClause != null)
-                {
-                    conditionalAssignment.Conditions.AddRange(ProcessElseStatement(currentNode, out currentNode).Conditions);
-                } else {
-                    return conditionalAssignment;
-                }
-
-                elseClause = currentNode.FirstAncestor<ElseClauseSyntax>();
-                ifClause = currentNode.FirstAncestor<IfStatementSyntax>();
-            }
-
-            return conditionalAssignment;
         }
 
         /// <summary>

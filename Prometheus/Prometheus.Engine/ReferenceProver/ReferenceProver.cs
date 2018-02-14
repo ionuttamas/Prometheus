@@ -161,11 +161,11 @@ namespace Prometheus.Engine.ReferenceProver
         }
 
         private BoolExpr ParseBinaryExpression(BinaryExpressionSyntax binaryExpression, Context context) {
-            SyntaxKind @operator = binaryExpression.OperatorToken.Kind();
+            SyntaxKind expressionKind = binaryExpression.Kind();
             Expr left = ParseBinaryExpressionMember(binaryExpression.Left, context);
             Expr right = ParseBinaryExpressionMember(binaryExpression.Right, context);
 
-            switch (@operator) {
+            switch (expressionKind) {
                 case SyntaxKind.LogicalAndExpression:
                     return context.MkAnd((BoolExpr)left, (BoolExpr)right);
                 case SyntaxKind.LogicalOrExpression:
@@ -221,6 +221,14 @@ namespace Prometheus.Engine.ReferenceProver
                 var result = context.MkConst(memberExpression.ToString(), context.RealSort);
                 hackTable[memberExpression.ToString()] = result;
                 return result;
+            }
+
+            if (expressionKind == SyntaxKind.UnaryMinusExpression)
+            {
+                var prefixUnaryExpression = (PrefixUnaryExpressionSyntax) memberExpression;
+                var negatedExpression = ParseBinaryExpressionMember(prefixUnaryExpression.Operand, context);
+
+                return context.MkUnaryMinus((ArithExpr)negatedExpression);
             }
 
             return ParseExpression(memberExpression, context);

@@ -7,6 +7,13 @@
         public string Name { get; set; }
         public int Age { get; set; }
         public decimal AccountBalance { get; set; }
+        public Address DeliveryAddress { get; set; }
+    }
+
+    public class Address
+    {
+        public string City { get; set; }
+        public string StreetAddress { get; set; }
     }
 
     public enum CustomerType {

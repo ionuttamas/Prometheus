@@ -13,7 +13,6 @@ namespace Prometheus.Engine.UnitTests
     [TestFixture]
     public class ReferenceProverTests {
         private ReferenceProver.ReferenceProver referenceProver;
-        private ReferenceTracker referenceTracker;
         private Solution solution;
 
         [SetUp]
@@ -22,8 +21,7 @@ namespace Prometheus.Engine.UnitTests
             workspace.LoadMetadataForReferencedProjects = true;
             solution = workspace.OpenSolutionAsync(@"C:\Users\tamas\Documents\Github\Prometheus\Prometheus\Prometheus.sln").Result;
             ThreadSchedule threadSchedule = new ThreadAnalyzer(solution).GetThreadSchedule(solution.Projects.First(x => x.Name == "TestProject.GUI"));
-            referenceTracker = new ReferenceTracker(solution, threadSchedule);
-            referenceProver = new ReferenceProver.ReferenceProver(referenceTracker);
+            referenceProver = new ReferenceProver.ReferenceProver(new ReferenceTracker(solution, threadSchedule));
         }
 
         [TearDown]
@@ -32,21 +30,20 @@ namespace Prometheus.Engine.UnitTests
         }
 
         [Test]
-        public void ReferenceTracker_InstanceSharedField_TEST_TracksCorrectly() {
+        public void ReferenceProver_For_SimpleIf_And_NegatedCounterpart_TracksCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
-            var transferService2Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService2));
-            var firstIdentifier = transferService2Class.GetMethodDescendant(nameof(TestProject.Services.TransferService2.SimpleIfTransfer3)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "customer").First();
-            var secondIdentifier = transferService2Class.GetMethodDescendant(nameof(TestProject.Services.TransferService2.SimpleIfTransfer2)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "customer").First();
-            Console.WriteLine(Directory.GetCurrentDirectory());
+            var proverTransferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.ProverTransferService));
+            var firstIdentifier = proverTransferServiceClass.GetMethodDescendant(nameof(TestProject.Services.ProverTransferService.SimpleIfTransfer)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "customer").First();
+            var secondIdentifier = proverTransferServiceClass.GetMethodDescendant(nameof(TestProject.Services.ProverTransferService.SimpleIfTransfer_Negated)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "customer").First();
+
             SyntaxNode commonValue;
             var haveCommonValue = referenceProver.HaveCommonValue(firstIdentifier, secondIdentifier, out commonValue);
 
             Assert.False(haveCommonValue);
         }
 
-
         [Test]
-        public void ReferenceTracker_InstanceSharedField_ForNonConditionalAssignments_TracksCorrectly() {
+        public void ReferenceProver_InstanceSharedField_ForNonConditionalAssignments_TracksCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var registrationServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.RegistrationService));
             var transferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService));
@@ -61,7 +58,7 @@ namespace Prometheus.Engine.UnitTests
         }
 
         [Test]
-        public void ReferenceTracker_InstanceSharedField_ForOnSided_SimpleIfConditionalAssignments_TracksCorrectly() {
+        public void ReferenceProver_InstanceSharedField_ForOnSided_SimpleIfConditionalAssignments_TracksCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var registrationServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.RegistrationService));
             var transferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService));
@@ -76,7 +73,7 @@ namespace Prometheus.Engine.UnitTests
         }
 
         [Test]
-        public void ReferenceTracker_InstanceSharedField_ForTwoSided_SimpleIfConditionalAssignments_TracksCorrectly() {
+        public void ReferenceProver_InstanceSharedField_ForTwoSided_SimpleIfConditionalAssignments_TracksCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var registrationServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.RegistrationService));
             var transferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService));
@@ -91,7 +88,7 @@ namespace Prometheus.Engine.UnitTests
         }
 
         [Test]
-        public void ReferenceTracker_InstanceSharedField_ForTwoSided_SimpleIfSingleElseConditionalAssignments_TracksCorrectly() {
+        public void ReferenceProver_InstanceSharedField_ForTwoSided_SimpleIfSingleElseConditionalAssignments_TracksCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var registrationServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.RegistrationService));
             var transferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService));
@@ -106,7 +103,7 @@ namespace Prometheus.Engine.UnitTests
         }
 
         [Test]
-        public void ReferenceTracker_InstanceSharedField_ForTwoSided_SimpleIfMultipleElseConditionalAssignments_TracksCorrectly() {
+        public void ReferenceProver_InstanceSharedField_ForTwoSided_SimpleIfMultipleElseConditionalAssignments_TracksCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var registrationServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.RegistrationService));
             var transferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService));

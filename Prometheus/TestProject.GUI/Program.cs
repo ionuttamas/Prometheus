@@ -33,9 +33,8 @@ namespace TestProject.GUI {
             transferService.NestedIfElse_With_IfElseTransfer(sharedCustomer, null, 200);
             transferService.NestedCall_SimpleIf_SimpleIfTransfer(sharedCustomer, null, 200);
 
-            var transferService2 = new TransferService2();
-            transferService2.SimpleIfTransfer(sharedCustomer, null, 100);
-            transferService2.SimpleIfTransfer3(sharedCustomer, null, 100);
+            var proverTransferService = new ProverTransferService();
+            proverTransferService.SimpleIfTransfer(sharedCustomer, null, 100);
 
             atomicStack.Pop();
             nonAtomicUsedStack.Pop();
@@ -62,9 +61,8 @@ namespace TestProject.GUI {
             registrationService.Register(sharedCustomer);
             registrationService.SimpleIfRegister(sharedCustomer);
 
-            var transferService2 = new TransferService2();
-            transferService2.SimpleIfTransfer2(sharedCustomer, null, 100);
-            transferService2.SimpleIfTransfer3(sharedCustomer, null, 100);
+            var proverTransferService = new ProverTransferService();
+            proverTransferService.SimpleIfTransfer_Negated(sharedCustomer, null, 100);
         }
     }
 }
