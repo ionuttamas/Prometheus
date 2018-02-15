@@ -22,24 +22,24 @@ namespace Prometheus.Engine.ReferenceProver
         /// TODO: this does not consider the possible conditional cases for assigning a variable within loops ("for", "while" loops).
         /// TODO: this does not consider assignments like: "order = person.Orders.First()" and "order = instance" where "instance" and "person.Orders.First()" can be the same
         /// </summary>
-        public bool HaveCommonValue(IdentifierNameSyntax first, IdentifierNameSyntax second, out SyntaxNode commonNode) {
+        public bool HaveCommonValue(SyntaxToken first, SyntaxToken second, out object commonNode) {
             var firstAssignment = new ConditionalAssignment {
-                Reference = first,
+                TokenReference = first,
                 AssignmentLocation = first.GetLocation()
             };
             var secondAssignment = new ConditionalAssignment {
-                Reference = second,
+                TokenReference = second,
                 AssignmentLocation = second.GetLocation()
             };
             return HaveCommonValueInternal(firstAssignment, secondAssignment, out commonNode);
         }
 
-        private bool HaveCommonValueInternal(ConditionalAssignment first, ConditionalAssignment second, out SyntaxNode commonNode) {
+        private bool HaveCommonValueInternal(ConditionalAssignment first, ConditionalAssignment second, out object commonNode) {
             commonNode = null;
 
             //TODO: need to check scoping: if "first" is a local variable => it cannot match a variable from another function/thread
-            var firstAssignments = referenceTracker.GetAssignments((IdentifierNameSyntax)first.Reference); //todo: this needs checking
-            var secondAssignments = referenceTracker.GetAssignments((IdentifierNameSyntax)second.Reference);
+            var firstAssignments = referenceTracker.GetAssignments(first.NodeReference?.DescendantTokens().First() ?? first.TokenReference); //todo: this needs checking
+            var secondAssignments = referenceTracker.GetAssignments(second.NodeReference?.DescendantTokens().First() ?? second.TokenReference);
 
             foreach (ConditionalAssignment assignment in firstAssignments) {
                 assignment.Conditions.AddRange(first.Conditions);
@@ -59,24 +59,26 @@ namespace Prometheus.Engine.ReferenceProver
             return false;
         }
 
-        private bool ValidateReachability(ConditionalAssignment first, ConditionalAssignment second, out SyntaxNode commonNode) {
+        private bool ValidateReachability(ConditionalAssignment first, ConditionalAssignment second, out object commonNode) {
             commonNode = null;
 
             if (!IsSatisfiable(first, second))
                 return false;
 
-            if (AreEquivalent(first.Reference, second.Reference)) {
-                commonNode = first.Reference;
+            if (AreEquivalent(first, second)) {
+                commonNode = first.NodeReference ?? (object) first.TokenReference;
                 return true;
             }
 
             var firstReferenceAssignment = new ConditionalAssignment {
-                Reference = first.Reference,
+                NodeReference = first.NodeReference,
+                TokenReference = first.TokenReference,
                 AssignmentLocation = first.AssignmentLocation,
                 Conditions = first.Conditions
             };
             var secondReferenceAssignment = new ConditionalAssignment {
-                Reference = second.Reference,
+                NodeReference = second.NodeReference,
+                TokenReference = second.TokenReference,
                 AssignmentLocation = second.AssignmentLocation,
                 Conditions = second.Conditions
             };
@@ -92,14 +94,17 @@ namespace Prometheus.Engine.ReferenceProver
         /// This can be a class field/property used by both thread functions or parameters passed to threads that are the same
         /// TODO: currently this checks only for field equivalence
         /// </summary>
-        private static bool AreEquivalent(SyntaxNode first, SyntaxNode second) {
-            if (first.ToString() != second.ToString())
+        private static bool AreEquivalent(ConditionalAssignment first, ConditionalAssignment second)
+        {
+            var firstReferenceName = first.NodeReference?.ToString() ?? first.TokenReference.ToString();
+            var secondReferenceName = second.NodeReference?.ToString() ?? second.TokenReference.ToString();
+            var firstLocation= first.NodeReference?.GetLocation() ?? first.TokenReference.GetLocation();
+            var secondLocation = second.NodeReference?.GetLocation() ?? second.TokenReference.GetLocation();
+
+            if (firstReferenceName != secondReferenceName)
                 return false;
 
-            if (first.GetLocation() != second.GetLocation())
-                return false;
-
-            return true;
+            return firstLocation == secondLocation;
         }
 
         #region Conditional prover
@@ -110,8 +115,8 @@ namespace Prometheus.Engine.ReferenceProver
         {
             using (var context = new Context())
             {
-                var firstCondition = ParseConditionalAssignment(first, context);
-                var secondCondition = ParseConditionalAssignment(second, context);
+                BoolExpr firstCondition = ParseConditionalAssignment(first, context);
+                BoolExpr secondCondition = ParseConditionalAssignment(second, context);
                 Solver solver = context.MkSolver();
                 solver.Assert(firstCondition, secondCondition);
                 Status status = solver.Check();
@@ -137,9 +142,12 @@ namespace Prometheus.Engine.ReferenceProver
         {
             var expressionKind = expressionSyntax.Kind();
 
-            if (expressionKind == SyntaxKind.LogicalNotExpression)
+            switch (expressionKind)
             {
-                return ParsePrefixUnaryExpression((PrefixUnaryExpressionSyntax)expressionSyntax, context);
+                case SyntaxKind.LogicalNotExpression:
+                    return ParsePrefixUnaryExpression((PrefixUnaryExpressionSyntax)expressionSyntax, context);
+                case SyntaxKind.SimpleMemberAccessExpression:
+                    return context.MkBoolConst(expressionSyntax.ToString());
             }
 
             var binaryExpression = (BinaryExpressionSyntax) expressionSyntax;
@@ -162,8 +170,8 @@ namespace Prometheus.Engine.ReferenceProver
 
         private BoolExpr ParseBinaryExpression(BinaryExpressionSyntax binaryExpression, Context context) {
             SyntaxKind expressionKind = binaryExpression.Kind();
-            Expr left = ParseBinaryExpressionMember(binaryExpression.Left, context);
-            Expr right = ParseBinaryExpressionMember(binaryExpression.Right, context);
+            Expr left = ParseExpressionMember(binaryExpression.Left, context);
+            Expr right = ParseExpressionMember(binaryExpression.Right, context);
 
             switch (expressionKind) {
                 case SyntaxKind.LogicalAndExpression:
@@ -201,7 +209,7 @@ namespace Prometheus.Engine.ReferenceProver
             throw new NotImplementedException();
         }
 
-        private Expr ParseBinaryExpressionMember(ExpressionSyntax memberExpression, Context context)
+        private Expr ParseExpressionMember(ExpressionSyntax memberExpression, Context context)
         {
             var expressionKind = memberExpression.Kind();
             //todo: fix sort type: real vs int
@@ -226,7 +234,7 @@ namespace Prometheus.Engine.ReferenceProver
             if (expressionKind == SyntaxKind.UnaryMinusExpression)
             {
                 var prefixUnaryExpression = (PrefixUnaryExpressionSyntax) memberExpression;
-                var negatedExpression = ParseBinaryExpressionMember(prefixUnaryExpression.Operand, context);
+                var negatedExpression = ParseExpressionMember(prefixUnaryExpression.Operand, context);
 
                 return context.MkUnaryMinus((ArithExpr)negatedExpression);
             }

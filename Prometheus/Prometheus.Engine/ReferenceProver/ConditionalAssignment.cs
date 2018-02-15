@@ -11,9 +11,8 @@ namespace Prometheus.Engine.ReferenceProver
     public class ConditionalAssignment {
         //TODO: split to members
         public List<Condition> Conditions { get; set; }
-        //TODO: more context here
-        public SyntaxNode Reference { get; set; }
-        //TODO: assigned identifier: more context here on location
+        public SyntaxNode NodeReference { get; set; }
+        public SyntaxToken TokenReference { get; set; }
         public Location AssignmentLocation { get; set; }
 
         public ConditionalAssignment()
@@ -34,7 +33,7 @@ namespace Prometheus.Engine.ReferenceProver
         {
             return new ConditionalAssignment
             {
-                Reference = Reference,
+                TokenReference = TokenReference,
                 AssignmentLocation = AssignmentLocation,
                 Conditions = Conditions.Select(x=>x).ToList()
             };

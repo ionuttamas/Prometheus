@@ -49,13 +49,13 @@ namespace Prometheus.Engine.ReferenceProver {
         /// </code>
         /// </example>
         /// </summary>
-        public List<ConditionalAssignment> GetAssignments(IdentifierNameSyntax identifier)
+        public List<ConditionalAssignment> GetAssignments(SyntaxToken identifier)
         {
             if (!threadSchedule.GetThreadPath(solution, identifier.GetLocation()).Invocations.Any())
                 return new List<ConditionalAssignment>();
 
             //TODO: this does not take into account previous assignments to parameters
-            var identifierName = identifier.Identifier.Text;
+            var identifierName = identifier.ToString();
             var method = identifier.GetLocation().GetContainingMethod();
             var classDeclaration = method.FirstAncestorOrSelf<ClassDeclarationSyntax>();
             var matchingField = classDeclaration
@@ -78,7 +78,7 @@ namespace Prometheus.Engine.ReferenceProver {
         /// <summary>
         /// Gets the assignments made from various calls to the given method along the binding parameter.
         /// </summary>
-        private List<ConditionalAssignment> GetMethodCallAssignments(IdentifierNameSyntax identifier, MethodDeclarationSyntax method, int parameterIndex)
+        private List<ConditionalAssignment> GetMethodCallAssignments(SyntaxToken identifier, MethodDeclarationSyntax method, int parameterIndex)
         {
             //TODO: this does not take into account if a parameter was assigned to another value before being assigned again
             var methodCallAssignments = solution
@@ -116,7 +116,7 @@ namespace Prometheus.Engine.ReferenceProver {
         /// <param name="identifier"></param>
         /// <param name="classDeclaration"></param>
         /// <returns></returns>
-        private List<ConditionalAssignment> GetConstructorAssignments(IdentifierNameSyntax identifier, ClassDeclarationSyntax classDeclaration)
+        private List<ConditionalAssignment> GetConstructorAssignments(SyntaxToken identifier, ClassDeclarationSyntax classDeclaration)
         {
             //TODO: we need to track exactly how the field gets initialized in the constructor; for now we enforce an argument with the same name in the constructor
             //TODO: we dont't know if the field was reasigned in another place (other than the constructor) before assigned to the field
@@ -125,7 +125,7 @@ namespace Prometheus.Engine.ReferenceProver {
                 .GetContainingConstructor()
                 .ParameterList
                 .Parameters
-                .IndexOf(x => x.Identifier.Text == identifier.Identifier.Text);
+                .IndexOf(x => x.Identifier.Text == identifier.ToString());
             var constructorAssignments = FindObjectCreations(classDeclaration)
                 .Where(x => {
                     var threadPath = threadSchedule.GetThreadPath(solution, x.GetLocation());
@@ -140,10 +140,10 @@ namespace Prometheus.Engine.ReferenceProver {
         /// <summary>
         /// Returns the list of assignments made for that identifier within the method in which the identifier is used.
         /// </summary>
-        private List<ConditionalAssignment> GetMethodAssignments(IdentifierNameSyntax identifier)
+        private List<ConditionalAssignment> GetMethodAssignments(SyntaxToken identifier)
         {
             var method = identifier.GetLocation().GetContainingMethod();
-            var identifierName = identifier.Identifier.Text;
+            var identifierName = identifier.ToString();
             var simpleAssignments = method
                 .DescendantNodes<AssignmentExpressionSyntax>()
                 .Where(x=>x.Kind() == SyntaxKind.SimpleAssignmentExpression)
@@ -151,7 +151,7 @@ namespace Prometheus.Engine.ReferenceProver {
                 .Select(x=>GetConditionalAssignment(x, x.Right));
             var localDeclarationAssignments = method
                 .DescendantNodes<LocalDeclarationStatementSyntax>()
-                .Where(x => x.Declaration.Variables[0].Identifier.Text == identifierName)
+                .Where(x => x.Declaration.Variables[0].Identifier.Text == identifierName && x.Declaration.Variables[0].Initializer!=null)
                 .Select(x=> GetConditionalAssignment(x, x.Declaration.Variables[0].Initializer.Value));
             var conditionalAssignments = simpleAssignments.Concat(localDeclarationAssignments).ToList();
 
@@ -166,7 +166,7 @@ namespace Prometheus.Engine.ReferenceProver {
             var elseClause = bindingNode.FirstAncestor<ElseClauseSyntax>();
             var ifClause = bindingNode.FirstAncestor<IfStatementSyntax>();
             var conditionalAssignment = new ConditionalAssignment {
-                Reference = argument,
+                NodeReference = argument,
                 AssignmentLocation = bindingNode.GetLocation()
             };
             SyntaxNode currentNode = bindingNode;
@@ -177,7 +177,7 @@ namespace Prometheus.Engine.ReferenceProver {
 
             if (matchingField != null) {
                 //If the assignment is a shared class field/property, we overwrite the reference; otherwise we track its assignments
-                conditionalAssignment.Reference = matchingField.Declaration.Variables[0];
+                conditionalAssignment.NodeReference = matchingField.Declaration.Variables[0];
             }
 
             while (currentNode != null) {

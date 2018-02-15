@@ -17,6 +17,9 @@ namespace Prometheus.Common
             return node.DescendantNodes().OfType<T>().Where(x=>filter(x));
         }
 
+        public static IEnumerable<T> DescendantTokens<T>(this SyntaxNode node, Predicate<T> filter) {
+            return node.DescendantTokens().OfType<T>().Where(x => filter(x));
+        }
 
         public static SyntaxNode GetSyntaxNode(this SyntaxTree tree, ReferenceLocation location) {
             return tree.GetRoot().FindNode(location.Location.SourceSpan);
