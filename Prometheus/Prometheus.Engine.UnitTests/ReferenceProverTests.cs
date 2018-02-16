@@ -54,7 +54,7 @@ namespace Prometheus.Engine.UnitTests
             object commonValue;
             var haveCommonValue = referenceProver.HaveCommonValue(firstIdentifier, secondIdentifier, out commonValue);
 
-            Assert.False(haveCommonValue);
+            Assert.True(haveCommonValue);
         }
     }
 }

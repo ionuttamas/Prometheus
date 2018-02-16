@@ -108,7 +108,7 @@ namespace Prometheus.Engine.ReferenceProver
         }
 
         #region Conditional prover
-
+        //TODO: remove this
         private readonly Dictionary<string, Expr> hackTable = new Dictionary<string, Expr>();
 
         private bool IsSatisfiable(ConditionalAssignment first, ConditionalAssignment second)
