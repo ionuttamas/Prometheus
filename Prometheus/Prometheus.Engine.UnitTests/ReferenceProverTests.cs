@@ -55,6 +55,7 @@ namespace Prometheus.Engine.UnitTests
             var haveCommonValue = referenceProver.HaveCommonValue(firstIdentifier, secondIdentifier, out commonValue);
 
             Assert.True(haveCommonValue);
+            Assert.AreEqual("sharedCustomer", commonValue.ToString());
         }
     }
 }

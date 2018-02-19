@@ -101,7 +101,7 @@ namespace Prometheus.Engine.ReferenceProver {
                 foreach (ConditionalAssignment withinMethodAssignment in withinMethodAssignments)
                 {
                     var clonedAssignment = assignment.Clone();
-                    clonedAssignment.Conditions.AddRange(withinMethodAssignment.Conditions);
+                    clonedAssignment.Conditions.UnionWith(withinMethodAssignment.Conditions);
                     result.Add(clonedAssignment);
                 }
             }
@@ -182,9 +182,9 @@ namespace Prometheus.Engine.ReferenceProver {
 
             while (currentNode != null) {
                 if (ifClause != null && !ifClause.Contains(elseClause)) {
-                    conditionalAssignment.Conditions.AddRange(ProcessIfStatement(currentNode, out currentNode).Conditions);
+                    conditionalAssignment.Conditions.UnionWith(ProcessIfStatement(currentNode, out currentNode).Conditions);
                 } else if (elseClause != null) {
-                    conditionalAssignment.Conditions.AddRange(ProcessElseStatement(currentNode, out currentNode).Conditions);
+                    conditionalAssignment.Conditions.UnionWith(ProcessElseStatement(currentNode, out currentNode).Conditions);
                 }
                 else {
                     return conditionalAssignment;

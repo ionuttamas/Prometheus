@@ -8,13 +8,19 @@ using Microsoft.Z3;
 
 namespace Prometheus.Engine.ReferenceProver
 {
-    internal class ReferenceProver
+    internal class ReferenceProver:IDisposable
     {
         private readonly ReferenceTracker referenceTracker;
+        private readonly Context context;
 
         public ReferenceProver(ReferenceTracker referenceTracker)
         {
             this.referenceTracker = referenceTracker;
+            context = new Context();
+        }
+
+        public void Dispose() {
+            context.Dispose();
         }
 
         /// <summary>
@@ -42,11 +48,20 @@ namespace Prometheus.Engine.ReferenceProver
             var secondAssignments = referenceTracker.GetAssignments(second.NodeReference?.DescendantTokens().First() ?? second.TokenReference);
 
             foreach (ConditionalAssignment assignment in firstAssignments) {
-                assignment.Conditions.AddRange(first.Conditions);
+                assignment.Conditions.UnionWith(first.Conditions);
             }
 
             foreach (ConditionalAssignment assignment in secondAssignments) {
-                assignment.Conditions.AddRange(second.Conditions);
+                assignment.Conditions.UnionWith(second.Conditions);
+            }
+
+            if (!firstAssignments.Any())
+            {
+                firstAssignments = new List<ConditionalAssignment> {first};
+            }
+
+            if (!secondAssignments.Any()) {
+                secondAssignments = new List<ConditionalAssignment> { second };
             }
 
             foreach (ConditionalAssignment firstAssignment in firstAssignments) {
@@ -113,39 +128,34 @@ namespace Prometheus.Engine.ReferenceProver
 
         private bool IsSatisfiable(ConditionalAssignment first, ConditionalAssignment second)
         {
-            using (var context = new Context())
-            {
-                BoolExpr firstCondition = ParseConditionalAssignment(first, context);
-                BoolExpr secondCondition = ParseConditionalAssignment(second, context);
-                Solver solver = context.MkSolver();
-                solver.Assert(firstCondition, secondCondition);
-                Status status = solver.Check();
+            BoolExpr firstCondition = ParseConditionalAssignment(first);
+            BoolExpr secondCondition = ParseConditionalAssignment(second);
+            Solver solver = context.MkSolver();
+            solver.Assert(firstCondition, secondCondition);
+            Status status = solver.Check();
 
-                return status == Status.SATISFIABLE;
-            }
+            return status == Status.SATISFIABLE;
         }
 
-        private BoolExpr ParseConditionalAssignment(ConditionalAssignment assignment, Context context)
-        {
+        private BoolExpr ParseConditionalAssignment(ConditionalAssignment assignment) {
             BoolExpr[] conditions =
                 assignment.Conditions.Select(
                     x =>
                         x.IsNegated
-                            ? context.MkNot(ParseExpression(x.IfStatement.Condition, context))
-                            : ParseExpression(x.IfStatement.Condition, context)).ToArray();
+                            ? context.MkNot(ParseExpression(x.IfStatement.Condition))
+                            : ParseExpression(x.IfStatement.Condition)).ToArray();
             BoolExpr expression = context.MkAnd(conditions);
 
             return expression;
         }
 
-        private BoolExpr ParseExpression(ExpressionSyntax expressionSyntax, Context context)
-        {
+        private BoolExpr ParseExpression(ExpressionSyntax expressionSyntax) {
             var expressionKind = expressionSyntax.Kind();
 
             switch (expressionKind)
             {
                 case SyntaxKind.LogicalNotExpression:
-                    return ParsePrefixUnaryExpression((PrefixUnaryExpressionSyntax)expressionSyntax, context);
+                    return ParsePrefixUnaryExpression((PrefixUnaryExpressionSyntax)expressionSyntax);
                 case SyntaxKind.SimpleMemberAccessExpression:
                     return context.MkBoolConst(expressionSyntax.ToString());
             }
@@ -161,17 +171,17 @@ namespace Prometheus.Engine.ReferenceProver
                 case SyntaxKind.LessThanOrEqualExpression:
                 case SyntaxKind.EqualsExpression:
                 case SyntaxKind.NotEqualsExpression:
-                    return ParseBinaryExpression(binaryExpression, context);
+                    return ParseBinaryExpression(binaryExpression);
                 default:
                     throw new NotImplementedException();
             }
 
         }
 
-        private BoolExpr ParseBinaryExpression(BinaryExpressionSyntax binaryExpression, Context context) {
+        private BoolExpr ParseBinaryExpression(BinaryExpressionSyntax binaryExpression) {
             SyntaxKind expressionKind = binaryExpression.Kind();
-            Expr left = ParseExpressionMember(binaryExpression.Left, context);
-            Expr right = ParseExpressionMember(binaryExpression.Right, context);
+            Expr left = ParseExpressionMember(binaryExpression.Left);
+            Expr right = ParseExpressionMember(binaryExpression.Right);
 
             switch (expressionKind) {
                 case SyntaxKind.LogicalAndExpression:
@@ -197,20 +207,18 @@ namespace Prometheus.Engine.ReferenceProver
             }
         }
 
-        private BoolExpr ParsePrefixUnaryExpression(PrefixUnaryExpressionSyntax prefixUnaryExpression, Context context)
-        {
+        private BoolExpr ParsePrefixUnaryExpression(PrefixUnaryExpressionSyntax prefixUnaryExpression) {
             if (prefixUnaryExpression.Kind() == SyntaxKind.LogicalNotExpression)
             {
                 var innerExpression = prefixUnaryExpression.Operand;
-                var parsedExpression = ParseExpression(innerExpression, context);
+                var parsedExpression = ParseExpression(innerExpression);
                 return context.MkNot(parsedExpression);
             }
 
             throw new NotImplementedException();
         }
 
-        private Expr ParseExpressionMember(ExpressionSyntax memberExpression, Context context)
-        {
+        private Expr ParseExpressionMember(ExpressionSyntax memberExpression) {
             var expressionKind = memberExpression.Kind();
             //todo: fix sort type: real vs int
 
@@ -234,15 +242,14 @@ namespace Prometheus.Engine.ReferenceProver
             if (expressionKind == SyntaxKind.UnaryMinusExpression)
             {
                 var prefixUnaryExpression = (PrefixUnaryExpressionSyntax) memberExpression;
-                var negatedExpression = ParseExpressionMember(prefixUnaryExpression.Operand, context);
+                var negatedExpression = ParseExpressionMember(prefixUnaryExpression.Operand);
 
                 return context.MkUnaryMinus((ArithExpr)negatedExpression);
             }
 
-            return ParseExpression(memberExpression, context);
+            return ParseExpression(memberExpression);
         }
 
         #endregion
-
     }
 }

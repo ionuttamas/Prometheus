@@ -10,23 +10,19 @@ namespace Prometheus.Engine.ReferenceProver
     /// </summary>
     public class ConditionalAssignment {
         //TODO: split to members
-        public List<Condition> Conditions { get; set; }
+        public HashSet<Condition> Conditions { get; set; }
         public SyntaxNode NodeReference { get; set; }
         public SyntaxToken TokenReference { get; set; }
         public Location AssignmentLocation { get; set; }
 
         public ConditionalAssignment()
         {
-            Conditions = new List<Condition>();
+            Conditions = new HashSet<Condition>();
         }
 
         public void AddCondition(IfStatementSyntax ifStatement, bool isNegated)
         {
-            Conditions.Add(new Condition
-            {
-                IfStatement = ifStatement,
-                IsNegated = isNegated
-            });
+            Conditions.Add(new Condition(ifStatement, isNegated));
         }
 
         public ConditionalAssignment Clone()
@@ -35,14 +31,45 @@ namespace Prometheus.Engine.ReferenceProver
             {
                 TokenReference = TokenReference,
                 AssignmentLocation = AssignmentLocation,
-                Conditions = Conditions.Select(x=>x).ToList()
+                Conditions = new HashSet<Condition>(Conditions.Select(x=>x))
             };
+        }
+
+        public override string ToString()
+        {
+            return string.Join(" AND ", Conditions.Select(x=>x));
         }
     }
 
     public class Condition
     {
-        public IfStatementSyntax IfStatement { get; set; }
-        public bool IsNegated { get; set; }
+        public IfStatementSyntax IfStatement { get; private set; }
+        public bool IsNegated { get; private set; }
+
+        public Condition(IfStatementSyntax ifStatement, bool isNegated)
+        {
+            IfStatement = ifStatement;
+            IsNegated = isNegated;
+        }
+
+        public override bool Equals(object instance)
+        {
+            if (!(instance is Condition))
+                return false;
+
+            Condition condition = (Condition) instance;
+
+            return IfStatement==condition.IfStatement && IsNegated==condition.IsNegated;
+        }
+
+        public override int GetHashCode()
+        {
+            return IfStatement.GetHashCode();
+        }
+
+        public override string ToString()
+        {
+            return IfStatement.Condition.ToString();
+        }
     }
 }
