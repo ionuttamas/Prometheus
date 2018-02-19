@@ -60,7 +60,8 @@ namespace Prometheus.Engine.ReferenceProver
                 firstAssignments = new List<ConditionalAssignment> {first};
             }
 
-            if (!secondAssignments.Any()) {
+            if (!secondAssignments.Any())
+            {
                 secondAssignments = new List<ConditionalAssignment> { second };
             }
 
@@ -128,6 +129,8 @@ namespace Prometheus.Engine.ReferenceProver
 
         private bool IsSatisfiable(ConditionalAssignment first, ConditionalAssignment second)
         {
+            //TODO: this is ugly: we need to match the terms that can be the same in the second condition and rewrite the IfStatement node
+            var secondClone =
             BoolExpr firstCondition = ParseConditionalAssignment(first);
             BoolExpr secondCondition = ParseConditionalAssignment(second);
             Solver solver = context.MkSolver();
@@ -248,6 +251,22 @@ namespace Prometheus.Engine.ReferenceProver
             }
 
             return ParseExpression(memberExpression);
+        }
+
+        #endregion
+
+        #region Condition matching
+
+        private bool IsMatch()
+        {
+            return true;
+        }
+
+        private class ConditionMatchRewriter: CSharpSyntaxRewriter {
+            public override SyntaxNode VisitMemberAccessExpression(MemberAccessExpressionSyntax node)
+            {
+                return base.VisitMemberAccessExpression(node);
+            }
         }
 
         #endregion

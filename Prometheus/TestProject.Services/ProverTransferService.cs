@@ -45,11 +45,11 @@ namespace TestProject.Services
             }
         }
 
-        public void NestedCall_SimpleIf_SimpleIfTransfer(Customer from, Customer to, decimal amount) {
+        public void NestedCall_SimpleIf_SimpleIfTransfer(Customer from2, Customer to, decimal amount) {
             Customer referenceCustomer;
 
-            if (from.Age > 30) {
-                referenceCustomer = from;
+            if (from2.Age > 30) {
+                referenceCustomer = from2;
                 TransferInternal(referenceCustomer, to, amount);
             }
         }
@@ -72,7 +72,7 @@ namespace TestProject.Services
                     customer = from;
                 }
             } else {
-                if (!from.IsActive && from.AccountBalance > 0) {
+                if (!from.IsActive && from.DeliveryAddress.StreetAddress =="da") {
                     customer = from;
                 }
             }
