@@ -5,6 +5,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Z3;
+using Prometheus.Common;
 
 namespace Prometheus.Engine.ReferenceProver
 {
@@ -130,7 +131,7 @@ namespace Prometheus.Engine.ReferenceProver
         private bool IsSatisfiable(ConditionalAssignment first, ConditionalAssignment second)
         {
             //TODO: this is ugly: we need to match the terms that can be the same in the second condition and rewrite the IfStatement node
-            var secondClone =
+            var secondClone = 
             BoolExpr firstCondition = ParseConditionalAssignment(first);
             BoolExpr secondCondition = ParseConditionalAssignment(second);
             Solver solver = context.MkSolver();
@@ -262,10 +263,25 @@ namespace Prometheus.Engine.ReferenceProver
             return true;
         }
 
-        private class ConditionMatchRewriter: CSharpSyntaxRewriter {
+        private class ConditionMatchRewriter: CSharpSyntaxRewriter
+        {
+            private readonly ConditionalAssignment assignment;
+
+            public ConditionMatchRewriter(ConditionalAssignment assignment)
+            {
+                this.assignment = assignment;
+            }
+
             public override SyntaxNode VisitMemberAccessExpression(MemberAccessExpressionSyntax node)
             {
                 return base.VisitMemberAccessExpression(node);
+            }
+
+            private List<SyntaxNode> GetComparandNodes(Condition condition)
+            {
+                //TODO: need to check on types
+                //TODO: we need to check based on the type (from.Address==address), we need to check them separately
+                condition.IfStatement.DescendantNodes<MemberAccessExpressionSyntax>();
             }
         }
 

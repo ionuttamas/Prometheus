@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Linq;
+using System.Reflection;
 using Microsoft.CodeAnalysis.FindSymbols;
 
 namespace Prometheus.Common
@@ -111,6 +112,70 @@ namespace Prometheus.Common
 
         public static T FirstAncestor<T>(this SyntaxNode node) {
             return node.Ancestors(false).OfType<T>().FirstOrDefault();
+        }
+
+        public static Type GetType(this MemberAccessExpressionSyntax memberExpression)
+        {
+            //TODO: this only gets the type for variables with defined type (we don't process "var")
+            MethodDeclarationSyntax method = memberExpression.GetLocation().GetContainingMethod();
+            Queue<string> memberTokens = new Queue<string>(memberExpression.ToString().Split('.'));
+            string rootToken = memberTokens.First();
+            var parameter = method.ParameterList.Parameters.FirstOrDefault(x => x.Identifier.Text == rootToken);
+            string typeName = null;
+
+            if (parameter != null)
+            {
+                typeName = parameter.Type.ToString();
+            }
+
+            var localDeclaration = method
+                .DescendantNodes<LocalDeclarationStatementSyntax>()
+                .FirstOrDefault(x => x.Declaration.Variables[0].Identifier.Text == rootToken);
+
+            if (localDeclaration != null)
+            {
+                typeName = localDeclaration.Declaration.Type.ToString();
+            }
+
+            return GetType(typeName, memberExpression.ToString());
+        }
+
+        /// <summary>
+        /// Returns the type given the root type and the member access expression.
+        /// </summary>
+        private static Type GetType(string typeName, string memberAccessExpression)
+        {
+            Queue<string> memberTokens = new Queue<string>(memberAccessExpression.Split('.'));
+            memberTokens.Dequeue();
+            //todo: obviously there can be multiple classes with the same name
+            Type rootType = Assembly.GetCallingAssembly()
+                .GetReferencedAssemblies()
+                .SelectMany(x => Assembly.Load(x).GetTypes())
+                .First(x => x.FullName.Contains(typeName));
+            Type type = rootType;
+
+            while (memberTokens.Count > 0)
+            {
+                var member = type.GetMember(memberTokens.Dequeue(),
+                                            BindingFlags.Public |
+                                            BindingFlags.Instance |
+                                            BindingFlags.GetProperty |
+                                            BindingFlags.GetField)[0];
+
+                switch (member.MemberType)
+                {
+                    case MemberTypes.Field:
+                        type = member.As<FieldInfo>().FieldType;
+                        break;
+                    case MemberTypes.Property:
+                        type = member.As<PropertyInfo>().PropertyType;
+                        break;
+                    default:
+                        throw new NotSupportedException();
+                }
+            }
+
+            return type;
         }
 
         public static ClassDeclarationSyntax GetClassDeclaration(this Compilation compilation, Type type)
