@@ -131,7 +131,7 @@ namespace Prometheus.Engine.ReferenceProver
         private bool IsSatisfiable(ConditionalAssignment first, ConditionalAssignment second)
         {
             //TODO: this is ugly: we need to match the terms that can be the same in the second condition and rewrite the IfStatement node
-            var secondClone = 
+            var secondClone =
             BoolExpr firstCondition = ParseConditionalAssignment(first);
             BoolExpr secondCondition = ParseConditionalAssignment(second);
             Solver solver = context.MkSolver();
@@ -265,11 +265,11 @@ namespace Prometheus.Engine.ReferenceProver
 
         private class ConditionMatchRewriter: CSharpSyntaxRewriter
         {
-            private readonly ConditionalAssignment assignment;
+            private readonly ConditionalAssignment referenceAssignment;
 
-            public ConditionMatchRewriter(ConditionalAssignment assignment)
+            public ConditionMatchRewriter(ConditionalAssignment referenceAssignment)
             {
-                this.assignment = assignment;
+                this.referenceAssignment = referenceAssignment;
             }
 
             public override SyntaxNode VisitMemberAccessExpression(MemberAccessExpressionSyntax node)
@@ -277,11 +277,20 @@ namespace Prometheus.Engine.ReferenceProver
                 return base.VisitMemberAccessExpression(node);
             }
 
-            private List<SyntaxNode> GetComparandNodes(Condition condition)
+            private Dictionary<SyntaxNode, Type> GetComparandNodes(Condition condition)
             {
-                //TODO: need to check on types
                 //TODO: we need to check based on the type (from.Address==address), we need to check them separately
-                condition.IfStatement.DescendantNodes<MemberAccessExpressionSyntax>();
+                //We only take simple binary expressions or unary expression, but exclude members that are within a function call in a method
+                var memberAccessExpressions = condition.IfStatement.DescendantNodes<MemberAccessExpressionSyntax>(x=>(x.Parent is BinaryExpressionSyntax || x.Parent is PrefixUnaryExpressionSyntax) && !x.AncestorNodesUntil<InvocationExpressionSyntax>(condition.IfStatement).Any());
+                var identifiers = condition.IfStatement.DescendantNodes<IdentifierNameSyntax>(x=>(x.Parent is BinaryExpressionSyntax || x.Parent is PrefixUnaryExpressionSyntax) && !x.AncestorNodesUntil<InvocationExpressionSyntax>(condition.IfStatement).Any());
+                var nodeTable = new Dictionary<SyntaxNode, Type>();
+
+                foreach (IdentifierNameSyntax identifier in identifiers)
+                {
+                    
+                }
+
+                return nodes;
             }
         }
 

@@ -110,13 +110,23 @@ namespace Prometheus.Common
             return node.Ancestors(false).OfType<T>();
         }
 
+        public static IEnumerable<T> AncestorNodesUntil<T>(this SyntaxNode node, SyntaxNode stopNode) where T:SyntaxNode{
+            foreach (var ancestorNode in node.Ancestors(false).OfType<T>())
+            {
+                if (stopNode != ancestorNode)
+                    yield return ancestorNode;
+
+                yield break;
+            }
+        }
+
         public static T FirstAncestor<T>(this SyntaxNode node) {
             return node.Ancestors(false).OfType<T>().FirstOrDefault();
         }
 
         public static Type GetType(this MemberAccessExpressionSyntax memberExpression)
         {
-            //TODO: this only gets the type for variables with defined type (we don't process "var")
+            //TODO: this only gets the type for variables with explicit defined type: we don't process "var"
             MethodDeclarationSyntax method = memberExpression.GetLocation().GetContainingMethod();
             Queue<string> memberTokens = new Queue<string>(memberExpression.ToString().Split('.'));
             string rootToken = memberTokens.First();
