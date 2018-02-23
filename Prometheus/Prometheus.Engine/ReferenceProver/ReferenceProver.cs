@@ -266,31 +266,43 @@ namespace Prometheus.Engine.ReferenceProver
         private class ConditionMatchRewriter: CSharpSyntaxRewriter
         {
             private readonly ConditionalAssignment referenceAssignment;
+            private readonly Dictionary<SyntaxNode, List<Type>> comparandNodes;
 
             public ConditionMatchRewriter(ConditionalAssignment referenceAssignment)
             {
                 this.referenceAssignment = referenceAssignment;
+                comparandNodes = referenceAssignment
+                    .Conditions
+                    .SelectMany(GetComparandNodes)
+                    .ToDictionary(x => x.Key, x => x.Value);
             }
 
             public override SyntaxNode VisitMemberAccessExpression(MemberAccessExpressionSyntax node)
             {
+
+
                 return base.VisitMemberAccessExpression(node);
             }
 
-            private Dictionary<SyntaxNode, Type> GetComparandNodes(Condition condition)
+            private static Dictionary<SyntaxNode, List<Type>> GetComparandNodes(Condition condition)
             {
                 //TODO: we need to check based on the type (from.Address==address), we need to check them separately
                 //We only take simple binary expressions or unary expression, but exclude members that are within a function call in a method
                 var memberAccessExpressions = condition.IfStatement.DescendantNodes<MemberAccessExpressionSyntax>(x=>(x.Parent is BinaryExpressionSyntax || x.Parent is PrefixUnaryExpressionSyntax) && !x.AncestorNodesUntil<InvocationExpressionSyntax>(condition.IfStatement).Any());
                 var identifiers = condition.IfStatement.DescendantNodes<IdentifierNameSyntax>(x=>(x.Parent is BinaryExpressionSyntax || x.Parent is PrefixUnaryExpressionSyntax) && !x.AncestorNodesUntil<InvocationExpressionSyntax>(condition.IfStatement).Any());
-                var nodeTable = new Dictionary<SyntaxNode, Type>();
+                var nodeTable = new Dictionary<SyntaxNode, List<Type>>();
 
                 foreach (IdentifierNameSyntax identifier in identifiers)
                 {
-                    
+                    nodeTable[identifier] = new List<Type> { identifier.GetType() };
                 }
 
-                return nodes;
+                foreach (MemberAccessExpressionSyntax memberAccessExpression in memberAccessExpressions)
+                {
+                    nodeTable[memberAccessExpression] = memberAccessExpression.GetTypes();
+                }
+
+                return nodeTable;
             }
         }
 

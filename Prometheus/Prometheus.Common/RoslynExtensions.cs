@@ -124,53 +124,30 @@ namespace Prometheus.Common
             return node.Ancestors(false).OfType<T>().FirstOrDefault();
         }
 
-        public static Type GetType(this MemberAccessExpressionSyntax memberExpression)
+        public static List<Type> GetTypes(this MemberAccessExpressionSyntax memberExpression)
         {
             //TODO: this only gets the type for variables with explicit defined type: we don't process "var"
-            MethodDeclarationSyntax method = memberExpression.GetLocation().GetContainingMethod();
             Queue<string> memberTokens = new Queue<string>(memberExpression.ToString().Split('.'));
             string rootToken = memberTokens.First();
-            var parameter = method.ParameterList.Parameters.FirstOrDefault(x => x.Identifier.Text == rootToken);
-            string typeName = null;
-
-            if (parameter != null)
-            {
-                typeName = parameter.Type.ToString();
-            }
-
-            var localDeclaration = method
-                .DescendantNodes<LocalDeclarationStatementSyntax>()
-                .FirstOrDefault(x => x.Declaration.Variables[0].Identifier.Text == rootToken);
-
-            if (localDeclaration != null)
-            {
-                typeName = localDeclaration.Declaration.Type.ToString();
-            }
-
-            return GetType(typeName, memberExpression.ToString());
-        }
-
-        /// <summary>
-        /// Returns the type given the root type and the member access expression.
-        /// </summary>
-        private static Type GetType(string typeName, string memberAccessExpression)
-        {
-            Queue<string> memberTokens = new Queue<string>(memberAccessExpression.Split('.'));
+            var typeName = GetTypeName(memberExpression, rootToken);
             memberTokens.Dequeue();
+            var types = new List<Type>();
+
             //todo: obviously there can be multiple classes with the same name
             Type rootType = Assembly.GetCallingAssembly()
                 .GetReferencedAssemblies()
                 .SelectMany(x => Assembly.Load(x).GetTypes())
                 .First(x => x.FullName.Contains(typeName));
             Type type = rootType;
+            types.Add(type);
 
             while (memberTokens.Count > 0)
             {
                 var member = type.GetMember(memberTokens.Dequeue(),
-                                            BindingFlags.Public |
-                                            BindingFlags.Instance |
-                                            BindingFlags.GetProperty |
-                                            BindingFlags.GetField)[0];
+                    BindingFlags.Public |
+                    BindingFlags.Instance |
+                    BindingFlags.GetProperty |
+                    BindingFlags.GetField)[0];
 
                 switch (member.MemberType)
                 {
@@ -183,7 +160,61 @@ namespace Prometheus.Common
                     default:
                         throw new NotSupportedException();
                 }
+
+                types.Add(type);
             }
+
+            return types;
+        }
+
+        public static Type GetType(this IdentifierNameSyntax identifierNameSyntax)
+        {
+            string typeName = GetTypeName(identifierNameSyntax, identifierNameSyntax.Identifier.Text);
+
+            return GetType(typeName);
+        }
+
+        private static string GetTypeName(SyntaxNode node, string rootToken)
+        {
+            //TODO: this only gets the type for variables with explicit defined type: we don't process "var"
+            MethodDeclarationSyntax method = node.GetLocation().GetContainingMethod();
+            var parameter = method.ParameterList.Parameters.FirstOrDefault(x => x.Identifier.Text == rootToken);
+            string typeName;
+
+            if (parameter != null)
+            {
+                typeName = parameter.Type.ToString();
+            }
+            else
+            {
+                var localDeclaration = method
+                    .DescendantNodes<LocalDeclarationStatementSyntax>()
+                    .FirstOrDefault(x => x.Declaration.Variables[0].Identifier.Text == rootToken);
+
+                if (localDeclaration != null)
+                {
+                    typeName = localDeclaration.Declaration.Type.ToString();
+                }
+                else
+                {
+                    throw new NotSupportedException("The type name was not found");
+                }
+            }
+
+            return typeName;
+        }
+
+        /// <summary>
+        /// Returns the type given the types of the member access expression.
+        /// E.g. for "customer.ShippingAddress.City" => {type(Customer), type(Address), type(string)}
+        /// </summary>
+        private static Type GetType(string typeName)
+        {
+            //todo: obviously there can be multiple classes with the same name
+            Type type = Assembly.GetCallingAssembly()
+                .GetReferencedAssemblies()
+                .SelectMany(x => Assembly.Load(x).GetTypes())
+                .First(x => x.FullName.Contains(typeName));
 
             return type;
         }
