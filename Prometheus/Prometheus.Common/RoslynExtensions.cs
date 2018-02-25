@@ -124,7 +124,7 @@ namespace Prometheus.Common
             return node.Ancestors(false).OfType<T>().FirstOrDefault();
         }
 
-        public static List<Type> GetTypes(this MemberAccessExpressionSyntax memberExpression)
+        public static List<Type> GetNodeTypes(this MemberAccessExpressionSyntax memberExpression)
         {
             //TODO: this only gets the type for variables with explicit defined type: we don't process "var"
             Queue<string> memberTokens = new Queue<string>(memberExpression.ToString().Split('.'));
@@ -167,7 +167,7 @@ namespace Prometheus.Common
             return types;
         }
 
-        public static Type GetType(this IdentifierNameSyntax identifierNameSyntax)
+        public static Type GetNodeType(this IdentifierNameSyntax identifierNameSyntax)
         {
             string typeName = GetTypeName(identifierNameSyntax, identifierNameSyntax.Identifier.Text);
 
