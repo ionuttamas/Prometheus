@@ -5,6 +5,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Linq;
 using System.Reflection;
 using Microsoft.CodeAnalysis.FindSymbols;
+using Microsoft.Z3;
 
 namespace Prometheus.Common
 {
@@ -281,6 +282,23 @@ namespace Prometheus.Common
             }
 
             throw new NotImplementedException("Currently only IdentiferNameSyntax are allowed");
+        }
+    }
+
+    public static class Z3Extensions
+    {
+        public static Sort GetSort(this Type type, Context context)
+        {
+            if (type == typeof (decimal) || type == typeof (double) || type == typeof (float))
+                return context.RealSort;
+
+            if (type == typeof(int))
+                return context.IntSort;
+
+            if (type == typeof(bool))
+                return context.BoolSort;
+
+            throw new NotSupportedException($"Type {type} is not supported");
         }
     }
 }

@@ -46,18 +46,31 @@ namespace Prometheus.Engine.ReferenceProver
             return HaveCommonValueInternal(firstAssignment, secondAssignment, out commonNode);
         }
 
-        private bool HaveCommonValueInternal(ConditionalAssignment first, ConditionalAssignment second,
-            out object commonNode)
+        /// <summary>
+        /// Checks whether two syntax nodes can possibly have the same value within a thread schedule.
+        /// TODO: this does not consider the possible conditional cases for assigning a variable within loops ("for", "while" loops).
+        /// TODO: this does not consider assignments like: "order = person.Orders.First()" and "order = instance" where "instance" and "person.Orders.First()" can be the same
+        /// </summary>
+        public bool HaveCommonValue(SyntaxNode first, SyntaxNode second, out object commonNode) {
+            var firstAssignment = new ConditionalAssignment {
+                NodeReference = first,
+                AssignmentLocation = first.GetLocation()
+            };
+            var secondAssignment = new ConditionalAssignment {
+                NodeReference = second,
+                AssignmentLocation = second.GetLocation()
+            };
+            return HaveCommonValueInternal(firstAssignment, secondAssignment, out commonNode);
+        }
+
+        private bool HaveCommonValueInternal(ConditionalAssignment first, ConditionalAssignment second, out object commonNode)
         {
             commonNode = null;
 
             //TODO: need to check scoping: if "first" is a local variable => it cannot match a variable from another function/thread
-            var firstAssignments =
-                referenceTracker.GetAssignments(first.NodeReference?.DescendantTokens().First() ?? first.TokenReference);
-                //todo: this needs checking
-            var secondAssignments =
-                referenceTracker.GetAssignments(second.NodeReference?.DescendantTokens().First() ??
-                                                second.TokenReference);
+            var firstAssignments = referenceTracker.GetAssignments(first.NodeReference?.DescendantTokens().First() ?? first.TokenReference);
+            //todo: this needs checking
+            var secondAssignments = referenceTracker.GetAssignments(second.NodeReference?.DescendantTokens().First() ?? second.TokenReference);
 
             foreach (ConditionalAssignment assignment in firstAssignments)
             {
@@ -147,23 +160,29 @@ namespace Prometheus.Engine.ReferenceProver
         #region Conditional prover
 
         //TODO: move this to separate service
-        //TODO: this is ugly state keeping
-        private class NodeTypes
+        private class NodeType
         {
             public SyntaxNode Node { get; set; }
             public Expr Expression { get; set; }
             public List<Type> TypeChain { get; set; }
+            public Type Type => TypeChain.Last();
         }
 
-        private Dictionary<string, NodeTypes> conditionalNodeTable = new Dictionary<string, NodeTypes>();
-        private Dictionary<string, NodeTypes> currentNodeTable = new Dictionary<string, NodeTypes>();
+        private readonly List<NodeType> conditionalNodeTable = new List<NodeType>();
+        private readonly Dictionary<string, NodeType> currentNodeTable = new Dictionary<string, NodeType>();
         private bool matchExpressions = false;
 
         private bool IsSatisfiable(ConditionalAssignment first, ConditionalAssignment second)
         {
-            conditionalNodeTable = GetNodeTypes(first);
             BoolExpr firstCondition = ParseConditionalAssignment(first);
+            matchExpressions = true;
+            currentNodeTable.Clear();
+
             BoolExpr secondCondition = ParseConditionalAssignment(second);
+            matchExpressions = false;
+            currentNodeTable.Clear();
+            conditionalNodeTable.Clear();
+
             Solver solver = context.MkSolver();
             solver.Assert(firstCondition, secondCondition);
             Status status = solver.Check();
@@ -265,94 +284,77 @@ namespace Prometheus.Engine.ReferenceProver
             //todo: fix sort type: real vs int
             if (expressionKind == SyntaxKind.NumericLiteralExpression)
             {
-                return context.MkNumeral(memberExpression.ToString(), context.RealSort);
+                return ParseNumericLiteral(memberExpression.ToString());
             }
 
-            if (expressionKind == SyntaxKind.SimpleMemberAccessExpression ||
-                expressionKind == SyntaxKind.IdentifierName)
-            {
-                //TODO: this needs to see if the members can be the same or not
-                if (hackTable.ContainsKey(memberExpression.ToString()))
-                    return hackTable[memberExpression.ToString()].Expression;
+            var typeChain = expressionKind == SyntaxKind.SimpleMemberAccessExpression
+                ? ((MemberAccessExpressionSyntax)memberExpression).GetNodeTypes()
+                : new List<Type> { ((IdentifierNameSyntax)memberExpression).GetNodeType() };
+            var nodeType = typeChain.Last();
 
-                var constExpr = context.MkConst(memberExpression.ToString(), context.RealSort);
-                hackTable[memberExpression.ToString()] = new NodeTypes
-                {
-                    Expression = constExpr,
-                    Node = memberExpression,
-                    TypeChain = expressionKind == SyntaxKind.SimpleMemberAccessExpression
-                        ? ((MemberAccessExpressionSyntax) memberExpression).GetTypes()
-                        : new List<Type> {memberExpression.GetType()}
-                };
-                return constExpr;
+            if (expressionKind != SyntaxKind.SimpleMemberAccessExpression && expressionKind != SyntaxKind.IdentifierName)
+            {
+                return expressionKind == SyntaxKind.UnaryMinusExpression
+                    ? ParseUnaryExpression(memberExpression)
+                    : ParseExpression(memberExpression);
             }
 
             if (expressionKind == SyntaxKind.UnaryMinusExpression)
             {
-                var prefixUnaryExpression = (PrefixUnaryExpressionSyntax) memberExpression;
-                var negatedExpression = ParseExpressionMember(prefixUnaryExpression.Operand);
-
-                return context.MkUnaryMinus((ArithExpr) negatedExpression);
+                return ParseUnaryExpression(memberExpression);
             }
 
-            return ParseExpression(memberExpression);
-        }
-
-        #endregion
-
-        #region Condition matching
-
-        private bool IsMatch()
-        {
-            return true;
-        }
-
-        private static Dictionary<string, NodeTypes> GetNodeTypes(ConditionalAssignment conditionalAssignment)
-        {
-            var comparandNodes = conditionalAssignment
-                .Conditions
-                .SelectMany(x => GetNodeTypes(x.IfStatement))
-                .ToDictionary(x => x.Key, x => x.Value);
-
-            return comparandNodes;
-        }
-
-        private static Dictionary<string, NodeTypes> GetNodeTypes(IfStatementSyntax ifStatement)
-        {
-            //TODO: we need to check based on the type (from.Address==address), we need to check them separately
-            //We only take simple binary expressions or unary expression, but exclude members that are within a function call in a method
-            var memberAccessExpressions =
-                ifStatement.DescendantNodes<MemberAccessExpressionSyntax>(
-                    x =>
-                        (x.Parent is BinaryExpressionSyntax || x.Parent is PrefixUnaryExpressionSyntax) &&
-                        !x.AncestorNodesUntil<InvocationExpressionSyntax>(ifStatement).Any());
-            var identifiers =
-                ifStatement.DescendantNodes<IdentifierNameSyntax>(
-                    x =>
-                        (x.Parent is BinaryExpressionSyntax || x.Parent is PrefixUnaryExpressionSyntax) &&
-                        !x.AncestorNodesUntil<InvocationExpressionSyntax>(ifStatement).Any());
-            var nodeTable = new Dictionary<string, NodeTypes>();
-
-            foreach (IdentifierNameSyntax identifier in identifiers)
+            if (!matchExpressions)
             {
-                var nodeTypes = new NodeTypes
-                {
-                    Node = identifier,
-                    TypeChain = new List<Type> { identifier.GetNodeType() }
-                };
-                nodeTable[identifier.Identifier.Text] = nodeTypes;
+                //TODO: check nested reference chains from different chains: "customer.Address.ShipInfo" & "order.ShipInfo" to be the same
+                //TODO: check agains same reference chains: "from.Address.ShipInfo" & "to.Address.ShipInfo"
+                //Check against the nodes from already parsed the first conditional assignment
+                return ParseVariableExpression(memberExpression, typeChain);
             }
 
-            foreach (MemberAccessExpressionSyntax memberAccessExpression in memberAccessExpressions)
+            foreach (NodeType node in conditionalNodeTable.Where(x => x.Type == nodeType))
             {
-                var nodeTypes = new NodeTypes {
-                    Node = memberAccessExpression,
-                    TypeChain = memberAccessExpression.GetNodeTypes()
-                };
-                nodeTable[memberAccessExpression.ToString()] = nodeTypes;
+                if (HaveCommonValue(node.Node, memberExpression, out object _))
+                    return node.Expression;
             }
 
-            return nodeTable;
+            return ParseVariableExpression(memberExpression, typeChain);
+        }
+
+        private Expr ParseUnaryExpression(ExpressionSyntax unaryExpression)
+        {
+            var prefixUnaryExpression = (PrefixUnaryExpressionSyntax) unaryExpression;
+            var negatedExpression = ParseExpressionMember(prefixUnaryExpression.Operand);
+
+            return context.MkUnaryMinus((ArithExpr) negatedExpression);
+        }
+
+        private Expr ParseVariableExpression(ExpressionSyntax memberExpression, List<Type> typeChain)
+        {
+            string memberName = memberExpression.ToString();
+
+            if (currentNodeTable.ContainsKey(memberName))
+            {
+                return currentNodeTable[memberName].Expression;
+            }
+
+            var constExpr = context.MkConst(memberName, context.RealSort);
+            var nodeTypes = new NodeType
+            {
+                Expression = constExpr,
+                Node = memberExpression,
+                TypeChain = typeChain
+            };
+            currentNodeTable[memberName] = nodeTypes;
+            conditionalNodeTable.Add(nodeTypes);
+
+            return constExpr;
+        }
+
+        private Expr ParseNumericLiteral(string numericLiteral)
+        {
+            Sort sort = int.TryParse(numericLiteral, out int _) ? context.IntSort : (Sort) context.RealSort;
+            return context.MkNumeral(numericLiteral, sort);
         }
 
         #endregion
