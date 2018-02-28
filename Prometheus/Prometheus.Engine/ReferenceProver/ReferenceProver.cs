@@ -7,17 +7,55 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Z3;
 using Prometheus.Common;
+using TypeInfo = System.Reflection.TypeInfo;
 
 namespace Prometheus.Engine.ReferenceProver
 {
     internal class ReferenceProver : IDisposable
     {
         private readonly ReferenceTracker referenceTracker;
+        private readonly List<TypeInfo> solutionTypes;
+        private readonly Dictionary<string, Type> coreTypeAliases;
         private readonly Context context;
 
-        public ReferenceProver(ReferenceTracker referenceTracker)
+        public ReferenceProver(ReferenceTracker referenceTracker, Solution solution)
         {
             this.referenceTracker = referenceTracker;
+            //todo: needs to get projects referenced assemblies
+            solutionTypes = solution.Projects.Select(x => Assembly.Load(x.AssemblyName)).SelectMany(x => x.DefinedTypes)
+                .ToList();
+            solutionTypes.AddRange(Assembly.GetAssembly(typeof(int)).DefinedTypes);
+            coreTypeAliases = new Dictionary<string, Type>
+            {
+                {"byte", typeof(byte)},
+                {"sbyte",typeof(sbyte)},
+                {"short", typeof(short)},
+                {"ushort", typeof(ushort)},
+                {"int", typeof(int)},
+                {"uint", typeof(uint)},
+                {"long", typeof(long)},
+                {"ulong", typeof(ulong)},
+                {"float", typeof(float)},
+                {"double", typeof(double)},
+                {"decimal", typeof(decimal)},
+                {"object", typeof(object)},
+                {"bool", typeof(bool)},
+                {"char", typeof(char)},
+                {"byte?", typeof(byte?)},
+                {"sbyte?",typeof(sbyte?)},
+                {"short?", typeof(short?)},
+                {"ushort?", typeof(ushort?)},
+                {"int?", typeof(int?)},
+                {"uint?", typeof(uint?)},
+                {"long?", typeof(long?)},
+                {"ulong?", typeof(ulong?)},
+                {"float?", typeof(float?)},
+                {"double?", typeof(double?)},
+                {"decimal?", typeof(decimal?)},
+                {"bool?", typeof(bool?)},
+                {"char?", typeof(char?)},
+                {"string", typeof(string)}
+            };
             context = new Context();
         }
 
@@ -170,7 +208,7 @@ namespace Prometheus.Engine.ReferenceProver
 
         private readonly List<NodeType> conditionalNodeTable = new List<NodeType>();
         private readonly Dictionary<string, NodeType> currentNodeTable = new Dictionary<string, NodeType>();
-        private bool matchExpressions = false;
+        private bool matchExpressions;
 
         private bool IsSatisfiable(ConditionalAssignment first, ConditionalAssignment second)
         {
@@ -281,16 +319,14 @@ namespace Prometheus.Engine.ReferenceProver
         {
             var expressionKind = memberExpression.Kind();
 
-            //todo: fix sort type: real vs int
+            if (memberExpression is BinaryExpressionSyntax) {
+                return ParseBinaryExpression((BinaryExpressionSyntax)memberExpression);
+            }
+
             if (expressionKind == SyntaxKind.NumericLiteralExpression)
             {
                 return ParseNumericLiteral(memberExpression.ToString());
             }
-
-            var typeChain = expressionKind == SyntaxKind.SimpleMemberAccessExpression
-                ? ((MemberAccessExpressionSyntax)memberExpression).GetNodeTypes()
-                : new List<Type> { ((IdentifierNameSyntax)memberExpression).GetNodeType() };
-            var nodeType = typeChain.Last();
 
             if (expressionKind != SyntaxKind.SimpleMemberAccessExpression && expressionKind != SyntaxKind.IdentifierName)
             {
@@ -303,6 +339,11 @@ namespace Prometheus.Engine.ReferenceProver
             {
                 return ParseUnaryExpression(memberExpression);
             }
+
+            var typeChain = expressionKind == SyntaxKind.SimpleMemberAccessExpression
+                ? GetNodeTypes((MemberAccessExpressionSyntax)memberExpression)
+                : new List<Type> { GetNodeType((IdentifierNameSyntax)memberExpression) };
+            var nodeType = typeChain.Last();
 
             if (!matchExpressions)
             {
@@ -354,7 +395,86 @@ namespace Prometheus.Engine.ReferenceProver
         private Expr ParseNumericLiteral(string numericLiteral)
         {
             Sort sort = int.TryParse(numericLiteral, out int _) ? context.IntSort : (Sort) context.RealSort;
-            return context.MkNumeral(numericLiteral, sort);
+            return context.MkNumeral(numericLiteral, context.RealSort); //TODO: issue on real>int expression
+        }
+
+        #endregion
+
+        #region Type retrieval
+
+        public List<Type> GetNodeTypes(MemberAccessExpressionSyntax memberExpression) {
+            //TODO: this only gets the type for variables with explicit defined type: we don't process "var"
+            Queue<string> memberTokens = new Queue<string>(memberExpression.ToString().Split('.'));
+            string rootToken = memberTokens.First();
+            var typeName = GetTypeName(memberExpression, rootToken);
+            memberTokens.Dequeue();
+            var types = new List<Type>();
+
+            //todo: there can be multiple classes with the same name
+            Type rootType = GetType(typeName);
+            Type currentType = rootType;
+            types.Add(currentType);
+
+            while (memberTokens.Count > 0) {
+                var member = currentType.GetMember(memberTokens.Dequeue(),
+                    BindingFlags.Public |
+                    BindingFlags.Instance |
+                    BindingFlags.GetProperty |
+                    BindingFlags.GetField)[0];
+
+                switch (member.MemberType) {
+                    case MemberTypes.Field:
+                        currentType = member.As<FieldInfo>().FieldType;
+                        break;
+                    case MemberTypes.Property:
+                        currentType = member.As<PropertyInfo>().PropertyType;
+                        break;
+                    default:
+                        throw new NotSupportedException();
+                }
+
+                types.Add(currentType);
+            }
+
+            return types;
+        }
+
+        public Type GetNodeType(IdentifierNameSyntax identifierNameSyntax) {
+            string typeName = GetTypeName(identifierNameSyntax, identifierNameSyntax.Identifier.Text);
+            Type type = GetType(typeName);
+
+            return type;
+        }
+
+        private string GetTypeName(SyntaxNode node, string rootToken) {
+            //TODO: this only gets the type for variables with explicit defined type: we don't process "var"
+            MethodDeclarationSyntax method = node.GetLocation().GetContainingMethod();
+            var parameter = method.ParameterList.Parameters.FirstOrDefault(x => x.Identifier.Text == rootToken);
+            string typeName;
+
+            if (parameter != null) {
+                typeName = parameter.Type.ToString();
+            } else {
+                var localDeclaration = method
+                    .DescendantNodes<LocalDeclarationStatementSyntax>()
+                    .FirstOrDefault(x => x.Declaration.Variables[0].Identifier.Text == rootToken);
+
+                if (localDeclaration != null) {
+                    typeName = localDeclaration.Declaration.Type.ToString();
+                } else {
+                    throw new NotSupportedException("The type name was not found");
+                }
+            }
+
+            return typeName;
+        }
+
+        private Type GetType(string typeName)
+        {
+            //todo: there can be multiple classes with the same name
+            Type type = solutionTypes.FirstOrDefault(x => x.Name==typeName);
+
+            return type ?? coreTypeAliases[typeName];
         }
 
         #endregion

@@ -21,7 +21,7 @@ namespace Prometheus.Engine.UnitTests
             workspace.LoadMetadataForReferencedProjects = true;
             solution = workspace.OpenSolutionAsync(@"C:\Users\tamas\Documents\Github\Prometheus\Prometheus\Prometheus.sln").Result;
             ThreadSchedule threadSchedule = new ThreadAnalyzer(solution).GetThreadSchedule(solution.Projects.First(x => x.Name == "TestProject.GUI"));
-            referenceProver = new ReferenceProver.ReferenceProver(new ReferenceTracker(solution, threadSchedule));
+            referenceProver = new ReferenceProver.ReferenceProver(new ReferenceTracker(solution, threadSchedule), solution);
         }
 
         [TearDown]

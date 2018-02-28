@@ -58,9 +58,9 @@ namespace TestProject.Services
             Customer customer;
 
             if (amount > 0) {
-                if (from.Type == CustomerType.Premium) {
+                if (from.Age == 30) {
                     customer = from;
-                } else if (from.Type == CustomerType.Gold) {
+                } else if (from.Age == 40) {
                     customer = from;
                 } else {
                     customer = from;
@@ -68,7 +68,7 @@ namespace TestProject.Services
             } else if (amount < 0) {
                 if (!from.IsActive && from.AccountBalance < 0) {
                     customer = from;
-                } else if (from.Type == CustomerType.Gold && from.AccountBalance < 0) {
+                } else if (from.Age == 40 && from.AccountBalance < 0) {
                     customer = from;
                 }
             } else {
