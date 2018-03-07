@@ -355,6 +355,7 @@ namespace Prometheus.Engine.ReferenceProver
 
             foreach (NodeType node in conditionalNodeTable.Where(x => x.Type == nodeType))
             {
+                //TODO: MAJOR
                 //TODO: for now, we only match "amount1" with "amount2" (identifier with identifier) or "[from].AccountBalance" with "[from2].AccountBalance"
                 //TODO: need to extend to "amount" with "[from].AccountBalance" and other combinations
                 if (node.Node is IdentifierNameSyntax && memberExpression is IdentifierNameSyntax)
@@ -363,14 +364,14 @@ namespace Prometheus.Engine.ReferenceProver
                         return node.Expression;
                 }
 
-                if (node.Node is MemberAccessExpressionSyntax && memberExpression is MemberAccessExpressionSyntax) {
+                if (node.Node is MemberAccessExpressionSyntax && memberExpression is MemberAccessExpressionSyntax)
+                {
+                    var firstMember = (MemberAccessExpressionSyntax) node.Node;
+                    var secondMember = (MemberAccessExpressionSyntax)memberExpression;
 
-
-                    if (HaveCommonValue(node.Node, memberExpression, out object _))
+                    if (HaveCommonValue(GetRootIdentifier(firstMember), GetRootIdentifier(secondMember), out object _))
                         return node.Expression;
                 }
-
-                throw new NotImplementedException();
             }
 
             return ParseVariableExpression(memberExpression, typeChain);
@@ -415,6 +416,14 @@ namespace Prometheus.Engine.ReferenceProver
         #endregion
 
         #region Type retrieval
+
+        public IdentifierNameSyntax GetRootIdentifier(MemberAccessExpressionSyntax memberAccess)
+        {
+            var rootToken = memberAccess.ToString().Split('.').First();
+            var identifier = memberAccess.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == rootToken).First();
+
+            return identifier;
+        }
 
         public List<Type> GetNodeTypes(MemberAccessExpressionSyntax memberExpression) {
             //TODO: this only gets the type for variables with explicit defined type: we don't process "var"
