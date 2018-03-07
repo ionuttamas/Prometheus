@@ -10,7 +10,7 @@ namespace TestProject.Services
         public void SimpleIfTransfer(Customer from, Customer to, decimal amount) {
             Customer customer;
 
-            if (from.Type == CustomerType.Premium) {
+            if (from.AccountBalance > 0) {
                 customer = from;
                 from.AccountBalance -= amount;
                 to.AccountBalance += amount;
@@ -18,8 +18,8 @@ namespace TestProject.Services
         }
 
         public void SimpleIf_NegatedTransfer(Customer from, Customer to, decimal amount) {
-            if (from.Type != CustomerType.Premium) {
-                Customer customer = from;
+            if (from.AccountBalance < 0) {
+                Customer referenceCustomer = from;
                 from.AccountBalance -= amount;
                 to.AccountBalance += amount;
             }

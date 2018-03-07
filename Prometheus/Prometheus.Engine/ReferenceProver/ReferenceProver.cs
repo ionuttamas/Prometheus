@@ -355,8 +355,22 @@ namespace Prometheus.Engine.ReferenceProver
 
             foreach (NodeType node in conditionalNodeTable.Where(x => x.Type == nodeType))
             {
-                if (HaveCommonValue(node.Node, memberExpression, out object _))
-                    return node.Expression;
+                //TODO: for now, we only match "amount1" with "amount2" (identifier with identifier) or "[from].AccountBalance" with "[from2].AccountBalance"
+                //TODO: need to extend to "amount" with "[from].AccountBalance" and other combinations
+                if (node.Node is IdentifierNameSyntax && memberExpression is IdentifierNameSyntax)
+                {
+                    if (HaveCommonValue(node.Node, memberExpression, out object _))
+                        return node.Expression;
+                }
+
+                if (node.Node is MemberAccessExpressionSyntax && memberExpression is MemberAccessExpressionSyntax) {
+
+
+                    if (HaveCommonValue(node.Node, memberExpression, out object _))
+                        return node.Expression;
+                }
+
+                throw new NotImplementedException();
             }
 
             return ParseVariableExpression(memberExpression, typeChain);
