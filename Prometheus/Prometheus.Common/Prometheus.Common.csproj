@@ -42,7 +42,7 @@
       <HintPath>..\packages\Microsoft.CodeAnalysis.Workspaces.Common.2.1.0\lib\net46\Microsoft.CodeAnalysis.Workspaces.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.Z3">
-      <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Microsoft Research\Z3-4.1\bin\Microsoft.Z3.dll</HintPath>
+      <HintPath>..\3rdParty\Microsoft.Z3.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
