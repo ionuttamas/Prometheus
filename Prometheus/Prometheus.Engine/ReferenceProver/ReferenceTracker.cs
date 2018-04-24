@@ -67,12 +67,20 @@ namespace Prometheus.Engine.ReferenceProver {
                 var methodParameterIndex = method.ParameterList.Parameters.IndexOf(x => x.Identifier.Text == identifierName);
 
                 //The assignment is not from a method parameter, so we search for the assignment inside
-                return methodParameterIndex < 0
+                var result = methodParameterIndex < 0
                     ? GetMethodAssignments(identifier)
                     : GetMethodCallAssignments(identifier, method, methodParameterIndex);
+                // Exclude all except reference names; method calls "a = GetReference(c, d)" are not supported at the moment TODO: double check here
+                result = result
+                    .Where(x => x.NodeReference == null || (x.NodeReference.Kind() == SyntaxKind.IdentifierName || x.NodeReference.Kind() == SyntaxKind.VariableDeclarator || x.NodeReference.Kind() == SyntaxKind.Argument))
+                    .ToList();
+
+                return result;
             }
 
-            return GetConstructorAssignments(identifier, classDeclaration);
+            return GetConstructorAssignments(identifier, classDeclaration)
+                    .Where(x => x.NodeReference == null || x.NodeReference.Kind() == SyntaxKind.IdentifierName)
+                    .ToList();
         }
 
         /// <summary>

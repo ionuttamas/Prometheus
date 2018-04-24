@@ -105,44 +105,8 @@ namespace Prometheus.Engine.ReferenceProver
         {
             commonNode = null;
 
-            //TODO: need to check scoping: if "first" is a local variable => it cannot match a variable from another function/thread
-            var firstAssignments = referenceTracker.GetAssignments(first.NodeReference?.DescendantTokens().First() ?? first.TokenReference);
-            //todo: this needs checking
-            var secondAssignments = referenceTracker.GetAssignments(second.NodeReference?.DescendantTokens().First() ?? second.TokenReference);
-
-            if (!firstAssignments.Any() || !secondAssignments.Any())
-            {
-                return ValidateReachability(first, second, out commonNode);
-            }
-
-            foreach (ConditionalAssignment assignment in firstAssignments)
-            {
-                assignment.Conditions.UnionWith(first.Conditions);
-            }
-
-            foreach (ConditionalAssignment assignment in secondAssignments)
-            {
-                assignment.Conditions.UnionWith(second.Conditions);
-            }
-
-            if (!firstAssignments.Any())
-            {
-                firstAssignments = new List<ConditionalAssignment> {first};
-            }
-
-            if (!secondAssignments.Any())
-            {
-                secondAssignments = new List<ConditionalAssignment> {second};
-            }
-
-            foreach (ConditionalAssignment firstAssignment in firstAssignments)
-            {
-                foreach (ConditionalAssignment secondAssignment in secondAssignments)
-                {
-                    if (ValidateReachability(firstAssignment, secondAssignment, out commonNode))
-                        return true;
-                }
-            }
+            if (ValidateReachability(first, second, out commonNode))
+                return true;
 
             return false;
         }
@@ -161,25 +125,37 @@ namespace Prometheus.Engine.ReferenceProver
                 return true;
             }
 
-            var firstReferenceAssignment = new ConditionalAssignment
-            {
-                NodeReference = first.NodeReference,
-                TokenReference = first.TokenReference,
-                AssignmentLocation = first.AssignmentLocation,
-                Conditions = first.Conditions
-            };
-            var secondReferenceAssignment = new ConditionalAssignment
-            {
-                NodeReference = second.NodeReference,
-                TokenReference = second.TokenReference,
-                AssignmentLocation = second.AssignmentLocation,
-                Conditions = second.Conditions
-            };
+            List<ConditionalAssignment> firstAssignments = referenceTracker.GetAssignments(first.NodeReference?.DescendantTokens().First() ?? first.TokenReference);
+            List<ConditionalAssignment> secondAssignments = referenceTracker.GetAssignments(second.NodeReference?.DescendantTokens().First() ?? second.TokenReference);
 
-            if (HaveCommonValueInternal(firstReferenceAssignment, second, out commonNode))
-                return true;
+            if (!firstAssignments.Any() && !secondAssignments.Any())
+            {
+                return false;
+            }
 
-            return HaveCommonValueInternal(first, secondReferenceAssignment, out commonNode);
+            foreach (ConditionalAssignment assignment in firstAssignments)
+            {
+                assignment.Conditions.UnionWith(first.Conditions);
+            }
+
+            foreach (ConditionalAssignment assignment in secondAssignments)
+            {
+                assignment.Conditions.UnionWith(second.Conditions);
+            }
+
+            foreach (var firstAssignment in firstAssignments)
+            {
+                if (ValidateReachability(firstAssignment, second, out commonNode))
+                    return true;
+            }
+
+            foreach (var secondAssignment in secondAssignments)
+            {
+                if (ValidateReachability(first, secondAssignment, out commonNode))
+                    return true;
+            }
+
+            return false;
         }
 
         /// <summary>
