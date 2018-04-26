@@ -8,19 +8,17 @@ namespace TestProject.Services
         }
 
         public void SimpleIfTransfer(Customer from, Customer to, decimal amount) {
-            Customer customer;
-
             if (from.AccountBalance > 0) {
-                customer = from;
+                Customer customer = from;
                 from.AccountBalance -= amount;
                 to.AccountBalance += amount;
             }
         }
 
-        public void SimpleIf_NegatedTransfer(Customer from, Customer to, decimal amount) {
-            if (from.AccountBalance < 0) {
-                Customer referenceCustomer = from;
-                from.AccountBalance -= amount;
+        public void SimpleIf_NegatedTransfer(Customer from2, Customer to, decimal amount) {
+            if (from2.AccountBalance < 0) {
+                Customer referenceCustomer = from2;
+                from2.AccountBalance -= amount;
                 to.AccountBalance += amount;
             }
         }
@@ -37,19 +35,16 @@ namespace TestProject.Services
 
         public void NestedCall_SimpleIf_SimpleIfTransfer_SatisfiableCounterpart(Customer from, Customer to, decimal amount)
         {
-            Customer customer;
-
             if (!from.IsActive && from.AccountBalance < 50 && amount < 30)
             {
-                customer = from;
+                Customer customer = from;
             }
         }
 
         public void NestedCall_SimpleIf_SimpleIfTransfer(Customer from2, Customer to, decimal amount) {
-            Customer referenceCustomer;
-
-            if (from2.Age > 30) {
-                referenceCustomer = from2;
+            if (from2.Age > 30)
+            {
+                Customer referenceCustomer = from2;
                 TransferInternal(referenceCustomer, to, amount);
             }
         }
@@ -68,8 +63,9 @@ namespace TestProject.Services
             } else if (amount < 0) {
                 if (!from.IsActive && from.AccountBalance < 0) {
                     customer = from;
-                } else if (from.Age == 40 && from.AccountBalance > 60) {
-                    var exclusiveCustomer = from;
+                } else if (from.Age == 40 && from.AccountBalance > 60)
+                {
+                    Customer exclusiveCustomer = from;
                 }
             } else {
                 if (!from.IsActive && from.DeliveryAddress.StreetAddress =="da") {

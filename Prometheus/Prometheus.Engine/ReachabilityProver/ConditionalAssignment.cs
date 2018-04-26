@@ -3,7 +3,7 @@ using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Prometheus.Engine.ReferenceProver
+namespace Prometheus.Engine.ReachabilityProver
 {
     /// <summary>
     /// Holds the conditional assignment for a given reference.

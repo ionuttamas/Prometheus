@@ -9,16 +9,17 @@ using Microsoft.Z3;
 using Prometheus.Common;
 using TypeInfo = System.Reflection.TypeInfo;
 
-namespace Prometheus.Engine.ReferenceProver
+namespace Prometheus.Engine.ReachabilityProver
 {
-    internal class ReferenceProver : IDisposable
+    internal class ReachabilityProver : IDisposable
     {
         private readonly ReferenceTracker referenceTracker;
         private readonly List<TypeInfo> solutionTypes;
         private readonly Dictionary<string, Type> coreTypeAliases;
         private readonly Context context;
+        private Dictionary<Location, Dictionary<Location, object>> reachabilityCache;
 
-        public ReferenceProver(ReferenceTracker referenceTracker, Solution solution)
+        public ReachabilityProver(ReferenceTracker referenceTracker, Solution solution)
         {
             this.referenceTracker = referenceTracker;
             //todo: needs to get projects referenced assemblies
@@ -57,6 +58,7 @@ namespace Prometheus.Engine.ReferenceProver
                 {"string", typeof(string)}
             };
             context = new Context();
+            reachabilityCache = new Dictionary<Location, Dictionary<Location, object>>();
         }
 
         public void Dispose()
@@ -81,7 +83,7 @@ namespace Prometheus.Engine.ReferenceProver
                 TokenReference = second,
                 AssignmentLocation = second.GetLocation()
             };
-            return HaveCommonValueInternal(firstAssignment, secondAssignment, out commonNode);
+            return ValidateReachability(firstAssignment, secondAssignment, out commonNode);
         }
 
         /// <summary>
@@ -98,30 +100,24 @@ namespace Prometheus.Engine.ReferenceProver
                 NodeReference = second,
                 AssignmentLocation = second.GetLocation()
             };
-            return HaveCommonValueInternal(firstAssignment, secondAssignment, out commonNode);
+            return ValidateReachability(firstAssignment, secondAssignment, out commonNode);
         }
 
-        private bool HaveCommonValueInternal(ConditionalAssignment first, ConditionalAssignment second, out object commonNode)
+        private bool ValidateReachability(ConditionalAssignment first, ConditionalAssignment second, out object commonNode)
         {
-            commonNode = null;
-
-            if (ValidateReachability(first, second, out commonNode))
+            if (GetFromCache(first.AssignmentLocation, second.AssignmentLocation, out commonNode))
                 return true;
 
-            return false;
-        }
-
-        private bool ValidateReachability(ConditionalAssignment first, ConditionalAssignment second,
-            out object commonNode)
-        {
-            commonNode = null;
-
             if (!IsSatisfiable(first, second))
+            {
+                AddToCache(first.AssignmentLocation, second.AssignmentLocation, false);
                 return false;
+            }
 
             if (AreEquivalent(first, second))
             {
                 commonNode = first.NodeReference ?? (object) first.TokenReference;
+                AddToCache(first.AssignmentLocation, second.AssignmentLocation, false);
                 return true;
             }
 
@@ -176,6 +172,40 @@ namespace Prometheus.Engine.ReferenceProver
             return firstLocation == secondLocation;
         }
 
+        private void AddToCache(Location first, Location second, object commonValue)
+        {
+            if (reachabilityCache.ContainsKey(first))
+            {
+                reachabilityCache[first][second] = commonValue;
+                return;
+            }
+
+            if (reachabilityCache.ContainsKey(second)) {
+                reachabilityCache[second][first] = commonValue;
+                return;
+            }
+
+            reachabilityCache[first] = new Dictionary<Location, object> {[second] = commonValue };
+        }
+
+        private bool GetFromCache(Location first, Location second, out object commonValue)
+        {
+            if (reachabilityCache.ContainsKey(first) && reachabilityCache[first].ContainsKey(second))
+            {
+                commonValue = reachabilityCache[first][second];
+                return true;
+            }
+
+            if (reachabilityCache.ContainsKey(second)) {
+                commonValue = reachabilityCache[second][first];
+                return true;
+            }
+
+            commonValue = null;
+
+            return false;
+        }
+
         #region Conditional prover
 
         //TODO: move this to separate service
@@ -200,6 +230,7 @@ namespace Prometheus.Engine.ReferenceProver
         }
 
         #region Non-cached processing
+
         private BoolExpr ParseConditionalAssignment(ConditionalAssignment assignment, out Dictionary<string, NodeType> processedMembers)
         {
             List<BoolExpr> conditions = new List<BoolExpr>();
@@ -214,7 +245,7 @@ namespace Prometheus.Engine.ReferenceProver
                 conditions.Add(assignmentCondition.IsNegated ? context.MkNot(boolExpr) : boolExpr);
             }
 
-            BoolExpr expression = context.MkAnd(conditions);
+            BoolExpr expression = context.MkAnd(conditions.ToArray());
 
             return expression;
         }
@@ -364,9 +395,11 @@ namespace Prometheus.Engine.ReferenceProver
             Sort sort = int.TryParse(numericLiteral, out int _) ? context.IntSort : (Sort)context.RealSort;
             return context.MkNumeral(numericLiteral, context.RealSort); //TODO: issue on real>int expression
         }
+
         #endregion
 
         #region Cached processing
+
         private BoolExpr ParseConditionalAssignment(ConditionalAssignment assignment, Dictionary<string, NodeType> cachedMembers)
         {
             BoolExpr[] conditions =

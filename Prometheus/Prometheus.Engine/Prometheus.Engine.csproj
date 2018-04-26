@@ -184,9 +184,9 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ReferenceProver\ConditionalAssignment.cs" />
-    <Compile Include="ReferenceProver\ReferenceProver.cs" />
-    <Compile Include="ReferenceProver\ReferenceTracker.cs" />
+    <Compile Include="ReachabilityProver\ConditionalAssignment.cs" />
+    <Compile Include="ReachabilityProver\ReachabilityProver.cs" />
+    <Compile Include="ReachabilityProver\ReferenceTracker.cs" />
     <Compile Include="Thread\InvocationPath.cs" />
     <Compile Include="Verifier\Args.cs" />
     <Compile Include="Model\ModelStateConfiguration.cs" />

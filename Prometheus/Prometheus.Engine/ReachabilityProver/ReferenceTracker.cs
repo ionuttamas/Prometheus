@@ -6,7 +6,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Prometheus.Common;
 using Prometheus.Engine.Thread;
 
-namespace Prometheus.Engine.ReferenceProver {
+namespace Prometheus.Engine.ReachabilityProver {
     //TODO: this will be used for checking that 2 lock object or 2 instances under concurrency modifications are the same or not
     internal class ReferenceTracker
     {
@@ -54,7 +54,7 @@ namespace Prometheus.Engine.ReferenceProver {
             if (!threadSchedule.GetThreadPath(solution, identifier.GetLocation()).Invocations.Any())
                 return new List<ConditionalAssignment>();
 
-            //TODO: this does not take into account previous assignments to parameters
+            //TODO: this does not take into account previous assignments to parameters: "a=b; ...; a=c; d=a;" => d != b so that case needs to be prunned
             var identifierName = identifier.ToString();
             var method = identifier.GetLocation().GetContainingMethod();
             var classDeclaration = method.FirstAncestorOrSelf<ClassDeclarationSyntax>();
