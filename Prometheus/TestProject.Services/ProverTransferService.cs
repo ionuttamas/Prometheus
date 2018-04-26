@@ -68,8 +68,8 @@ namespace TestProject.Services
             } else if (amount < 0) {
                 if (!from.IsActive && from.AccountBalance < 0) {
                     customer = from;
-                } else if (from.Age == 40 && from.AccountBalance < 0) {
-                    customer = from;
+                } else if (from.Age == 40 && from.AccountBalance > 60) {
+                    var exclusiveCustomer = from;
                 }
             } else {
                 if (!from.IsActive && from.DeliveryAddress.StreetAddress =="da") {
