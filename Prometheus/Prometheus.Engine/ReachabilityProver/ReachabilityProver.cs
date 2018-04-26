@@ -83,7 +83,7 @@ namespace Prometheus.Engine.ReachabilityProver
                 TokenReference = second,
                 AssignmentLocation = second.GetLocation()
             };
-            return ValidateReachability(firstAssignment, secondAssignment, out commonNode);
+            return CheckReachability(firstAssignment, secondAssignment, out commonNode);
         }
 
         /// <summary>
@@ -100,24 +100,28 @@ namespace Prometheus.Engine.ReachabilityProver
                 NodeReference = second,
                 AssignmentLocation = second.GetLocation()
             };
-            return ValidateReachability(firstAssignment, secondAssignment, out commonNode);
+            return CheckReachability(firstAssignment, secondAssignment, out commonNode);
         }
 
-        private bool ValidateReachability(ConditionalAssignment first, ConditionalAssignment second, out object commonNode)
+        private bool CheckReachability(ConditionalAssignment first, ConditionalAssignment second, out object commonNode)
         {
-            if (GetFromCache(first.AssignmentLocation, second.AssignmentLocation, out commonNode))
-                return true;
+            var cachedReachability = TryGetFromCache(first.AssignmentLocation, second.AssignmentLocation, out commonNode);
+
+            if (cachedReachability)
+            {
+                return commonNode!=null && IsSatisfiable(first, second);
+            }
 
             if (!IsSatisfiable(first, second))
             {
-                AddToCache(first.AssignmentLocation, second.AssignmentLocation, false);
+                AddToCache(first.AssignmentLocation, second.AssignmentLocation, null);
                 return false;
             }
 
             if (AreEquivalent(first, second))
             {
                 commonNode = first.NodeReference ?? (object) first.TokenReference;
-                AddToCache(first.AssignmentLocation, second.AssignmentLocation, false);
+                AddToCache(first.AssignmentLocation, second.AssignmentLocation, commonNode);
                 return true;
             }
 
@@ -126,6 +130,7 @@ namespace Prometheus.Engine.ReachabilityProver
 
             if (!firstAssignments.Any() && !secondAssignments.Any())
             {
+                AddToCache(first.AssignmentLocation, second.AssignmentLocation, null);
                 return false;
             }
 
@@ -141,13 +146,13 @@ namespace Prometheus.Engine.ReachabilityProver
 
             foreach (var firstAssignment in firstAssignments)
             {
-                if (ValidateReachability(firstAssignment, second, out commonNode))
+                if (CheckReachability(firstAssignment, second, out commonNode))
                     return true;
             }
 
             foreach (var secondAssignment in secondAssignments)
             {
-                if (ValidateReachability(first, secondAssignment, out commonNode))
+                if (CheckReachability(first, secondAssignment, out commonNode))
                     return true;
             }
 
@@ -180,7 +185,8 @@ namespace Prometheus.Engine.ReachabilityProver
                 return;
             }
 
-            if (reachabilityCache.ContainsKey(second)) {
+            if (reachabilityCache.ContainsKey(second))
+            {
                 reachabilityCache[second][first] = commonValue;
                 return;
             }
@@ -188,21 +194,20 @@ namespace Prometheus.Engine.ReachabilityProver
             reachabilityCache[first] = new Dictionary<Location, object> {[second] = commonValue };
         }
 
-        private bool GetFromCache(Location first, Location second, out object commonValue)
+        private bool TryGetFromCache(Location first, Location second, out object commonValue)
         {
             if (reachabilityCache.ContainsKey(first) && reachabilityCache[first].ContainsKey(second))
             {
                 commonValue = reachabilityCache[first][second];
-                return true;
+                return commonValue!=null;
             }
 
             if (reachabilityCache.ContainsKey(second)) {
                 commonValue = reachabilityCache[second][first];
-                return true;
+                return commonValue != null;
             }
 
             commonValue = null;
-
             return false;
         }
 
