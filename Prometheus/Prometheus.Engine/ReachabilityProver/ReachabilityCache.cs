@@ -6,28 +6,28 @@ namespace Prometheus.Engine.ReachabilityProver
 {
     internal class ReachabilityCache
     {
-        private readonly Dictionary<Location, Dictionary<Location, object>> reachabilityCache;
+        private readonly Dictionary<Location, Dictionary<Location, Reference>> reachabilityCache;
 
         public ReachabilityCache()
         {
-            reachabilityCache = new Dictionary<Location, Dictionary<Location, object>>();
+            reachabilityCache = new Dictionary<Location, Dictionary<Location, Reference>>();
         }
 
-        public void AddToCache(Location first, Location second, object commonValue)
+        public void AddToCache(Location first, Location second, Reference commonReference)
         {
             if (reachabilityCache.ContainsKey(first))
             {
-                reachabilityCache[first][second] = commonValue;
+                reachabilityCache[first][second] = commonReference;
                 return;
             }
 
             if (reachabilityCache.ContainsKey(second))
             {
-                reachabilityCache[second][first] = commonValue;
+                reachabilityCache[second][first] = commonReference;
                 return;
             }
 
-            reachabilityCache[first] = new Dictionary<Location, object> { [second] = commonValue };
+            reachabilityCache[first] = new Dictionary<Location, Reference> { [second] = commonReference };
         }
 
         public bool Contains(Location first, Location second)
@@ -45,7 +45,7 @@ namespace Prometheus.Engine.ReachabilityProver
             return false;
         }
 
-        public object GetFromCache(Location first, Location second)
+        public Reference GetFromCache(Location first, Location second)
         {
             if (reachabilityCache.ContainsKey(first) && reachabilityCache[first].ContainsKey(second))
             {

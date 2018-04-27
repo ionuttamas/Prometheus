@@ -72,14 +72,14 @@ namespace Prometheus.Engine.ReachabilityProver {
                     : GetMethodCallAssignments(identifier, method, methodParameterIndex);
                 // Exclude all except reference names; method calls "a = GetReference(c, d)" are not supported at the moment TODO: double check here
                 result = result
-                    .Where(x => x.NodeReference == null || (x.NodeReference.Kind() == SyntaxKind.IdentifierName || x.NodeReference.Kind() == SyntaxKind.VariableDeclarator || x.NodeReference.Kind() == SyntaxKind.Argument))
+                    .Where(x => x.Reference.Node == null || (x.Reference.Node.Kind() == SyntaxKind.IdentifierName || x.Reference.Node.Kind() == SyntaxKind.VariableDeclarator || x.Reference.Node.Kind() == SyntaxKind.Argument))
                     .ToList();
 
                 return result;
             }
 
             return GetConstructorAssignments(identifier, classDeclaration)
-                    .Where(x => x.NodeReference == null || x.NodeReference.Kind() == SyntaxKind.IdentifierName)
+                    .Where(x => x.Reference.Node == null || x.Reference.Node.Kind() == SyntaxKind.IdentifierName)
                     .ToList();
         }
 
@@ -174,7 +174,7 @@ namespace Prometheus.Engine.ReachabilityProver {
             var elseClause = bindingNode.FirstAncestor<ElseClauseSyntax>();
             var ifClause = bindingNode.FirstAncestor<IfStatementSyntax>();
             var conditionalAssignment = new ConditionalAssignment {
-                NodeReference = argument,
+                Reference = {Node = argument},
                 AssignmentLocation = bindingNode.GetLocation()
             };
             SyntaxNode currentNode = bindingNode;
@@ -185,7 +185,7 @@ namespace Prometheus.Engine.ReachabilityProver {
 
             if (matchingField != null) {
                 //If the assignment is a shared class field/property, we overwrite the reference; otherwise we track its assignments
-                conditionalAssignment.NodeReference = matchingField.Declaration.Variables[0];
+                conditionalAssignment.Reference.Node = matchingField.Declaration.Variables[0];
             }
 
             while (currentNode != null) {

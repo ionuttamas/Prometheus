@@ -184,9 +184,13 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ReachabilityProver\ConditionalAssignment.cs" />
+    <Compile Include="ConditionProver\IConditionProver.cs" />
+    <Compile Include="ConditionProver\Z3ConditionProver.cs" />
+    <Compile Include="ReachabilityProver\Model\Condition.cs" />
+    <Compile Include="ReachabilityProver\Model\ConditionalAssignment.cs" />
     <Compile Include="ReachabilityProver\ReachabilityCache.cs" />
     <Compile Include="ReachabilityProver\ReachabilityProver.cs" />
+    <Compile Include="ReachabilityProver\Model\Reference.cs" />
     <Compile Include="ReachabilityProver\ReferenceTracker.cs" />
     <Compile Include="Thread\InvocationPath.cs" />
     <Compile Include="Types\ITypeService.cs" />

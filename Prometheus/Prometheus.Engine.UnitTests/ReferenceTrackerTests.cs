@@ -40,7 +40,7 @@ namespace Prometheus.Engine.UnitTests
 
             Assert.True(assignments.Count==1);
             Assert.True(assignments[0].Conditions.Count==0);
-            Assert.True(assignments[0].TokenReference.ToString()=="sharedCustomer");
+            Assert.True(assignments[0].Reference.Token.ToString()=="sharedCustomer");
         }
 
         [Test]

@@ -11,13 +11,13 @@ namespace Prometheus.Engine.ReachabilityProver
     public class ConditionalAssignment {
         //TODO: split to members
         public HashSet<Condition> Conditions { get; set; }
-        public SyntaxNode NodeReference { get; set; }
-        public SyntaxToken TokenReference { get; set; }
+        public Reference Reference { get; set; }
         public Location AssignmentLocation { get; set; }
 
         public ConditionalAssignment()
         {
             Conditions = new HashSet<Condition>();
+            Reference = new Reference();
         }
 
         public void AddCondition(IfStatementSyntax ifStatement, bool isNegated)
@@ -29,7 +29,7 @@ namespace Prometheus.Engine.ReachabilityProver
         {
             return new ConditionalAssignment
             {
-                TokenReference = TokenReference,
+                Reference = {Token = Reference.Token, Node = Reference.Node},
                 AssignmentLocation = AssignmentLocation,
                 Conditions = new HashSet<Condition>(Conditions.Select(x=>x))
             };
@@ -38,38 +38,6 @@ namespace Prometheus.Engine.ReachabilityProver
         public override string ToString()
         {
             return string.Join(" AND ", Conditions.Select(x=>x));
-        }
-    }
-
-    public class Condition
-    {
-        public IfStatementSyntax IfStatement { get; private set; }
-        public bool IsNegated { get; private set; }
-
-        public Condition(IfStatementSyntax ifStatement, bool isNegated)
-        {
-            IfStatement = ifStatement;
-            IsNegated = isNegated;
-        }
-
-        public override bool Equals(object instance)
-        {
-            if (!(instance is Condition))
-                return false;
-
-            Condition condition = (Condition) instance;
-
-            return IfStatement==condition.IfStatement && IsNegated==condition.IsNegated;
-        }
-
-        public override int GetHashCode()
-        {
-            return IfStatement.GetHashCode();
-        }
-
-        public override string ToString()
-        {
-            return IfStatement.Condition.ToString();
         }
     }
 }
