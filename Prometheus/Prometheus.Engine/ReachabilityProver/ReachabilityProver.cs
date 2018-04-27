@@ -7,6 +7,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Z3;
 using Prometheus.Common;
+using Prometheus.Engine.Types;
 using TypeInfo = System.Reflection.TypeInfo;
 
 namespace Prometheus.Engine.ReachabilityProver
@@ -14,51 +15,16 @@ namespace Prometheus.Engine.ReachabilityProver
     internal class ReachabilityProver : IDisposable
     {
         private readonly ReferenceTracker referenceTracker;
-        private readonly List<TypeInfo> solutionTypes;
-        private readonly Dictionary<string, Type> coreTypeAliases;
+        private readonly ITypeService typeService;
+        private readonly ReachabilityCache reachabilityCache;
         private readonly Context context;
-        private Dictionary<Location, Dictionary<Location, object>> reachabilityCache;
 
-        public ReachabilityProver(ReferenceTracker referenceTracker, Solution solution)
+        public ReachabilityProver(ReferenceTracker referenceTracker, ITypeService typeService)
         {
             this.referenceTracker = referenceTracker;
-            //todo: needs to get projects referenced assemblies
-            solutionTypes = solution.Projects.Select(x => Assembly.Load(x.AssemblyName)).SelectMany(x => x.DefinedTypes)
-                .ToList();
-            solutionTypes.AddRange(Assembly.GetAssembly(typeof(int)).DefinedTypes);
-            coreTypeAliases = new Dictionary<string, Type>
-            {
-                {"byte", typeof(byte)},
-                {"sbyte",typeof(sbyte)},
-                {"short", typeof(short)},
-                {"ushort", typeof(ushort)},
-                {"int", typeof(int)},
-                {"uint", typeof(uint)},
-                {"long", typeof(long)},
-                {"ulong", typeof(ulong)},
-                {"float", typeof(float)},
-                {"double", typeof(double)},
-                {"decimal", typeof(decimal)},
-                {"object", typeof(object)},
-                {"bool", typeof(bool)},
-                {"char", typeof(char)},
-                {"byte?", typeof(byte?)},
-                {"sbyte?",typeof(sbyte?)},
-                {"short?", typeof(short?)},
-                {"ushort?", typeof(ushort?)},
-                {"int?", typeof(int?)},
-                {"uint?", typeof(uint?)},
-                {"long?", typeof(long?)},
-                {"ulong?", typeof(ulong?)},
-                {"float?", typeof(float?)},
-                {"double?", typeof(double?)},
-                {"decimal?", typeof(decimal?)},
-                {"bool?", typeof(bool?)},
-                {"char?", typeof(char?)},
-                {"string", typeof(string)}
-            };
+            this.typeService = typeService;
             context = new Context();
-            reachabilityCache = new Dictionary<Location, Dictionary<Location, object>>();
+            reachabilityCache = new ReachabilityCache();
         }
 
         public void Dispose()
@@ -105,23 +71,24 @@ namespace Prometheus.Engine.ReachabilityProver
 
         private bool CheckReachability(ConditionalAssignment first, ConditionalAssignment second, out object commonNode)
         {
-            var cachedReachability = TryGetFromCache(first.AssignmentLocation, second.AssignmentLocation, out commonNode);
+            commonNode = null;
 
-            if (cachedReachability)
+            if (reachabilityCache.Contains(first.AssignmentLocation, second.AssignmentLocation))
             {
+                commonNode = reachabilityCache.GetFromCache(first.AssignmentLocation, second.AssignmentLocation);
                 return commonNode!=null && IsSatisfiable(first, second);
             }
 
             if (!IsSatisfiable(first, second))
             {
-                AddToCache(first.AssignmentLocation, second.AssignmentLocation, null);
+                reachabilityCache.AddToCache(first.AssignmentLocation, second.AssignmentLocation, null);
                 return false;
             }
 
             if (AreEquivalent(first, second))
             {
                 commonNode = first.NodeReference ?? (object) first.TokenReference;
-                AddToCache(first.AssignmentLocation, second.AssignmentLocation, commonNode);
+                reachabilityCache.AddToCache(first.AssignmentLocation, second.AssignmentLocation, commonNode);
                 return true;
             }
 
@@ -130,7 +97,7 @@ namespace Prometheus.Engine.ReachabilityProver
 
             if (!firstAssignments.Any() && !secondAssignments.Any())
             {
-                AddToCache(first.AssignmentLocation, second.AssignmentLocation, null);
+                reachabilityCache.AddToCache(first.AssignmentLocation, second.AssignmentLocation, null);
                 return false;
             }
 
@@ -177,43 +144,8 @@ namespace Prometheus.Engine.ReachabilityProver
             return firstLocation == secondLocation;
         }
 
-        private void AddToCache(Location first, Location second, object commonValue)
-        {
-            if (reachabilityCache.ContainsKey(first))
-            {
-                reachabilityCache[first][second] = commonValue;
-                return;
-            }
-
-            if (reachabilityCache.ContainsKey(second))
-            {
-                reachabilityCache[second][first] = commonValue;
-                return;
-            }
-
-            reachabilityCache[first] = new Dictionary<Location, object> {[second] = commonValue };
-        }
-
-        private bool TryGetFromCache(Location first, Location second, out object commonValue)
-        {
-            if (reachabilityCache.ContainsKey(first) && reachabilityCache[first].ContainsKey(second))
-            {
-                commonValue = reachabilityCache[first][second];
-                return commonValue!=null;
-            }
-
-            if (reachabilityCache.ContainsKey(second)) {
-                commonValue = reachabilityCache[second][first];
-                return commonValue != null;
-            }
-
-            commonValue = null;
-            return false;
-        }
-
         #region Conditional prover
 
-        //TODO: move this to separate service
         private class NodeType
         {
             public SyntaxNode Node { get; set; }
@@ -349,6 +281,12 @@ namespace Prometheus.Engine.ReachabilityProver
                 return ParseNumericLiteral(memberExpression.ToString());
             }
 
+            if (expressionKind == SyntaxKind.StringLiteralExpression)
+            {
+                processedMembers = new Dictionary<string, NodeType>();
+                return ParseStringLiteral(memberExpression.ToString());
+            }
+
             if (expressionKind != SyntaxKind.SimpleMemberAccessExpression && expressionKind != SyntaxKind.IdentifierName)
             {
                 return expressionKind == SyntaxKind.UnaryMinusExpression
@@ -399,6 +337,11 @@ namespace Prometheus.Engine.ReachabilityProver
         {
             Sort sort = int.TryParse(numericLiteral, out int _) ? context.IntSort : (Sort)context.RealSort;
             return context.MkNumeral(numericLiteral, context.RealSort); //TODO: issue on real>int expression
+        }
+
+        private Expr ParseStringLiteral(string stringLiteral)
+        {
+            return context.MkString(stringLiteral);
         }
 
         #endregion
@@ -506,6 +449,16 @@ namespace Prometheus.Engine.ReachabilityProver
                 return ParseNumericLiteral(memberExpression.ToString());
             }
 
+            if (expressionKind == SyntaxKind.StringLiteralExpression)
+            {
+                return ParseStringLiteral(memberExpression.ToString());
+            }
+
+            if (expressionKind == SyntaxKind.StringLiteralExpression)
+            {
+                return ParseStringLiteral(memberExpression.ToString());
+            }
+
             if (expressionKind != SyntaxKind.SimpleMemberAccessExpression && expressionKind != SyntaxKind.IdentifierName)
             {
                 return expressionKind == SyntaxKind.UnaryMinusExpression
@@ -575,7 +528,7 @@ namespace Prometheus.Engine.ReachabilityProver
 
         #region Type retrieval
 
-        public IdentifierNameSyntax GetRootIdentifier(MemberAccessExpressionSyntax memberAccess)
+        private IdentifierNameSyntax GetRootIdentifier(MemberAccessExpressionSyntax memberAccess)
         {
             var rootToken = memberAccess.ToString().Split('.').First();
             var identifier = memberAccess.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == rootToken).First();
@@ -583,16 +536,15 @@ namespace Prometheus.Engine.ReachabilityProver
             return identifier;
         }
 
-        public List<Type> GetNodeTypes(MemberAccessExpressionSyntax memberExpression) {
-            //TODO: this only gets the type for variables with explicit defined type: we don't process "var"
+        private List<Type> GetNodeTypes(MemberAccessExpressionSyntax memberExpression) {
             Queue<string> memberTokens = new Queue<string>(memberExpression.ToString().Split('.'));
             string rootToken = memberTokens.First();
-            var typeName = GetTypeName(memberExpression, rootToken);
+            var typeName = GetTypeName(memberExpression.GetContainingMethod(), rootToken);
             memberTokens.Dequeue();
             var types = new List<Type>();
 
             //todo: there can be multiple classes with the same name
-            Type rootType = GetType(typeName);
+            Type rootType = typeService.GetType(typeName);
             Type currentType = rootType;
             types.Add(currentType);
 
@@ -620,23 +572,22 @@ namespace Prometheus.Engine.ReachabilityProver
             return types;
         }
 
-        public Type GetNodeType(IdentifierNameSyntax identifierNameSyntax) {
-            string typeName = GetTypeName(identifierNameSyntax, identifierNameSyntax.Identifier.Text);
-            Type type = GetType(typeName);
+        private Type GetNodeType(IdentifierNameSyntax identifierNameSyntax) {
+            string typeName = GetTypeName(identifierNameSyntax.GetContainingMethod(), identifierNameSyntax.Identifier.Text);
+            Type type = typeService.GetType(typeName);
 
             return type;
         }
 
-        private string GetTypeName(SyntaxNode node, string rootToken) {
+        private string GetTypeName(MethodDeclarationSyntax containingMethod, string rootToken) {
             //TODO: this only gets the type for variables with explicit defined type: we don't process "var"
-            MethodDeclarationSyntax method = node.GetLocation().GetContainingMethod();
-            var parameter = method.ParameterList.Parameters.FirstOrDefault(x => x.Identifier.Text == rootToken);
+            var parameter = containingMethod.ParameterList.Parameters.FirstOrDefault(x => x.Identifier.Text == rootToken);
             string typeName;
 
             if (parameter != null) {
                 typeName = parameter.Type.ToString();
             } else {
-                var localDeclaration = method
+                var localDeclaration = containingMethod
                     .DescendantNodes<LocalDeclarationStatementSyntax>()
                     .FirstOrDefault(x => x.Declaration.Variables[0].Identifier.Text == rootToken);
 
@@ -648,14 +599,6 @@ namespace Prometheus.Engine.ReachabilityProver
             }
 
             return typeName;
-        }
-
-        private Type GetType(string typeName)
-        {
-            //todo: there can be multiple classes with the same name
-            Type type = solutionTypes.FirstOrDefault(x => x.Name==typeName);
-
-            return type ?? coreTypeAliases[typeName];
         }
 
         #endregion

@@ -32,6 +32,13 @@ namespace Prometheus.Common
             return node.DescendantNodes().OfType<MethodDeclarationSyntax>().FirstOrDefault(x=>x.Identifier.Text==name);
         }
 
+        public static MethodDeclarationSyntax GetContainingMethod(this SyntaxNode node)
+        {
+            MethodDeclarationSyntax callingMethod = node.GetLocation().GetContainingMethod();
+
+            return callingMethod;
+        }
+
         public static MethodDeclarationSyntax GetContainingMethod(this Location location)
         {
             MethodDeclarationSyntax callingMethod = location

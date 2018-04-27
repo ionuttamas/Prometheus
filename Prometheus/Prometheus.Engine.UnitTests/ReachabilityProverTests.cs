@@ -4,6 +4,7 @@ using NUnit.Framework;
 using Prometheus.Common;
 using Prometheus.Engine.ReachabilityProver;
 using Prometheus.Engine.Thread;
+using Prometheus.Engine.Types;
 
 namespace Prometheus.Engine.UnitTests
 {
@@ -16,9 +17,10 @@ namespace Prometheus.Engine.UnitTests
         public void Init() {
             var workspace = Microsoft.CodeAnalysis.MSBuild.MSBuildWorkspace.Create();
             workspace.LoadMetadataForReferencedProjects = true;
-            solution = workspace.OpenSolutionAsync(@"C:\Users\tamas\Documents\Github\Prometheus\Prometheus\Prometheus.sln").Result;
+            solution = workspace.OpenSolutionAsync(@"C:\Users\iotama\Documents\Prometheus\Prometheus\Prometheus.sln").Result;
             ThreadSchedule threadSchedule = new ThreadAnalyzer(solution).GetThreadSchedule(solution.Projects.First(x => x.Name == "TestProject.GUI"));
-            reachabilityProver = new ReachabilityProver.ReachabilityProver(new ReferenceTracker(solution, threadSchedule), solution);
+            ITypeService typeService = new TypeService(solution);
+            reachabilityProver = new ReachabilityProver.ReachabilityProver(new ReferenceTracker(solution, threadSchedule), typeService);
         }
 
         [TearDown]

@@ -185,9 +185,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ReachabilityProver\ConditionalAssignment.cs" />
+    <Compile Include="ReachabilityProver\ReachabilityCache.cs" />
     <Compile Include="ReachabilityProver\ReachabilityProver.cs" />
     <Compile Include="ReachabilityProver\ReferenceTracker.cs" />
     <Compile Include="Thread\InvocationPath.cs" />
+    <Compile Include="Types\ITypeService.cs" />
+    <Compile Include="Types\TypeService.cs" />
     <Compile Include="Verifier\Args.cs" />
     <Compile Include="Model\ModelStateConfiguration.cs" />
     <Compile Include="Analyzer\Atomic\AtomicAnalysis.cs" />
