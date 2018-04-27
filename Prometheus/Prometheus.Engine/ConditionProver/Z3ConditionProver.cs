@@ -14,12 +14,18 @@ namespace Prometheus.Engine.ConditionProver
     internal class Z3ConditionProver : IConditionProver
     {
         private readonly ITypeService typeService;
+        private HaveCommonReference reachabilityDelegate;
         private readonly Context context;
 
         public Z3ConditionProver(ITypeService typeService)
         {
             this.typeService = typeService;
             context = new Context();
+        }
+
+        public void Configure(HaveCommonReference @delegate)
+        {
+            reachabilityDelegate = @delegate;
         }
 
         public bool IsSatisfiable(ConditionalAssignment first, ConditionalAssignment second)
@@ -306,21 +312,24 @@ namespace Prometheus.Engine.ConditionProver
             }
 
             var memberType = typeService.GetType(memberExpression);
+            var memberReference = new Reference(memberExpression);
 
             foreach (NodeType node in cachedMembers.Values.Where(x => x.Type == memberType)) {
                 //TODO: MAJOR
                 //TODO: for now, we only match "amount1" with "amount2" (identifier with identifier) or "[from].AccountBalance" with "[from2].AccountBalance"
                 //TODO: need to extend to "amount" with "[from].AccountBalance" and other combinations
                 if (node.Node is IdentifierNameSyntax && memberExpression is IdentifierNameSyntax) {
-                    if (HaveCommonValue(node.Node, memberExpression, out Reference _))
+                    if (reachabilityDelegate(new Reference(node.Node), memberReference, out Reference _))
                         return node.Expression;
                 }
 
                 if (node.Node is MemberAccessExpressionSyntax && memberExpression is MemberAccessExpressionSyntax) {
                     var firstMember = (MemberAccessExpressionSyntax)node.Node;
                     var secondMember = (MemberAccessExpressionSyntax)memberExpression;
+                    var firstRootReference = new Reference(GetRootIdentifier(firstMember));
+                    var secondRootReference = new Reference(GetRootIdentifier(secondMember));
 
-                    if (HaveCommonValue(GetRootIdentifier(firstMember), GetRootIdentifier(secondMember), out Reference _))
+                    if (reachabilityDelegate(firstRootReference, secondRootReference, out Reference _))
                         return node.Expression;
                 }
             }

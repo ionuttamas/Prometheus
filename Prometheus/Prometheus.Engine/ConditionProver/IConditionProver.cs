@@ -2,7 +2,12 @@
 using Prometheus.Engine.ReachabilityProver;
 
 namespace Prometheus.Engine.ConditionProver {
-    public interface IConditionProver: IDisposable {
+    public delegate bool HaveCommonReference(Reference first, Reference second, out Reference commonReference);
+
+    public interface IConditionProver: IDisposable
+    {
+        void Configure(HaveCommonReference reachabilityDelegate);
+
         /// <summary>
         /// Checks whether two conditions are reachable or not from the entry point.
         /// </summary>

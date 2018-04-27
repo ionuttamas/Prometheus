@@ -24,6 +24,7 @@ namespace Prometheus.Engine.ReachabilityProver
             this.referenceTracker = referenceTracker;
             this.conditionProver = conditionProver;
             reachabilityCache = new ReachabilityCache();
+            conditionProver.Configure(HaveCommonReference);
         }
 
         /// <summary>
@@ -31,7 +32,7 @@ namespace Prometheus.Engine.ReachabilityProver
         /// TODO: this does not consider the possible conditional cases for assigning a variable within loops ("for", "while" loops).
         /// TODO: this does not consider assignments like: "order = person.Orders.First()" and "order = instance" where "instance" and "person.Orders.First()" can be the same
         /// </summary>
-        public bool HaveCommonValue(Reference first, Reference second, out Reference commonNode)
+        public bool HaveCommonReference(Reference first, Reference second, out Reference commonNode)
         {
             var firstAssignment = new ConditionalAssignment
             {
@@ -44,14 +45,14 @@ namespace Prometheus.Engine.ReachabilityProver
                 Reference = second,
                 AssignmentLocation = second.GetLocation()
             };
-            return HaveCommonValueInternal(firstAssignment, secondAssignment, out commonNode);
+            return InternalHaveCommonReference(firstAssignment, secondAssignment, out commonNode);
         }
 
         public void Dispose() {
             conditionProver.Dispose();
         }
 
-        private bool HaveCommonValueInternal(ConditionalAssignment first, ConditionalAssignment second, out Reference commonReference)
+        private bool InternalHaveCommonReference(ConditionalAssignment first, ConditionalAssignment second, out Reference commonReference)
         {
             commonReference = null;
 
@@ -95,13 +96,13 @@ namespace Prometheus.Engine.ReachabilityProver
 
             foreach (var firstAssignment in firstAssignments)
             {
-                if (HaveCommonValueInternal(firstAssignment, second, out commonReference))
+                if (InternalHaveCommonReference(firstAssignment, second, out commonReference))
                     return true;
             }
 
             foreach (var secondAssignment in secondAssignments)
             {
-                if (HaveCommonValueInternal(first, secondAssignment, out commonReference))
+                if (InternalHaveCommonReference(first, secondAssignment, out commonReference))
                     return true;
             }
 
