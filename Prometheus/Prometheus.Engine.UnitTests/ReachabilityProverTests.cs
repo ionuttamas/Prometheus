@@ -4,6 +4,7 @@ using NUnit.Framework;
 using Prometheus.Common;
 using Prometheus.Engine.ConditionProver;
 using Prometheus.Engine.ReachabilityProver;
+using Prometheus.Engine.ReachabilityProver.Model;
 using Prometheus.Engine.Thread;
 using Prometheus.Engine.Types;
 

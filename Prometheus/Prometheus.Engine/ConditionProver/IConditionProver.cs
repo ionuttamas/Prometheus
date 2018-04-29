@@ -1,5 +1,6 @@
 ﻿using System;
 using Prometheus.Engine.ReachabilityProver;
+using Prometheus.Engine.ReachabilityProver.Model;
 
 namespace Prometheus.Engine.ConditionProver {
     public delegate bool HaveCommonReference(Reference first, Reference second, out Reference commonReference);

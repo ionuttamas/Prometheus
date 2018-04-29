@@ -7,6 +7,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Z3;
 using Prometheus.Common;
 using Prometheus.Engine.ReachabilityProver;
+using Prometheus.Engine.ReachabilityProver.Model;
 using Prometheus.Engine.Types;
 
 namespace Prometheus.Engine.ConditionProver

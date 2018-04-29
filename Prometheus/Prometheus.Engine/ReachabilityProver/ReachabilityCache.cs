@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
+using Prometheus.Engine.ReachabilityProver.Model;
 
 namespace Prometheus.Engine.ReachabilityProver
 {

@@ -48,6 +48,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ProverTransferService.cs" />
     <Compile Include="RegistrationService.cs" />
+    <Compile Include="TestTypeService.cs" />
     <Compile Include="TransferService.cs" />
   </ItemGroup>
   <ItemGroup>

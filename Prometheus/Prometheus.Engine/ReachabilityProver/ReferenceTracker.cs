@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Prometheus.Common;
+using Prometheus.Engine.ReachabilityProver.Model;
 using Prometheus.Engine.Thread;
 
 namespace Prometheus.Engine.ReachabilityProver {

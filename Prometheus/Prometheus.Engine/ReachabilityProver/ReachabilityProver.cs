@@ -8,6 +8,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Z3;
 using Prometheus.Common;
 using Prometheus.Engine.ConditionProver;
+using Prometheus.Engine.ReachabilityProver.Model;
 using Prometheus.Engine.Types;
 using TypeInfo = System.Reflection.TypeInfo;
 
@@ -116,10 +117,10 @@ namespace Prometheus.Engine.ReachabilityProver
         /// </summary>
         private static bool AreEquivalent(ConditionalAssignment first, ConditionalAssignment second)
         {
-            var firstReferenceName = first.Reference.Node?.ToString() ?? first.Reference.Token.ToString();
-            var secondReferenceName = second.Reference.Node?.ToString() ?? second.Reference.Token.ToString();
-            var firstLocation = first.Reference.Node?.GetLocation() ?? first.Reference.Token.GetLocation();
-            var secondLocation = second.Reference.Node?.GetLocation() ?? second.Reference.Token.GetLocation();
+            var firstReferenceName = first.Reference.ToString();
+            var secondReferenceName = second.Reference.ToString();
+            var firstLocation = first.Reference.GetLocation();
+            var secondLocation = second.Reference.GetLocation();
 
             if (firstReferenceName != secondReferenceName)
                 return false;

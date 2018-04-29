@@ -7,10 +7,6 @@ namespace Prometheus.Engine.Types
 {
     public interface ITypeService
     {
-        /// <summary>
-        /// Gets the type of the expression syntax.
-        /// </summary>
-        /// <returns></returns>
         Type GetType(ExpressionSyntax expressionSyntax);
     }
 }

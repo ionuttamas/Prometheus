@@ -1,6 +1,6 @@
 ﻿using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Prometheus.Engine.ReachabilityProver
+namespace Prometheus.Engine.ReachabilityProver.Model
 {
     public class Condition
     {

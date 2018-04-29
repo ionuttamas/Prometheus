@@ -13,15 +13,19 @@ namespace Prometheus.Engine.Types
     internal class TypeService : ITypeService
     {
         private readonly List<TypeInfo> solutionTypes;
-        private readonly Dictionary<string, Type> coreTypes;
+        private readonly Dictionary<string, Type> primitiveTypes;
+        private const string VAR_TOKEN = "var";
 
         public TypeService(Solution solution)
         {
             //todo: needs to get projects referenced assemblies
-            solutionTypes = solution.Projects.Select(x => Assembly.Load(x.AssemblyName)).SelectMany(x => x.DefinedTypes)
+            solutionTypes = solution
+                .Projects
+                .Select(x => Assembly.Load(x.AssemblyName))
+                .SelectMany(x => x.DefinedTypes)
                 .ToList();
             solutionTypes.AddRange(Assembly.GetAssembly(typeof(int)).DefinedTypes);
-            coreTypes = new Dictionary<string, Type>
+            primitiveTypes = new Dictionary<string, Type>
             {
                 {"byte", typeof(byte)},
                 {"sbyte",typeof(sbyte)},
@@ -113,32 +117,173 @@ namespace Prometheus.Engine.Types
             return type;
         }
 
-        private static string GetTypeName(MethodDeclarationSyntax containingMethod, string rootToken) {
-            //TODO: this only gets the type for variables with explicit defined type: we don't process "var"
-            var parameter = containingMethod.ParameterList.Parameters.FirstOrDefault(x => x.Identifier.Text == rootToken);
+        #region Type name extraction
+
+        private string GetTypeName(MethodDeclarationSyntax containingMethod, string rootToken) {
             string typeName;
 
-            if (parameter != null) {
-                typeName = parameter.Type.ToString();
-            } else {
-                var localDeclaration = containingMethod
-                    .DescendantNodes<LocalDeclarationStatementSyntax>()
-                    .FirstOrDefault(x => x.Declaration.Variables[0].Identifier.Text == rootToken);
+            if (ProcessParameter(containingMethod, rootToken, out typeName))
+                return typeName;
 
-                if (localDeclaration != null) {
-                    typeName = localDeclaration.Declaration.Type.ToString();
-                } else {
-                    throw new NotSupportedException("The type name was not found");
-                }
+            if (ProcessAssignment(containingMethod, rootToken, out typeName))
+                return typeName;
+
+            throw new ArgumentException($"No type was found for token {rootToken}");
+        }
+
+        private bool ProcessParameter(MethodDeclarationSyntax containingMethod, string rootToken, out string typeName)
+        {
+            var parameter = containingMethod
+                .ParameterList
+                .Parameters
+                .FirstOrDefault(x => x.Identifier.Text == rootToken);
+
+            if (parameter != null)
+            {
+                typeName = parameter.Type.ToString();
+                return true;
             }
 
-            return typeName;
+            typeName = null;
+            return false;
         }
+
+        private bool ProcessAssignment(MethodDeclarationSyntax containingMethod, string rootToken, out string typeName) {
+            var localDeclaration = containingMethod
+                .DescendantNodes<LocalDeclarationStatementSyntax>()
+                .FirstOrDefault(x => x.Declaration.Variables[0].Identifier.Text == rootToken);
+
+            if (localDeclaration == null)
+            {
+                typeName = null;
+                return false;
+            }
+
+            typeName = localDeclaration.Declaration.Type.ToString();
+
+            if (typeName != VAR_TOKEN)
+                return true;
+
+            if (ProcessReferenceAssignment(localDeclaration, out typeName))
+                return true;
+
+            if (ProcessClassMethodAssignment(localDeclaration, out typeName))
+                return true;
+
+            if (ProcessInstanceMethodAssignment(localDeclaration, out typeName))
+                return true;
+
+            if (ProcessStaticMethodAssignment(localDeclaration, out typeName))
+                return true;
+
+            return false;
+        }
+
+        private bool ProcessReferenceAssignment(LocalDeclarationStatementSyntax declaration, out string typeName)
+        {
+            var referenceExpression = declaration.Declaration.Variables[0].Initializer.Value;
+
+            if (referenceExpression.Kind() != SyntaxKind.SimpleMemberAccessExpression)
+            {
+                typeName = null;
+                return false;
+            }
+
+            var types = GetExpressionTypes((MemberAccessExpressionSyntax) referenceExpression);
+            typeName = types.Last().Name;
+
+            return true;
+        }
+
+        private bool ProcessClassMethodAssignment(LocalDeclarationStatementSyntax declaration, out string typeName) {
+            var referenceExpression = declaration.Declaration.Variables[0].Initializer.Value;
+
+            //TODO: distinguish between invocation expressions (instance method call vs containing class method)
+            if (referenceExpression.Kind() != SyntaxKind.InvocationExpression) {
+                typeName = null;
+                return false;
+            }
+
+            var invocationExpression = (InvocationExpressionSyntax) referenceExpression;
+
+            var methodDeclaration = declaration
+                .GetContainingClass()
+                .DescendantNodes<MethodDeclarationSyntax>()
+                .First(x => x.Identifier.Text == invocationExpression.Expression.ToString());
+
+            typeName = methodDeclaration.ReturnType.ToString();
+
+            return true;
+        }
+
+        private bool ProcessInstanceMethodAssignment(LocalDeclarationStatementSyntax declaration, out string typeName) {
+            var referenceExpression = declaration.Declaration.Variables[0].Initializer.Value;
+
+            if (referenceExpression.Kind() != SyntaxKind.InvocationExpression) {
+                typeName = null;
+                return false;
+            }
+
+            var invocationExpression = (InvocationExpressionSyntax)referenceExpression;
+
+            if (invocationExpression.Expression.Kind() == SyntaxKind.SimpleMemberAccessExpression)
+            {
+                typeName = null;
+                return false;
+            }
+
+            //TODO we only process one level calls like "instance.Method()" not nested calls like "instance.[Field|Property|Method()]...Method()"
+            var memberExpression = (MemberAccessExpressionSyntax)invocationExpression.Expression;
+            var instanceTypeName = GetTypeName(memberExpression.GetContainingMethod(), memberExpression.Name.ToString());
+            var instanceType = GetType(instanceTypeName);
+            var method = instanceType.GetMethod(memberExpression.Expression.ToString(),
+                BindingFlags.Public |
+                BindingFlags.Instance);
+            typeName = method.ReturnType.Name;
+
+            return true;
+        }
+
+        private bool ProcessStaticMethodAssignment(LocalDeclarationStatementSyntax declaration, out string typeName) {
+            var referenceExpression = declaration.Declaration.Variables[0].Initializer.Value;
+
+            if (referenceExpression.Kind() != SyntaxKind.InvocationExpression) {
+                typeName = null;
+                return false;
+            }
+
+            var invocationExpression = (InvocationExpressionSyntax)referenceExpression;
+
+            if (invocationExpression.Expression.Kind() == SyntaxKind.SimpleMemberAccessExpression) {
+                typeName = null;
+                return false;
+            }
+
+            //TODO we only process one level calls like "instance.Method()" not nested calls like "instance.[Field|Property|Method()]...Method()"
+            var memberExpression = (MemberAccessExpressionSyntax)invocationExpression.Expression;
+            var classType= solutionTypes.FirstOrDefault(x => x.Name == memberExpression.Name.ToString());
+
+            if (classType == null)
+            {
+                typeName = null;
+                return false;
+            }
+
+
+            var method = classType.GetMethod(memberExpression.Expression.ToString(),
+                BindingFlags.Public |
+                BindingFlags.Static);
+            typeName = method.ReturnType.Name;
+
+            return true;
+        }
+
+        #endregion
 
         private Type GetType(string typeName) {
             //todo: there can be multiple classes with the same name
             Type type = solutionTypes.FirstOrDefault(x => x.Name == typeName);
-            return type ?? coreTypes[typeName];
+            return type ?? primitiveTypes[typeName];
         }
     }
 }

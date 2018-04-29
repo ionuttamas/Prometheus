@@ -39,6 +39,12 @@ namespace Prometheus.Common
             return callingMethod;
         }
 
+        public static ClassDeclarationSyntax GetContainingClass(this SyntaxNode node) {
+            ClassDeclarationSyntax classDeclaration = node.GetLocation().GetContainingClass();
+
+            return classDeclaration;
+        }
+
         public static MethodDeclarationSyntax GetContainingMethod(this Location location)
         {
             MethodDeclarationSyntax callingMethod = location
@@ -51,6 +57,19 @@ namespace Prometheus.Common
                 .FirstOrDefault();
 
             return callingMethod;
+        }
+
+        public static ClassDeclarationSyntax GetContainingClass(this Location location) {
+            ClassDeclarationSyntax classDeclaration = location
+                .SourceTree
+                .GetRoot()
+                .FindToken(location.SourceSpan.Start)
+                .Parent
+                .AncestorsAndSelf()
+                .OfType<ClassDeclarationSyntax>()
+                .FirstOrDefault();
+
+            return classDeclaration;
         }
 
         public static ConstructorDeclarationSyntax GetContainingConstructor(this Location location) {

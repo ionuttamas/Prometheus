@@ -1,6 +1,6 @@
 using Microsoft.CodeAnalysis;
 
-namespace Prometheus.Engine.ReachabilityProver
+namespace Prometheus.Engine.ReachabilityProver.Model
 {
     public class Reference
     {
