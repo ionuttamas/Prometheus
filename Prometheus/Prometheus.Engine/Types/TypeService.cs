@@ -150,17 +150,17 @@ namespace Prometheus.Engine.Types
                 typeCache.AddToCache(containingMethod, token, typeName);
                 return typeName;
             }
-            else if (ProcessPropertyAssignment(containingMethod, token, out typeName))
+            if (ProcessPropertyAssignment(containingMethod, token, out typeName))
             {
                 typeCache.AddToCache(containingMethod, token, typeName);
                 return typeName;
             }
-            else if (ProcessParameter(containingMethod, token, out typeName))
+            if (ProcessParameter(containingMethod, token, out typeName))
             {
                 typeCache.AddToCache(containingMethod, token, typeName);
                 return typeName;
             }
-            else if (ProcessAssignment(containingMethod, token, out typeName))
+            if (ProcessAssignment(containingMethod, token, out typeName))
             {
                 typeCache.AddToCache(containingMethod, token, typeName);
                 return typeName;
