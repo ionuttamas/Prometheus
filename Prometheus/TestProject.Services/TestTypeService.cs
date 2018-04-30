@@ -15,7 +15,8 @@ namespace TestProject.Services
 
     public class TestTypeService
     {
-        private Customer customer;
+        private Customer customerField;
+        public Customer CustomerProperty { get; set; }
         private TestCustomerFactory customerFactory;
 
         public void SimpleAssignment(Customer from) {
@@ -36,9 +37,21 @@ namespace TestProject.Services
             var localVar = from.DeliveryAddress.City;
         }
 
-        public void FieldAssignment(Customer from) {
-            Customer localVar;
-            localVar = customer;
+        public void FieldAssignment(Customer from)
+        {
+            var localVar = customerField;
+        }
+
+        public void FieldNestedAssignment(Customer from) {
+            var localVar = customerField.DeliveryAddress.City;
+        }
+
+        public void PropertyAssignment(Customer from) {
+            var localVar = CustomerProperty;
+        }
+
+        public void PropertyNestedAssignment(Customer from) {
+            var localVar = CustomerProperty.DeliveryAddress.City;
         }
 
         public void ParameterInference(Customer from)

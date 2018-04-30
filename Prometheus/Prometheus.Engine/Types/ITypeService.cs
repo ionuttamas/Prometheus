@@ -8,5 +8,6 @@ namespace Prometheus.Engine.Types
     public interface ITypeService
     {
         Type GetType(ExpressionSyntax expressionSyntax);
+        Type GetType(SyntaxToken syntaxToken);
     }
 }
