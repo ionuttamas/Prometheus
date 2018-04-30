@@ -194,6 +194,7 @@
     <Compile Include="ReachabilityProver\ReferenceTracker.cs" />
     <Compile Include="Thread\InvocationPath.cs" />
     <Compile Include="Types\ITypeService.cs" />
+    <Compile Include="Types\TypeCache.cs" />
     <Compile Include="Types\TypeService.cs" />
     <Compile Include="Verifier\Args.cs" />
     <Compile Include="Model\ModelStateConfiguration.cs" />

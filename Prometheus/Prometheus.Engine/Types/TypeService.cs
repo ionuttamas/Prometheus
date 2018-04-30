@@ -14,6 +14,7 @@ namespace Prometheus.Engine.Types
     {
         private readonly List<TypeInfo> solutionTypes;
         private readonly Dictionary<string, Type> primitiveTypes;
+        private readonly TypeCache typeCache;
         private const string VAR_TOKEN = "var";
 
         public TypeService(Solution solution)
@@ -25,6 +26,7 @@ namespace Prometheus.Engine.Types
                 .SelectMany(x => x.DefinedTypes)
                 .ToList();
             solutionTypes.AddRange(Assembly.GetAssembly(typeof(int)).DefinedTypes);
+            typeCache = new TypeCache();
             primitiveTypes = new Dictionary<string, Type>
             {
                 {"byte", typeof(byte)},
@@ -60,18 +62,28 @@ namespace Prometheus.Engine.Types
 
         public Type GetType(ExpressionSyntax memberExpression)
         {
+            if (typeCache.TryGetType(memberExpression, out var cachedType))
+                return cachedType;
+
             var expressionKind = memberExpression.Kind();
             var type = expressionKind == SyntaxKind.SimpleMemberAccessExpression
                 ? GetExpressionTypes((MemberAccessExpressionSyntax)memberExpression).Last()
                 : GetNodeType((IdentifierNameSyntax)memberExpression);
+
+            typeCache.AddToCache(memberExpression, type);
 
             return type;
         }
 
         public Type GetType(SyntaxToken syntaxToken)
         {
+            if (typeCache.TryGetType(syntaxToken, out var cachedType))
+                return cachedType;
+
             string typeName = GetTypeName(syntaxToken.GetLocation().GetContainingMethod(), syntaxToken.Text);
             Type type = GetType(typeName);
+
+            typeCache.AddToCache(syntaxToken, type);
 
             return type;
         }
@@ -127,30 +139,42 @@ namespace Prometheus.Engine.Types
 
         #region Type name extraction
 
-        private string GetTypeName(MethodDeclarationSyntax containingMethod, string rootToken) {
+        private string GetTypeName(MethodDeclarationSyntax containingMethod, string token) {
             string typeName;
 
-            if (ProcessFieldAssignment(containingMethod, rootToken, out typeName))
-                return typeName;
+            if (typeCache.TryGetTypeName(containingMethod, token, out var cachedTypeName))
+                return cachedTypeName;
 
-            if (ProcessPropertyAssignment(containingMethod, rootToken, out typeName))
+            if (ProcessFieldAssignment(containingMethod, token, out typeName))
+            {
+                typeCache.AddToCache(containingMethod, token, typeName);
                 return typeName;
-
-            if (ProcessParameter(containingMethod, rootToken, out typeName))
+            }
+            else if (ProcessPropertyAssignment(containingMethod, token, out typeName))
+            {
+                typeCache.AddToCache(containingMethod, token, typeName);
                 return typeName;
-
-            if (ProcessAssignment(containingMethod, rootToken, out typeName))
+            }
+            else if (ProcessParameter(containingMethod, token, out typeName))
+            {
+                typeCache.AddToCache(containingMethod, token, typeName);
                 return typeName;
+            }
+            else if (ProcessAssignment(containingMethod, token, out typeName))
+            {
+                typeCache.AddToCache(containingMethod, token, typeName);
+                return typeName;
+            }
 
             return null;
         }
 
-        private bool ProcessParameter(MethodDeclarationSyntax containingMethod, string rootToken, out string typeName)
+        private bool ProcessParameter(MethodDeclarationSyntax containingMethod, string token, out string typeName)
         {
             var parameter = containingMethod
                 .ParameterList
                 .Parameters
-                .FirstOrDefault(x => x.Identifier.Text == rootToken);
+                .FirstOrDefault(x => x.Identifier.Text == token);
 
             if (parameter != null)
             {
@@ -162,10 +186,10 @@ namespace Prometheus.Engine.Types
             return false;
         }
 
-        private bool ProcessAssignment(MethodDeclarationSyntax containingMethod, string rootToken, out string typeName) {
+        private bool ProcessAssignment(MethodDeclarationSyntax containingMethod, string token, out string typeName) {
             var localDeclaration = containingMethod
                 .DescendantNodes<LocalDeclarationStatementSyntax>()
-                .FirstOrDefault(x => x.Declaration.Variables[0].Identifier.Text == rootToken);
+                .FirstOrDefault(x => x.Declaration.Variables[0].Identifier.Text == token);
 
             if (localDeclaration == null)
             {
