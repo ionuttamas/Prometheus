@@ -107,7 +107,9 @@ namespace Prometheus.Engine.ConditionProver
                     return context.MkAnd((BoolExpr)left, (BoolExpr)right);
                 case SyntaxKind.LogicalOrExpression:
                     return context.MkOr((BoolExpr)left, (BoolExpr)right);
+
                 case SyntaxKind.GreaterThanExpression:
+                    //todo: fix comparison expression for string expressions
                     return context.MkGt((ArithExpr)left, (ArithExpr)right);
                 case SyntaxKind.GreaterThanOrEqualExpression:
                     return context.MkGe((ArithExpr)left, (ArithExpr)right);
@@ -118,9 +120,9 @@ namespace Prometheus.Engine.ConditionProver
 
                 //TODO: Fix this: since this is only for numeric values
                 case SyntaxKind.EqualsExpression:
-                    return context.MkEq((ArithExpr)left, (ArithExpr)right);
+                    return context.MkEq(left, right);
                 case SyntaxKind.NotEqualsExpression:
-                    return context.MkNot(context.MkEq((ArithExpr)left, (ArithExpr)right));
+                    return context.MkNot(context.MkEq(left, right));
                 default:
                     throw new NotImplementedException();
             }
@@ -181,7 +183,9 @@ namespace Prometheus.Engine.ConditionProver
 
         private Expr ParseVariableExpression(ExpressionSyntax memberExpression, Type type, Dictionary<string, NodeType> processedMembers) {
             string memberName = memberExpression.ToString();
-            Expr constExpr = context.MkConst(memberName, context.RealSort);
+            Sort sort = typeService.GetSort(context, type);
+            Expr constExpr = context.MkConst(memberName, sort);
+
             processedMembers[memberName] = new NodeType {
                 Expression = constExpr,
                 Node = memberExpression,
@@ -197,7 +201,7 @@ namespace Prometheus.Engine.ConditionProver
         }
 
         private Expr ParseStringLiteral(string stringLiteral) {
-            return null;//context.mk.MkString(stringLiteral);
+            return context.MkString(stringLiteral);
         }
 
         #endregion
@@ -265,7 +269,7 @@ namespace Prometheus.Engine.ConditionProver
 
                 //TODO: Fix this: since this is only for numeric values
                 case SyntaxKind.EqualsExpression:
-                    return context.MkEq((ArithExpr)left, (ArithExpr)right);
+                    return context.MkEq(left, right);
                 case SyntaxKind.NotEqualsExpression:
                     return context.MkNot(context.MkEq((ArithExpr)left, (ArithExpr)right));
                 default:
@@ -292,10 +296,6 @@ namespace Prometheus.Engine.ConditionProver
 
             if (expressionKind == SyntaxKind.NumericLiteralExpression) {
                 return ParseNumericLiteral(memberExpression.ToString());
-            }
-
-            if (expressionKind == SyntaxKind.StringLiteralExpression) {
-                return ParseStringLiteral(memberExpression.ToString());
             }
 
             if (expressionKind == SyntaxKind.StringLiteralExpression) {

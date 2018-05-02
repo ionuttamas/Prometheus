@@ -5,6 +5,7 @@ using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.Z3;
 using Prometheus.Common;
 using TypeInfo = System.Reflection.TypeInfo;
 
@@ -86,6 +87,20 @@ namespace Prometheus.Engine.Types
             typeCache.AddToCache(syntaxToken, type);
 
             return type;
+        }
+
+        public Sort GetSort(Context context, Type type)
+        {
+            if (type.IsNumeric())
+                return context.RealSort; // there are issues comparing int to real
+
+            if (type.IsString())
+                return context.StringSort;
+
+            if (type.IsBoolean())
+                return context.BoolSort;
+
+            throw new ArgumentException($"Type {type} is not supported");
         }
 
         /// <summary>

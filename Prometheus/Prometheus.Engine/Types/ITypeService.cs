@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.Z3;
 
 namespace Prometheus.Engine.Types
 {
@@ -9,5 +10,6 @@ namespace Prometheus.Engine.Types
     {
         Type GetType(ExpressionSyntax expressionSyntax);
         Type GetType(SyntaxToken syntaxToken);
+        Sort GetSort(Context context, Type type);
     }
 }

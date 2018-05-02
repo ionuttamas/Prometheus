@@ -19,7 +19,7 @@ namespace Prometheus.Engine.UnitTests
         public void Init() {
             var workspace = Microsoft.CodeAnalysis.MSBuild.MSBuildWorkspace.Create();
             workspace.LoadMetadataForReferencedProjects = true;
-            solution = workspace.OpenSolutionAsync(@"C:\Users\tamas\Documents\Github\Prometheus\Prometheus\Prometheus.sln").Result;
+            solution = workspace.OpenSolutionAsync(@"C:\Users\iotama\Documents\Prometheus\Prometheus\Prometheus.sln").Result;
             ThreadSchedule threadSchedule = new ThreadAnalyzer(solution).GetThreadSchedule(solution.Projects.First(x => x.Name == "TestProject.GUI"));
             ITypeService typeService = new TypeService(solution);
             IConditionProver conditionProver = new Z3ConditionProver(typeService);
@@ -54,6 +54,19 @@ namespace Prometheus.Engine.UnitTests
 
             Assert.True(haveCommonValue);
             Assert.AreEqual("sharedCustomer", commonValue.ToString());
+        }
+
+        [Test]
+        public void ReachabilityProver_For_StringConditions_And_SatisfiableCounterpart_TracksCorrectly()
+        {
+            var project = solution.Projects.First(x => x.Name == "TestProject.Services");
+            var proverTransferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.ProverTransferService));
+
+            var firstIdentifier = proverTransferServiceClass.GetMethodDescendant(nameof(TestProject.Services.ProverTransferService.StringCondition_SimpleIfTransfer)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer").First();
+            var secondIdentifier = proverTransferServiceClass.GetMethodDescendant(nameof(TestProject.Services.ProverTransferService.StringCondition_SimpleIf_NegatedTransfer)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "referenceCustomer").First();
+            var haveCommonValue = reachabilityProver.HaveCommonReference(new Reference(firstIdentifier), new Reference(secondIdentifier), out var _);
+
+            Assert.False(haveCommonValue);
         }
 
         [Test]

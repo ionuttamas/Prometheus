@@ -66,8 +66,4 @@ namespace Prometheus.Engine.Parser
             return null;
         }
     }
-
-    public class TypeGraph
-    {
-    }
 }

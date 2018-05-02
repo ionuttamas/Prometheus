@@ -23,6 +23,23 @@ namespace TestProject.Services
             }
         }
 
+        public void StringCondition_SimpleIfTransfer(Customer from, Customer to, decimal amount)
+        {
+            if (from.DeliveryAddress.City == "Berlin")
+            {
+                Customer customer = from;
+            }
+        }
+
+        public void StringCondition_SimpleIf_NegatedTransfer(Customer from2, Customer to, decimal amount)
+        {
+            if (from2.DeliveryAddress.City == "Berlin")
+            {
+                Customer referenceCustomer = from2;
+            }
+        }
+
+
         public void SimpleIfSingleElseTransfer(Customer from, Customer to, decimal amount) {
             Customer customer;
 
