@@ -335,7 +335,7 @@ namespace Prometheus.Engine.ConditionProver
                 }
             }
 
-            return ParseVariableExpression(memberExpression, cachedMembers);
+            return ParseCachedVariableExpression(memberExpression, memberType, cachedMembers);
         }
 
         private Expr ParseUnaryExpression(ExpressionSyntax unaryExpression, Dictionary<string, NodeType> cachedMembers) {
@@ -345,14 +345,14 @@ namespace Prometheus.Engine.ConditionProver
             return context.MkUnaryMinus((ArithExpr)negatedExpression);
         }
 
-        private Expr ParseVariableExpression(ExpressionSyntax memberExpression, Dictionary<string, NodeType> cachedMembers) {
+        private Expr ParseCachedVariableExpression(ExpressionSyntax memberExpression, Type type, Dictionary<string, NodeType> cachedMembers) {
             string memberName = memberExpression.ToString();
 
             if (cachedMembers.ContainsKey(memberName)) {
                 return cachedMembers[memberName].Expression;
             }
 
-            var constExpr = context.MkConst(memberName, context.RealSort);
+            var constExpr = context.MkConst(memberName, typeService.GetSort(context, type));
 
             return constExpr;
         }

@@ -33,7 +33,7 @@ namespace TestProject.Services
 
         public void StringCondition_SimpleIf_NegatedTransfer(Customer from2, Customer to, decimal amount)
         {
-            if (from2.DeliveryAddress.City == "Berlin")
+            if (from2.DeliveryAddress.City == "San Fran")
             {
                 Customer referenceCustomer = from2;
             }
@@ -50,7 +50,7 @@ namespace TestProject.Services
             }
         }
 
-        public void NestedCall_SimpleIf_SimpleIfTransfer_SatisfiableCounterpart(Customer from, Customer to, decimal amount)
+        public void NestedCall_SimpleIfTransfer_SatisfiableCounterpart(Customer from, Customer to, decimal amount)
         {
             if (!from.IsActive && from.AccountBalance < 50 && amount < 30)
             {
@@ -58,7 +58,7 @@ namespace TestProject.Services
             }
         }
 
-        public void NestedCall_SimpleIf_SimpleIfTransfer(Customer from2, Customer to, decimal amount) {
+        public void NestedCall_SimpleIfTransfer(Customer from2, Customer to, decimal amount) {
             if (from2.Age > 30)
             {
                 Customer referenceCustomer = from2;
