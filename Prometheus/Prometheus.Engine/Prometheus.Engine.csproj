@@ -186,6 +186,7 @@
   <ItemGroup>
     <Compile Include="ConditionProver\IConditionProver.cs" />
     <Compile Include="ConditionProver\Z3ConditionProver.cs" />
+    <Compile Include="Model\NetModelStateBootstrapper.cs" />
     <Compile Include="ReachabilityProver\Model\Condition.cs" />
     <Compile Include="ReachabilityProver\Model\ConditionalAssignment.cs" />
     <Compile Include="ReachabilityProver\ReachabilityCache.cs" />

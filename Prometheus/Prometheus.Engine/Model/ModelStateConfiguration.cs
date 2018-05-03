@@ -3,73 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using Prometheus.Engine.Verifier;
 
 namespace Prometheus.Engine.Model
 {
-    public class NetStateBootstrapper
-    {
-        public ModelStateConfiguration Bootstrap()
-        {
-            var modelConfiguration = ModelStateConfiguration.Empty;
-
-            BootstrapList(modelConfiguration);
-            BootstrapHashSet(modelConfiguration);
-            BootstrapDictionary(modelConfiguration);
-
-            return modelConfiguration;
-        }
-
-        private void BootstrapList(ModelStateConfiguration modelConfiguration)
-        {
-            modelConfiguration
-                .ChangesState<List<object>>(x => x.RemoveAt(Args.Any<int>()))
-                .ChangesState<List<object>>(x => x.Remove(Args.Any<object>()))
-                .ChangesState<List<object>>(x => x.RemoveAll(Args.Any<Predicate<object>>()))
-                .ChangesState<List<object>>(x => x.RemoveRange(Args.Any<int>(), Args.Any<int>()))
-                .ChangesState<List<object>>(x => x.Clear())
-                .ChangesState<List<object>>(x => x.Insert(Args.Any<int>(), Args.Any<object>()))
-                .ChangesState<List<object>>(x => x.Reverse())
-                .ChangesState<List<object>>(x => x.InsertRange(Args.Any<int>(), Args.Any<IEnumerable<object>>()))
-                .ChangesState<List<object>>(x => x.Sort())
-                .ChangesState<List<object>>(x => x.AddRange(Args.Any<IEnumerable<object>>()));
-
-            modelConfiguration
-                .MutuallyExclusive<List<object>>(x => x.Contains(Args.Any<object>()), x => x.Count > 0)
-                .MutuallyExclusive<List<object>>(x => x.Contains(Args.Any<object>()), x => x.Any());
-        }
-
-        private void BootstrapHashSet(ModelStateConfiguration modelConfiguration)
-        {
-            modelConfiguration
-                .ChangesState<HashSet<object>>(x => x.ExceptWith(Args.Any<IEnumerable<object>>()))
-                .ChangesState<HashSet<object>>(x => x.IntersectWith(Args.Any<IEnumerable<object>>()))
-                .ChangesState<HashSet<object>>(x => x.SymmetricExceptWith(Args.Any<IEnumerable<object>>()))
-                .ChangesState<HashSet<object>>(x => x.UnionWith(Args.Any<IEnumerable<object>>()))
-                .ChangesState<HashSet<object>>(x => x.Add(Args.Any<object>()))
-                .ChangesState<HashSet<object>>(x => x.RemoveWhere(Args.Any<Predicate<object>>()))
-                .ChangesState<HashSet<object>>(x => x.Remove(Args.Any<object>()))
-                .ChangesState<HashSet<object>>(x => x.Clear());
-
-            modelConfiguration
-                .MutuallyExclusive<HashSet<object>>(x => x.Contains(Args.Any<object>()), x => x.Count > 0)
-                .MutuallyExclusive<HashSet<object>>(x => x.Contains(Args.Any<object>()), x => x.Any());
-        }
-
-        private void BootstrapDictionary(ModelStateConfiguration modelConfiguration) {
-            modelConfiguration
-                .ChangesState<Dictionary<object, object>>(x => x.Add(Args.Any<object>(), Args.Any<object>()))
-                .ChangesState<Dictionary<object, object>>(x => x.Remove(Args.Any<object>()))
-                .ChangesState<Dictionary<object, object>>(x => x.Clear());
-
-            modelConfiguration
-                .MutuallyExclusive<Dictionary<object, object>>(x => x.ContainsKey(Args.Any<object>()), x => x.Count > 0)
-                .MutuallyExclusive<Dictionary<object, object>>(x => x.ContainsValue(Args.Any<object>()), x => x.Count > 0)
-                .MutuallyExclusive<Dictionary<object, object>>(x => x.ContainsKey(Args.Any<object>()), x => x.Any())
-                .MutuallyExclusive<Dictionary<object, object>>(x => x.ContainsValue(Args.Any<object>()), x => x.Any());
-        }
-    }
-
     public class ModelStateConfiguration
     {
         private readonly Dictionary<Type, List<MethodInfo>> stateChangeMethods;
