@@ -23,6 +23,8 @@ namespace TestProject.Services
             }
         }
 
+
+
         public void StringCondition_SimpleIfTransfer(Customer from, Customer to, decimal amount)
         {
             if (from.DeliveryAddress.City == "Berlin")

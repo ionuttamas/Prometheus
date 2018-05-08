@@ -41,6 +41,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Customer.cs" />
+    <Compile Include="CustomerRepository.cs" />
     <Compile Include="OrderService.cs" />
     <Compile Include="Order.cs" />
     <Compile Include="OrderProcessor.cs" />
@@ -50,6 +51,8 @@
     <Compile Include="RegistrationService.cs" />
     <Compile Include="TestTypeService.cs" />
     <Compile Include="TransferService.cs" />
+    <Compile Include="TransferService1.cs" />
+    <Compile Include="TransferService2.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\TestProject.Common\TestProject.Common.csproj">

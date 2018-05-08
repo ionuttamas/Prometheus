@@ -16,6 +16,7 @@ namespace TestProject.GUI {
         private static NonAtomicQueue<int> nonAtomicQueue;
         private static DeadlockedQueue<int> deadlockedQueue;
         private static Customer sharedCustomer;
+        private static CustomerRepository customerRepository;
 
         static void Main(string[] args)
         {
@@ -24,6 +25,9 @@ namespace TestProject.GUI {
             var orderProcessor = new OrderProcessor(queue, 10);
             var thread = new Thread(Do);
             var transferService = new TransferService();
+
+            var transferService1 = new TransferService1(customerRepository);
+            transferService1.MethodAssignment_IfTransfer(sharedCustomer, null, 100);
 
             transferService.Transfer(sharedCustomer, null, 200);
             transferService.SimpleIfTransfer(sharedCustomer, null, 200);
@@ -62,6 +66,9 @@ namespace TestProject.GUI {
             var registrationService = new RegistrationService();
             registrationService.Register(sharedCustomer);
             registrationService.SimpleIfRegister(sharedCustomer);
+
+            var transferService2 = new TransferService2(customerRepository);
+            transferService2.MethodAssignment_IfNegatedTransfer(sharedCustomer, null, 100);
 
             var proverTransferService = new ProverTransferService();
             proverTransferService.SimpleIf_NegatedTransfer(sharedCustomer, null, 100);
