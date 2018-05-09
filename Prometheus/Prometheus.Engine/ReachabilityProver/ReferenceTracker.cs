@@ -49,7 +49,7 @@ namespace Prometheus.Engine.ReachabilityProver {
         /// </code>
         /// </example>
         /// </summary>
-        public List<ConditionalAssignment> GetAssignments(SyntaxToken identifier)
+        public List<ConditionalAssignment> GetAssignments(SyntaxToken identifier, InvocationExpressionSyntax invocationRestriction = null)
         {
             if (!threadSchedule.GetThreadPath(solution, identifier.GetLocation()).Invocations.Any())
                 return new List<ConditionalAssignment>();
@@ -62,31 +62,33 @@ namespace Prometheus.Engine.ReachabilityProver {
                 .DescendantNodes<FieldDeclarationSyntax>()
                 .FirstOrDefault(x => x.Declaration.Variables.Any(v => v.Identifier.Text == identifierName));
 
-            if (matchingField == null)
+            if (matchingField != null)
             {
-                var methodParameterIndex = method.ParameterList.Parameters.IndexOf(x => x.Identifier.Text == identifierName);
-
-                //The assignment is not from a method parameter, so we search for the assignment inside
-                var result = methodParameterIndex < 0
-                    ? GetMethodAssignments(identifier)
-                    : GetMethodCallAssignments(identifier, method, methodParameterIndex);
-                // Exclude all except reference names; method calls "a = GetReference(c, d)" are not supported at the moment TODO: double check here
-                result = result
-                    .Where(x => x.Reference.Node == null || (x.Reference.Node.Kind() == SyntaxKind.IdentifierName || x.Reference.Node.Kind() == SyntaxKind.VariableDeclarator || x.Reference.Node.Kind() == SyntaxKind.Argument))
-                    .ToList();
-
-                return result;
-            }
-
-            return GetConstructorAssignments(identifier, classDeclaration)
+                return GetConstructorAssignments(identifier, classDeclaration)
                     .Where(x => x.Reference.Node == null || x.Reference.Node.Kind() == SyntaxKind.IdentifierName)
                     .ToList();
+            }
+
+            var parameterIndex = method.ParameterList.Parameters.IndexOf(x => x.Identifier.Text == identifierName);
+
+            //The assignment is not from a method parameter, so we search for the assignment inside
+            var result = parameterIndex < 0
+                ? GetMethodAssignments(identifier)
+                : GetMethodCallAssignments(method, parameterIndex, invocationRestriction);
+            // Exclude all except reference names; method calls "a = GetReference(c, d)" are not supported at the moment TODO: double check here
+            result = result
+                .Where(x => x.Reference.Node == null || (x.Reference.Node.Kind() == SyntaxKind.IdentifierName ||
+                                                         x.Reference.Node.Kind() == SyntaxKind.VariableDeclarator ||
+                                                         x.Reference.Node.Kind() == SyntaxKind.Argument))
+                .ToList();
+
+            return result;
         }
 
         /// <summary>
         /// Gets the assignments made from various calls to the given method along the binding parameter.
         /// </summary>
-        private List<ConditionalAssignment> GetMethodCallAssignments(SyntaxToken identifier, MethodDeclarationSyntax method, int parameterIndex)
+        private List<ConditionalAssignment> GetMethodCallAssignments(MethodDeclarationSyntax method, int parameterIndex, InvocationExpressionSyntax invocationRestriction)
         {
             //TODO: this does not take into account if a parameter was assigned to another value before being assigned again
             var methodCallAssignments = solution
@@ -97,24 +99,11 @@ namespace Prometheus.Engine.ReachabilityProver {
                     return threadPath != null && threadPath.Invocations.Any();
                 })
                 .Select(x => x.GetNode<InvocationExpressionSyntax>())
+                .Where(x => invocationRestriction == null || x == invocationRestriction)
                 .Select(x => GetConditionalAssignment(x, x.ArgumentList.Arguments[parameterIndex]))
                 .ToList();
-            var withinMethodAssignments = GetMethodAssignments(identifier);
-            var result = new List<ConditionalAssignment>();
 
-            if (!withinMethodAssignments.Any())
-                return methodCallAssignments;
-
-            foreach (var assignment in methodCallAssignments) {
-                foreach (ConditionalAssignment withinMethodAssignment in withinMethodAssignments)
-                {
-                    var clonedAssignment = assignment.Clone();
-                    clonedAssignment.Conditions.UnionWith(withinMethodAssignment.Conditions);
-                    result.Add(clonedAssignment);
-                }
-            }
-
-            return result;
+            return methodCallAssignments;
         }
 
         /// <summary>

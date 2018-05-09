@@ -31,7 +31,19 @@ namespace Prometheus.Engine.UnitTests
         }
 
         [Test]
-        public void ReferenceTracker_ForMethodCallAssignments_TracksCorrectly()
+        public void ReferenceTracker_ForMethodCallAssignments_TracksCorrectly() {
+            var project = solution.Projects.First(x => x.Name == "TestProject.Services");
+            var transferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TransferService1));
+            var identifier = transferServiceClass.GetMethodDescendant(nameof(TransferService1.MethodAssignment_IfTransfer)).DescendantTokens<SyntaxToken>(x => x.ToString() == "refCustomer").First();
+            var assignments = referenceTracker.GetAssignments(identifier);
+
+            Assert.True(assignments.Count == 1);
+            Assert.True(assignments[0].Conditions.Count == 0);
+            Assert.True(assignments[0].Reference.ToString() == "sharedCustomer");
+        }
+
+        [Test]
+        public void ReferenceTracker_ForMethodReferences_TracksCorrectly()
         {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var registrationServiceClass = project.GetCompilation().GetClassDeclaration(typeof(RegistrationService));
