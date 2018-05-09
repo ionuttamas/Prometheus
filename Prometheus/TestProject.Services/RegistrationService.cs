@@ -5,6 +5,8 @@
         public void Register(Customer customer)
         {
             customer.IsActive = true;
+            Customer instance;
+            instance = customer;
         }
 
         public void SimpleIfRegister(Customer customer)

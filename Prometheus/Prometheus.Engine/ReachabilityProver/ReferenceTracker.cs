@@ -8,7 +8,6 @@ using Prometheus.Engine.ReachabilityProver.Model;
 using Prometheus.Engine.Thread;
 
 namespace Prometheus.Engine.ReachabilityProver {
-    //TODO: this will be used for checking that 2 lock object or 2 instances under concurrency modifications are the same or not
     internal class ReferenceTracker
     {
         private readonly Solution solution;
