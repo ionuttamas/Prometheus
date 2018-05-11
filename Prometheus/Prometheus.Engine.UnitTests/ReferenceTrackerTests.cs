@@ -34,7 +34,7 @@ namespace Prometheus.Engine.UnitTests
         public void ReferenceTracker_ForMethodCallAssignments_TracksCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var transferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TransferService1));
-            var identifier = transferServiceClass.GetMethodDescendant(nameof(TransferService1.MethodAssignment_IfTransfer)).DescendantTokens<SyntaxToken>(x => x.ToString() == "refCustomer").First();
+            var identifier = transferServiceClass.GetMethodDescendant(nameof(TransferService1.MethodAssignment_IfTransfer)).DescendantTokens<SyntaxToken>(x => x.ToString() == "customer").First();
             var assignments = referenceTracker.GetAssignments(identifier);
 
             Assert.True(assignments.Count == 1);

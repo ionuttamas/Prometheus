@@ -19,6 +19,11 @@ namespace Prometheus.Engine.ReachabilityProver {
             this.threadSchedule = threadSchedule;
         }
 
+        private List<ConditionalAssignment> GetMethodInvocationAssigments()
+        {
+            return null;
+        }
+
         /// <summary>
         /// Returns a list of conditional assignments that the identifier referenced and based on what conditions.
         /// The assignments will be the last references that the identifier took its reference from.
@@ -76,8 +81,10 @@ namespace Prometheus.Engine.ReachabilityProver {
                 ? GetMethodAssignments(identifier)
                 : GetMethodCallAssignments(method, parameterIndex, invocationRestriction);
             // Exclude all except reference names; method calls "a = GetReference(c, d)" are not supported at the moment TODO: double check here
+            //TODO: currently we support only one level method call assigment: "a = instance.Get(..);"
             result = result
-                .Where(x => x.Reference.Node == null || (x.Reference.Node.Kind() == SyntaxKind.IdentifierName ||
+                .Where(x => x.Reference.Node == null || (x.Reference.Node.Kind() == SyntaxKind.InvocationExpression ||
+                                                         x.Reference.Node.Kind() == SyntaxKind.IdentifierName ||
                                                          x.Reference.Node.Kind() == SyntaxKind.VariableDeclarator ||
                                                          x.Reference.Node.Kind() == SyntaxKind.Argument))
                 .ToList();
