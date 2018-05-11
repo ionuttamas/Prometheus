@@ -23,7 +23,8 @@ namespace Prometheus.Engine.UnitTests
             ThreadSchedule threadSchedule = new ThreadAnalyzer(solution).GetThreadSchedule(solution.Projects.First(x => x.Name == "TestProject.GUI"));
             ITypeService typeService = new TypeService(solution);
             IConditionProver conditionProver = new Z3ConditionProver(typeService);
-            reachabilityProver = new ReachabilityProver.ReachabilityProver(new ReferenceTracker(solution, threadSchedule), conditionProver);
+            ReferenceTracker referenceTracker = new ReferenceTracker(solution, threadSchedule, typeService);
+            reachabilityProver = new ReachabilityProver.ReachabilityProver(referenceTracker, conditionProver);
         }
 
         [TearDown]

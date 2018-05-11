@@ -14,6 +14,7 @@ namespace Prometheus.Engine.Types
     internal class TypeService : ITypeService
     {
         private readonly List<TypeInfo> solutionTypes;
+        private readonly List<ClassDeclarationSyntax> classDeclarations;
         private readonly Dictionary<string, Type> primitiveTypes;
         private readonly TypeCache typeCache;
         private const string VAR_TOKEN = "var";
@@ -27,6 +28,11 @@ namespace Prometheus.Engine.Types
                 .SelectMany(x => x.DefinedTypes)
                 .ToList();
             solutionTypes.AddRange(Assembly.GetAssembly(typeof(int)).DefinedTypes);
+            classDeclarations = solution.Projects
+                .SelectMany(x => x.GetCompilation().SyntaxTrees)
+                .Select(x => x.GetRoot())
+                .SelectMany(x => x.DescendantNodes<ClassDeclarationSyntax>())
+                .ToList();
             typeCache = new TypeCache();
             primitiveTypes = new Dictionary<string, Type>
             {
@@ -87,6 +93,14 @@ namespace Prometheus.Engine.Types
             typeCache.AddToCache(syntaxToken, type);
 
             return type;
+        }
+
+        public ClassDeclarationSyntax GetClassDeclaration(Type type)
+        {
+            //TODO: handle multiple same name classnames in different namespaces
+            ClassDeclarationSyntax classDeclaration = classDeclarations.FirstOrDefault(x => x.Identifier.Text == type.Name);
+
+            return classDeclaration;
         }
 
         public Sort GetSort(Context context, Type type)

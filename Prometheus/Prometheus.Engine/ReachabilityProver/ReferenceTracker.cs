@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -6,22 +7,20 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Prometheus.Common;
 using Prometheus.Engine.ReachabilityProver.Model;
 using Prometheus.Engine.Thread;
+using Prometheus.Engine.Types;
 
 namespace Prometheus.Engine.ReachabilityProver {
     internal class ReferenceTracker
     {
         private readonly Solution solution;
+        private readonly ITypeService typeService;
         private readonly ThreadSchedule threadSchedule;
 
-        public ReferenceTracker(Solution solution, ThreadSchedule threadSchedule)
+        public ReferenceTracker(Solution solution, ThreadSchedule threadSchedule, ITypeService typeService)
         {
             this.solution = solution;
             this.threadSchedule = threadSchedule;
-        }
-
-        private List<ConditionalAssignment> GetMethodInvocationAssigments()
-        {
-            return null;
+            this.typeService = typeService;
         }
 
         /// <summary>
@@ -146,6 +145,7 @@ namespace Prometheus.Engine.ReachabilityProver {
         /// </summary>
         private List<ConditionalAssignment> GetMethodAssignments(SyntaxToken identifier)
         {
+            //TODO
             var method = identifier.GetLocation().GetContainingMethod();
             var identifierName = identifier.ToString();
             var simpleAssignments = method
@@ -199,6 +199,29 @@ namespace Prometheus.Engine.ReachabilityProver {
             }
 
             return conditionalAssignment;
+        }
+
+        private List<ConditionalAssignment> ProcessMethodInvocationAssigment(InvocationExpressionSyntax invocationExpression) {
+            var memberAccess = invocationExpression.Expression.As<MemberAccessExpressionSyntax>();
+            var instanceExpression = memberAccess.Expression.As<IdentifierNameSyntax>();
+            var methodName = memberAccess.Name.Identifier.Text;
+            var type = typeService.GetType(instanceExpression);
+            var classDeclaration = typeService.GetClassDeclaration(type);
+            var parametersCount = invocationExpression.ArgumentList.Arguments.Count;
+
+            if (classDeclaration==null)
+                throw new NotSupportedException($"Type {type} is was not found in solution");
+
+            //TODO: this only checks the name and the param count and picks the first method
+            var method = classDeclaration
+                .DescendantNodes<MethodDeclarationSyntax>(x => x.Identifier.Text == methodName && x.ParameterList.Parameters.Count==parametersCount)
+                .First();
+            var returnInstances = method
+                .DescendantNodes<ReturnStatementSyntax>()
+                .Where(x=>x.Expression.Kind()!=SyntaxKind.ObjectCreationExpression);
+
+
+            return null;
         }
 
         private ConditionalAssignment ProcessIfStatement(SyntaxNode node, out SyntaxNode lastNode) {

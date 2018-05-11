@@ -10,6 +10,7 @@ namespace Prometheus.Engine.Types
     {
         Type GetType(ExpressionSyntax expressionSyntax);
         Type GetType(SyntaxToken syntaxToken);
+        ClassDeclarationSyntax GetClassDeclaration(Type type);
         Sort GetSort(Context context, Type type);
     }
 }
