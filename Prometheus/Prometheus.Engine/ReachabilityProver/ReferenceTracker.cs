@@ -106,7 +106,7 @@ namespace Prometheus.Engine.ReachabilityProver {
                 })
                 .Select(x => x.GetNode<InvocationExpressionSyntax>())
                 .Where(x => invocationRestriction == null || x == invocationRestriction)
-                .Select(x => GetConditionalAssignment(x, x.ArgumentList.Arguments[parameterIndex]))
+                .SelectMany(x => GetConditionalAssignments(x, x.ArgumentList.Arguments[parameterIndex]))
                 .ToList();
 
             return methodCallAssignments;
@@ -134,7 +134,7 @@ namespace Prometheus.Engine.ReachabilityProver {
                     var threadPath = threadSchedule.GetThreadPath(solution, x.GetLocation());
                     return threadPath != null && threadPath.Invocations.Any();
                 })
-                .Select(x => GetConditionalAssignment(x, x.ArgumentList.Arguments[constructorParameterIndex]))
+                .SelectMany(x => GetConditionalAssignments(x, x.ArgumentList.Arguments[constructorParameterIndex]))
                 .ToList();
 
             return constructorAssignments;
@@ -152,11 +152,11 @@ namespace Prometheus.Engine.ReachabilityProver {
                 .DescendantNodes<AssignmentExpressionSyntax>()
                 .Where(x=>x.Kind() == SyntaxKind.SimpleAssignmentExpression)
                 .Where(x=>x.Left.ToString() == identifierName)
-                .Select(x=>GetConditionalAssignment(x, x.Right));
+                .SelectMany(x=>GetConditionalAssignments(x, x.Right));
             var localDeclarationAssignments = method
                 .DescendantNodes<LocalDeclarationStatementSyntax>()
                 .Where(x => x.Declaration.Variables[0].Identifier.Text == identifierName && x.Declaration.Variables[0].Initializer!=null)
-                .Select(x=> GetConditionalAssignment(x, x.Declaration.Variables[0].Initializer.Value));
+                .SelectMany(x => GetConditionalAssignments(x, x.Declaration.Variables[0].Initializer.Value));
             var conditionalAssignments = simpleAssignments.Concat(localDeclarationAssignments).ToList();
 
             return conditionalAssignments;
@@ -165,10 +165,13 @@ namespace Prometheus.Engine.ReachabilityProver {
         /// <summary>
         /// Gets the conditional assignment for the given invocation or object creation within its method.
         /// </summary>
-        private ConditionalAssignment GetConditionalAssignment(SyntaxNode bindingNode, SyntaxNode argument) {
-            //TODO: check if we can merge this method and the one above
-            var elseClause = bindingNode.FirstAncestor<ElseClauseSyntax>();
-            var ifClause = bindingNode.FirstAncestor<IfStatementSyntax>();
+        private List<ConditionalAssignment> GetConditionalAssignments(SyntaxNode bindingNode, SyntaxNode argument) {
+
+            if (argument is InvocationExpressionSyntax)
+            {
+                return ProcessMethodInvocationAssigment(argument.As<InvocationExpressionSyntax>());
+            }
+
             var conditionalAssignment = new ConditionalAssignment {
                 Reference = {Node = argument},
                 AssignmentLocation = bindingNode.GetLocation()
@@ -184,21 +187,10 @@ namespace Prometheus.Engine.ReachabilityProver {
                 conditionalAssignment.Reference.Node = matchingField.Declaration.Variables[0];
             }
 
-            while (currentNode != null) {
-                if (ifClause != null && !ifClause.Contains(elseClause)) {
-                    conditionalAssignment.Conditions.UnionWith(ProcessIfStatement(currentNode, out currentNode).Conditions);
-                } else if (elseClause != null) {
-                    conditionalAssignment.Conditions.UnionWith(ProcessElseStatement(currentNode, out currentNode).Conditions);
-                }
-                else {
-                    return conditionalAssignment;
-                }
+            var ifElseConditions = ExtractIfElseConditions(currentNode);
+            conditionalAssignment.Conditions.UnionWith(ifElseConditions);
 
-                elseClause = currentNode.FirstAncestor<ElseClauseSyntax>();
-                ifClause = currentNode.FirstAncestor<IfStatementSyntax>();
-            }
-
-            return conditionalAssignment;
+            return new List<ConditionalAssignment>{ conditionalAssignment };
         }
 
         private List<ConditionalAssignment> ProcessMethodInvocationAssigment(InvocationExpressionSyntax invocationExpression) {
@@ -212,27 +204,61 @@ namespace Prometheus.Engine.ReachabilityProver {
             if (classDeclaration==null)
                 throw new NotSupportedException($"Type {type} is was not found in solution");
 
+            //We only take into consideration the calling method conditions
+            var conditions = ExtractIfElseConditions(invocationExpression);
             //TODO: this only checks the name and the param count and picks the first method
             var method = classDeclaration
                 .DescendantNodes<MethodDeclarationSyntax>(x => x.Identifier.Text == methodName && x.ParameterList.Parameters.Count==parametersCount)
                 .First();
-            var returnInstances = method
+            var returnExpressions = method
                 .DescendantNodes<ReturnStatementSyntax>()
-                .Where(x=>x.Expression.Kind()!=SyntaxKind.ObjectCreationExpression);
+                .Where(x=>x.Expression.Kind()!=SyntaxKind.ObjectCreationExpression) //TODO: are we interested in return new X()
+                .Select(x => new ConditionalAssignment
+                {
+                    Reference = new Reference(x.Expression)
+                    {
+                        CallInstances = new Stack<Reference>(new []{ new Reference(instanceExpression) })
+                    },
+                    Conditions = conditions,
+                    AssignmentLocation = invocationExpression.GetLocation()
+                })
+                .ToList();
 
-
-            return null;
+            return returnExpressions;
         }
 
-        private ConditionalAssignment ProcessIfStatement(SyntaxNode node, out SyntaxNode lastNode) {
+        private HashSet<Condition> ExtractIfElseConditions(SyntaxNode node)
+        {
+            var conditions = new HashSet<Condition>();
+            var elseClause = node.FirstAncestor<ElseClauseSyntax>();
             var ifClause = node.FirstAncestor<IfStatementSyntax>();
-            var conditionalAssignment = new ConditionalAssignment();
+
+            while (node != null) {
+                if (ifClause != null && !ifClause.Contains(elseClause)) {
+                    conditions.UnionWith(ProcessIfStatement(node, out node));
+                } else if (elseClause != null) {
+                    conditions.UnionWith(ProcessElseStatement(node, out node));
+                } else {
+                    return conditions;
+                }
+
+                elseClause = node.FirstAncestor<ElseClauseSyntax>();
+                ifClause = node.FirstAncestor<IfStatementSyntax>();
+            }
+
+            return conditions;
+        }
+
+        private HashSet<Condition> ProcessIfStatement(SyntaxNode node, out SyntaxNode lastNode) {
+            var ifClause = node.FirstAncestor<IfStatementSyntax>();
+            var conditions = new HashSet<Condition>();
+
             lastNode = ifClause;
 
             if (ifClause == null)
-                return conditionalAssignment;
+                return conditions;
 
-            conditionalAssignment.AddCondition(ifClause, false);
+            conditions.Add(new Condition(ifClause, false));
             var elseClause = ifClause.Parent as ElseClauseSyntax;
 
             while (elseClause != null) {
@@ -241,18 +267,18 @@ namespace Prometheus.Engine.ReachabilityProver {
                 if (ifStatement == null)
                     break;
 
-                conditionalAssignment.AddCondition(ifStatement, true);
+                conditions.Add(new Condition(ifClause, true));
                 lastNode = ifStatement;
                 elseClause = ifStatement.Parent as ElseClauseSyntax;
             }
 
-            return conditionalAssignment;
+            return conditions;
         }
 
-        private ConditionalAssignment ProcessElseStatement(SyntaxNode node, out SyntaxNode lastNode)
+        private HashSet<Condition> ProcessElseStatement(SyntaxNode node, out SyntaxNode lastNode)
         {
             var elseClause = node.FirstAncestor<ElseClauseSyntax>();
-            var conditionalAssignment = new ConditionalAssignment();
+            var conditions = new HashSet<Condition>();
             lastNode = elseClause;
 
             while (elseClause != null) {
@@ -261,12 +287,12 @@ namespace Prometheus.Engine.ReachabilityProver {
                 if (ifStatement == null)
                     break;
 
-                conditionalAssignment.AddCondition(ifStatement, true);
+                conditions.Add(new Condition(ifStatement, true));
                 lastNode = ifStatement;
                 elseClause = ifStatement.Parent as ElseClauseSyntax;
             }
 
-            return conditionalAssignment;
+            return conditions;
         }
 
         private IEnumerable<ObjectCreationExpressionSyntax> FindObjectCreations(ClassDeclarationSyntax node) {
