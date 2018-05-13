@@ -6,10 +6,10 @@ namespace Prometheus.Engine.ReachabilityProver.Model
     public class Reference
     {
         /// <summary>
-        /// In the case when we are interested in the data of a specific instance (or references in the case of call chain).
+        /// In the case when we are interested in the data of a specific instance.
         /// If the assignment is a simple reference assignment, this property will be null.
+        /// Currently, this only supports one level instance method calls, like "instance.Method()" not "instance.Member.Method()".
         /// E.g. in the case below, we bind the customer to the return values of the calling method, but bounded to the specific "customerRepository" instance.
-        /// If the GetCustomer method return values would have come from other assignments, we add those instances to the stack.
         ///
         /// class TransferService
         /// {
@@ -23,12 +23,11 @@ namespace Prometheus.Engine.ReachabilityProver.Model
         ///     }
         /// }
         /// </summary>
-        public Stack<Reference> CallInstances { get; set; }
+        public SyntaxNode InstanceReference { get; set; }
         public SyntaxNode Node { get; set; }
         public SyntaxToken Token { get; set; }
 
         public Reference() {
-            CallInstances = new Stack<Reference>();
         }
 
         public Reference(SyntaxNode node) : this()

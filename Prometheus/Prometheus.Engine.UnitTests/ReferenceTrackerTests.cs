@@ -39,9 +39,15 @@ namespace Prometheus.Engine.UnitTests
             var identifier = transferServiceClass.GetMethodDescendant(nameof(TransferService1.MethodAssignment_IfTransfer)).DescendantTokens<SyntaxToken>(x => x.ToString() == "customer").First();
             var assignments = referenceTracker.GetAssignments(identifier);
 
-            Assert.True(assignments.Count == 1);
-            Assert.True(assignments[0].Conditions.Count == 0);
-            Assert.True(assignments[0].Reference.ToString() == "sharedCustomer");
+            Assert.True(assignments.Count == 2);
+
+            Assert.AreEqual(0, assignments[0].Conditions.Count);
+            Assert.AreEqual("_customerRepository", assignments[0].Reference.InstanceReference.ToString());
+            Assert.AreEqual("customers[x]", assignments[0].Reference.ToString());
+
+            Assert.AreEqual(0, assignments[1].Conditions.Count);
+            Assert.AreEqual("_customerRepository", assignments[1].Reference.InstanceReference.ToString());
+            Assert.AreEqual("customers[x + y]", assignments[1].Reference.ToString());
         }
 
         [Test]
@@ -52,9 +58,9 @@ namespace Prometheus.Engine.UnitTests
             var identifier = registrationServiceClass.GetMethodDescendant(nameof(RegistrationService.Register)).DescendantTokens<SyntaxToken>(x => x.ToString() == "customer").First();
             var assignments = referenceTracker.GetAssignments(identifier);
 
-            Assert.True(assignments.Count==1);
-            Assert.True(assignments[0].Conditions.Count==0);
-            Assert.True(assignments[0].Reference.ToString()=="sharedCustomer");
+            Assert.AreEqual(1, assignments.Count);
+            Assert.AreEqual(0, assignments[0].Conditions.Count);
+            Assert.AreEqual("sharedCustomer", assignments[0].Reference.ToString());
         }
 
         [Test]

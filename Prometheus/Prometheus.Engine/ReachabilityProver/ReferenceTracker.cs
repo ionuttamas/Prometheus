@@ -83,6 +83,7 @@ namespace Prometheus.Engine.ReachabilityProver {
             //TODO: currently we support only one level method call assigment: "a = instance.Get(..);"
             result = result
                 .Where(x => x.Reference.Node == null || (x.Reference.Node.Kind() == SyntaxKind.InvocationExpression ||
+                                                         x.Reference.Node.Kind() == SyntaxKind.ElementAccessExpression ||
                                                          x.Reference.Node.Kind() == SyntaxKind.IdentifierName ||
                                                          x.Reference.Node.Kind() == SyntaxKind.VariableDeclarator ||
                                                          x.Reference.Node.Kind() == SyntaxKind.Argument))
@@ -212,12 +213,12 @@ namespace Prometheus.Engine.ReachabilityProver {
                 .First();
             var returnExpressions = method
                 .DescendantNodes<ReturnStatementSyntax>()
-                .Where(x=>x.Expression.Kind()!=SyntaxKind.ObjectCreationExpression) //TODO: are we interested in return new X()
+                .Where(x=>x.Expression.Kind()!=SyntaxKind.ObjectCreationExpression) //TODO: are we interested in "return new X()"?
                 .Select(x => new ConditionalAssignment
                 {
                     Reference = new Reference(x.Expression)
                     {
-                        CallInstances = new Stack<Reference>(new []{ new Reference(instanceExpression) })
+                        InstanceReference = instanceExpression
                     },
                     Conditions = conditions,
                     AssignmentLocation = invocationExpression.GetLocation()
