@@ -2,6 +2,7 @@ using System.Linq;
 using Microsoft.CodeAnalysis;
 using NUnit.Framework;
 using Prometheus.Common;
+using Prometheus.Engine.Reachability.Tracker;
 using Prometheus.Engine.ReachabilityProver;
 using Prometheus.Engine.Thread;
 using Prometheus.Engine.Types;
@@ -23,7 +24,8 @@ namespace Prometheus.Engine.UnitTests
             solution = workspace.OpenSolutionAsync(@"C:\Users\tamas\Documents\Github\Prometheus\Prometheus\Prometheus.sln").Result;
             var typeService = new TypeService(solution);
             ThreadSchedule threadSchedule = new ThreadAnalyzer(solution).GetThreadSchedule(solution.Projects.First(x => x.Name == "TestProject.GUI"));
-            referenceTracker = new ReferenceTracker(solution, threadSchedule, typeService);
+            IReferenceParser referenceParser = new ReferenceParser();
+            referenceTracker = new ReferenceTracker(solution, threadSchedule, typeService, referenceParser);
         }
 
         [TearDown]

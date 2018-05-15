@@ -9,18 +9,23 @@ using Prometheus.Engine.ReachabilityProver.Model;
 using Prometheus.Engine.Thread;
 using Prometheus.Engine.Types;
 
-namespace Prometheus.Engine.ReachabilityProver {
+namespace Prometheus.Engine.Reachability.Tracker {
     internal class ReferenceTracker
     {
         private readonly Solution solution;
         private readonly ITypeService typeService;
         private readonly ThreadSchedule threadSchedule;
+        private readonly IReferenceParser referenceParser;
 
-        public ReferenceTracker(Solution solution, ThreadSchedule threadSchedule, ITypeService typeService)
+        public ReferenceTracker(Solution solution,
+                                ThreadSchedule threadSchedule,
+                                ITypeService typeService,
+                                IReferenceParser referenceParser)
         {
             this.solution = solution;
             this.threadSchedule = threadSchedule;
             this.typeService = typeService;
+            this.referenceParser = referenceParser;
         }
 
         /// <summary>
@@ -216,10 +221,7 @@ namespace Prometheus.Engine.ReachabilityProver {
                 .Where(x=>x.Expression.Kind()!=SyntaxKind.ObjectCreationExpression) //TODO: are we interested in "return new X()"?
                 .Select(x => new ConditionalAssignment
                 {
-                    Reference = new Reference(x.Expression)
-                    {
-                        InstanceReference = instanceExpression
-                    },
+                    Reference = referenceParser.Parse(x.Expression),
                     Conditions = conditions,
                     AssignmentLocation = invocationExpression.GetLocation()
                 })

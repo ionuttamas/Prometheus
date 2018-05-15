@@ -68,7 +68,7 @@ namespace TestProject.GUI {
             registrationService.SimpleIfRegister(sharedCustomer);
 
             var transferService2 = new TransferService2(customerRepository);
-            transferService2.MethodAssignment_IfNegatedTransfer(sharedCustomer, null, 100);
+            transferService2.MethodAssignment_IfTransfer(sharedCustomer, null, 100);
 
             var proverTransferService = new ProverTransferService();
             proverTransferService.SimpleIf_NegatedTransfer(sharedCustomer, null, 100);

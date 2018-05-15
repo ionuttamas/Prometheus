@@ -27,6 +27,15 @@ namespace Prometheus.Engine.ReachabilityProver.Model
         public SyntaxNode Node { get; set; }
         public SyntaxToken Token { get; set; }
 
+        /// <summary>
+        /// In the case of an assignment with a query applied on the reference like:
+        ///  - "reference = customers[x]" or
+        ///  - "reference = customers.First(x => predicate(x))" or
+        ///  - "reference = customers.Where(x => predicate(x))"
+        /// this contains the filters applied on the given instance ("customers" reference in this case).
+        /// </summary>
+        public IReferenceQuery Query { get; set; }
+
         public Reference() {
         }
 

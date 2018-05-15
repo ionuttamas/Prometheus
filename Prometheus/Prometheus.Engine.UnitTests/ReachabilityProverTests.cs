@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis;
 using NUnit.Framework;
 using Prometheus.Common;
 using Prometheus.Engine.ConditionProver;
+using Prometheus.Engine.Reachability.Tracker;
 using Prometheus.Engine.ReachabilityProver;
 using Prometheus.Engine.ReachabilityProver.Model;
 using Prometheus.Engine.Thread;
@@ -12,7 +13,7 @@ namespace Prometheus.Engine.UnitTests
 {
     [TestFixture]
     public class ReachabilityProverTests {
-        private ReachabilityProver.ReachabilityProver reachabilityProver;
+        private Reachability.Prover.ReachabilityProver reachabilityProver;
         private Solution solution;
 
         [SetUp]
@@ -23,8 +24,9 @@ namespace Prometheus.Engine.UnitTests
             ThreadSchedule threadSchedule = new ThreadAnalyzer(solution).GetThreadSchedule(solution.Projects.First(x => x.Name == "TestProject.GUI"));
             ITypeService typeService = new TypeService(solution);
             IConditionProver conditionProver = new Z3ConditionProver(typeService);
-            ReferenceTracker referenceTracker = new ReferenceTracker(solution, threadSchedule, typeService);
-            reachabilityProver = new ReachabilityProver.ReachabilityProver(referenceTracker, conditionProver);
+            IReferenceParser referenceParser = new ReferenceParser();
+            ReferenceTracker referenceTracker = new ReferenceTracker(solution, threadSchedule, typeService, referenceParser);
+            reachabilityProver = new Reachability.Prover.ReachabilityProver(referenceTracker, conditionProver);
         }
 
         [TearDown]
@@ -83,13 +85,13 @@ namespace Prometheus.Engine.UnitTests
         }
 
         [Test]
-        public void ReachabilityProver_For_MethodCallAssignments_TracksCorrectly() {
+        public void ReachabilityProver_For_WithSatisfiable_MethodCallAssignments_TracksCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var transferService1Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService1));
             var transferService2Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService2));
 
             var firstIdentifier = transferService1Class.GetMethodDescendant(nameof(TestProject.Services.TransferService1.MethodAssignment_IfTransfer)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "refCustomer").First();
-            var secondIdentifier = transferService2Class.GetMethodDescendant(nameof(TestProject.Services.TransferService2.MethodAssignment_IfNegatedTransfer)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "refCustomer").First();
+            var secondIdentifier = transferService2Class.GetMethodDescendant(nameof(TestProject.Services.TransferService2.MethodAssignment_IfTransfer)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "refCustomer").First();
             var haveCommonValue = reachabilityProver.HaveCommonReference(new Reference(firstIdentifier), new Reference(secondIdentifier), out var commonValue);
 
             Assert.True(haveCommonValue);
