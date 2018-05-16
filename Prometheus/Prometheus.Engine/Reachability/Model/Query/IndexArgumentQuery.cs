@@ -7,11 +7,15 @@ namespace Prometheus.Engine.ReachabilityProver.Model
     /// </summary>
     public class IndexArgumentQuery : IReferenceQuery
     {
+        public ArgumentSyntax Argument { get; set; }
+
         public IndexArgumentQuery(ArgumentSyntax argument)
         {
             Argument = argument;
         }
 
-        public ArgumentSyntax Argument { get; set; }
+        public override string ToString() {
+            return Argument.ToString();
+        }
     }
 }

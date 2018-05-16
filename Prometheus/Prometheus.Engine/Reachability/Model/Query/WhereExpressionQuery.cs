@@ -12,5 +12,9 @@ namespace Prometheus.Engine.ReachabilityProver.Model
         public WhereExpressionQuery(SimpleLambdaExpressionSyntax predicate) {
             Predicate = predicate;
         }
+
+        public override string ToString() {
+            return Predicate.ToString();
+        }
     }
 }

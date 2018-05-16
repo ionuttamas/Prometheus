@@ -13,5 +13,10 @@ namespace Prometheus.Engine.ReachabilityProver.Model
         {
             Predicate = predicate;
         }
+
+        public override string ToString()
+        {
+            return Predicate.ToString();
+        }
     }
 }

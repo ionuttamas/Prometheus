@@ -20,11 +20,22 @@ namespace TestProject.Services
             return customers[y];
         }
 
-        public Customer Compute(int x, int y) {
-            if (x>2)
+        public Customer Compute(int x, int y)
+        {
+            if (x > 2)
                 return customers[x];
 
             return customers[x + y];
+        }
+
+        public Customer GetFirst(decimal accountBalance)
+        {
+            return customers.First(x => x.AccountBalance == accountBalance);
+        }
+
+        public List<Customer> GetWhere(int age)
+        {
+            return customers.Where(x => x.Age == age).ToList();
         }
     }
 }

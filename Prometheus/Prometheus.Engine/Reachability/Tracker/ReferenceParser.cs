@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Prometheus.Common;
@@ -27,6 +28,7 @@ namespace Prometheus.Engine.Reachability.Tracker
             if (node is ElementAccessExpressionSyntax)
                 return ParseElementAccessExpression(node.As<ElementAccessExpressionSyntax>());
 
+            //todo: discern between various invocations
             if (node is InvocationExpressionSyntax)
                 return ParseLambdaExpression(node.As<InvocationExpressionSyntax>());
 
@@ -46,9 +48,9 @@ namespace Prometheus.Engine.Reachability.Tracker
 
         private Reference ParseLambdaExpression(InvocationExpressionSyntax node)
         {
+            var referenceNode = node.DescendantNodes<IdentifierNameSyntax>().First();
             var memberExpression = node.Expression.As<MemberAccessExpressionSyntax>();
-            var referenceNode = memberExpression.Name;
-            var expressionIdentifier = memberExpression.Expression.As<IdentifierNameSyntax>();
+            var expressionIdentifier = memberExpression.Name;
             var query = node.ArgumentList.Arguments[0].Expression.As<SimpleLambdaExpressionSyntax>();
 
             if (expressionIdentifier.Identifier.Text == FIRST_TOKEN)

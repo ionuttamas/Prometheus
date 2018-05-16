@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace TestProject.Services
 {
     public class TransferService1
@@ -14,6 +16,9 @@ namespace TestProject.Services
             if (from.AccountBalance > 0) {
                 Customer refCustomer = customer;
             }
+
+            Customer firstCustomer = _customerRepository.GetFirst(from.AccountBalance);
+            List<Customer> whereCustomers = _customerRepository.GetWhere(from.Age);
         }
     }
 }

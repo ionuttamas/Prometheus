@@ -218,12 +218,18 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 .First();
             var returnExpressions = method
                 .DescendantNodes<ReturnStatementSyntax>()
-                .Where(x=>x.Expression.Kind()!=SyntaxKind.ObjectCreationExpression) //TODO: are we interested in "return new X()"?
-                .Select(x => new ConditionalAssignment
+                .Where(x => x.Expression.Kind()!=SyntaxKind.ObjectCreationExpression) //TODO: are we interested in "return new X()"?
+                .Select(x =>
                 {
-                    Reference = referenceParser.Parse(x.Expression),
-                    Conditions = conditions,
-                    AssignmentLocation = invocationExpression.GetLocation()
+                    var reference = referenceParser.Parse(x.Expression);
+                    reference.InstanceReference = instanceExpression;
+
+                    return new ConditionalAssignment
+                    {
+                        Reference = reference,
+                        Conditions = conditions,
+                        AssignmentLocation = invocationExpression.GetLocation()
+                    };
                 })
                 .ToList();
 

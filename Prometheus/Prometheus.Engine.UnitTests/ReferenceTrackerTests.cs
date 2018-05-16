@@ -45,11 +45,41 @@ namespace Prometheus.Engine.UnitTests
 
             Assert.AreEqual(0, assignments[0].Conditions.Count);
             Assert.AreEqual("_customerRepository", assignments[0].Reference.InstanceReference.ToString());
-            Assert.AreEqual("customers[x]", assignments[0].Reference.ToString());
+            Assert.AreEqual("customers", assignments[0].Reference.ToString());
+            Assert.AreEqual("x", assignments[0].Reference.Query.ToString());
 
             Assert.AreEqual(0, assignments[1].Conditions.Count);
             Assert.AreEqual("_customerRepository", assignments[1].Reference.InstanceReference.ToString());
-            Assert.AreEqual("customers[x + y]", assignments[1].Reference.ToString());
+            Assert.AreEqual("customers", assignments[1].Reference.ToString());
+            Assert.AreEqual("x + y", assignments[1].Reference.Query.ToString());
+        }
+
+        [Test]
+        public void ReferenceTracker_ForMethodCallAssignments_ForFirstLinqReturns_TracksCorrectly() {
+            var project = solution.Projects.First(x => x.Name == "TestProject.Services");
+            var transferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TransferService1));
+            var identifier = transferServiceClass.GetMethodDescendant(nameof(TransferService1.MethodAssignment_IfTransfer)).DescendantTokens<SyntaxToken>(x => x.ToString() == "firstCustomer").First();
+            var assignments = referenceTracker.GetAssignments(identifier);
+
+            Assert.True(assignments.Count == 1);
+            Assert.AreEqual(0, assignments[0].Conditions.Count);
+            Assert.AreEqual("_customerRepository", assignments[0].Reference.InstanceReference.ToString());
+            Assert.AreEqual("customers", assignments[0].Reference.ToString());
+            Assert.AreEqual("x => x.AccountBalance == accountBalance", assignments[0].Reference.Query.ToString());
+        }
+
+        [Test]
+        public void ReferenceTracker_ForMethodCallAssignments_ForWhereLinqReturns_TracksCorrectly() {
+            var project = solution.Projects.First(x => x.Name == "TestProject.Services");
+            var transferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TransferService1));
+            var identifier = transferServiceClass.GetMethodDescendant(nameof(TransferService1.MethodAssignment_IfTransfer)).DescendantTokens<SyntaxToken>(x => x.ToString() == "whereCustomers").First();
+            var assignments = referenceTracker.GetAssignments(identifier);
+
+            Assert.True(assignments.Count == 1);
+            Assert.AreEqual(0, assignments[0].Conditions.Count);
+            Assert.AreEqual("_customerRepository", assignments[0].Reference.InstanceReference.ToString());
+            Assert.AreEqual("customers", assignments[0].Reference.ToString());
+            Assert.AreEqual("x => x.Age == age", assignments[0].Reference.Query.ToString());
         }
 
         [Test]
