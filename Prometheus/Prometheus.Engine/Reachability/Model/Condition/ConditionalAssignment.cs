@@ -6,18 +6,18 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace Prometheus.Engine.ReachabilityProver.Model
 {
     /// <summary>
-    /// Holds the conditional assignment for a given reference.
+    /// Holds the conditional assignment for a given reference "left = right" expression.
     /// </summary>
     public class ConditionalAssignment {
         //TODO: split to members
         public HashSet<Condition> Conditions { get; set; }
-        public Reference Reference { get; set; }
-        public Location AssignmentLocation { get; set; }
+        public Reference LeftReference { get; set; }
+        public Reference RightReference { get; set; }
 
         public ConditionalAssignment()
         {
             Conditions = new HashSet<Condition>();
-            Reference = new Reference();
+            RightReference = new Reference();
         }
 
         public void AddCondition(IfStatementSyntax ifStatement, bool isNegated)
@@ -29,8 +29,8 @@ namespace Prometheus.Engine.ReachabilityProver.Model
         {
             return new ConditionalAssignment
             {
-                Reference = {Token = Reference.Token, Node = Reference.Node},
-                AssignmentLocation = AssignmentLocation,
+                RightReference = {Token = RightReference.Token, Node = RightReference.Node},
+                LeftReference = LeftReference,
                 Conditions = new HashSet<Condition>(Conditions.Select(x=>x))
             };
         }

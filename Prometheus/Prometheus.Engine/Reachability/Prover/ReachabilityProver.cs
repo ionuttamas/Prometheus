@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using Prometheus.Engine.ConditionProver;
 using Prometheus.Engine.Reachability.Tracker;
-using Prometheus.Engine.ReachabilityProver;
 using Prometheus.Engine.ReachabilityProver.Model;
 
 namespace Prometheus.Engine.Reachability.Prover
@@ -31,14 +30,14 @@ namespace Prometheus.Engine.Reachability.Prover
         {
             var firstAssignment = new ConditionalAssignment
             {
-                AssignmentLocation = first.GetLocation(),
-                Reference = first
+                LeftReference = first,
+                RightReference = first
             };
 
             var secondAssignment = new ConditionalAssignment
             {
-                Reference = second,
-                AssignmentLocation = second.GetLocation()
+                RightReference = second,
+                LeftReference = second
             };
             return InternalHaveCommonReference(firstAssignment, secondAssignment, out commonNode);
         }
@@ -51,31 +50,31 @@ namespace Prometheus.Engine.Reachability.Prover
         {
             commonReference = null;
 
-            if (reachabilityCache.Contains(first.AssignmentLocation, second.AssignmentLocation))
+            if (reachabilityCache.Contains(first.LeftReference, second.LeftReference))
             {
-                commonReference = reachabilityCache.GetFromCache(first.AssignmentLocation, second.AssignmentLocation);
+                commonReference = reachabilityCache.GetFromCache(first.LeftReference, second.LeftReference);
                 return commonReference!=null && conditionProver.IsSatisfiable(first, second);
             }
 
             if (!conditionProver.IsSatisfiable(first, second))
             {
-                reachabilityCache.AddToCache(first.AssignmentLocation, second.AssignmentLocation, null);
+                reachabilityCache.AddToCache(first.LeftReference, second.LeftReference, null);
                 return false;
             }
 
             if (AreEquivalent(first, second))
             {
-                commonReference = first.Reference;
-                reachabilityCache.AddToCache(first.AssignmentLocation, second.AssignmentLocation, commonReference);
+                commonReference = first.RightReference;
+                reachabilityCache.AddToCache(first.LeftReference, second.LeftReference, commonReference);
                 return true;
             }
 
-            List<ConditionalAssignment> firstAssignments = referenceTracker.GetAssignments(first.Reference.Node?.DescendantTokens().First() ?? first.Reference.Token);
-            List<ConditionalAssignment> secondAssignments = referenceTracker.GetAssignments(second.Reference.Node?.DescendantTokens().First() ?? second.Reference.Token);
+            List<ConditionalAssignment> firstAssignments = referenceTracker.GetAssignments(first.RightReference.Node?.DescendantTokens().First() ?? first.RightReference.Token);
+            List<ConditionalAssignment> secondAssignments = referenceTracker.GetAssignments(second.RightReference.Node?.DescendantTokens().First() ?? second.RightReference.Token);
 
             if (!firstAssignments.Any() && !secondAssignments.Any())
             {
-                reachabilityCache.AddToCache(first.AssignmentLocation, second.AssignmentLocation, null);
+                reachabilityCache.AddToCache(first.LeftReference, second.LeftReference, null);
                 return false;
             }
 
@@ -111,10 +110,10 @@ namespace Prometheus.Engine.Reachability.Prover
         /// </summary>
         private static bool AreEquivalent(ConditionalAssignment first, ConditionalAssignment second)
         {
-            var firstReferenceName = first.Reference.ToString();
-            var secondReferenceName = second.Reference.ToString();
-            var firstLocation = first.Reference.GetLocation();
-            var secondLocation = second.Reference.GetLocation();
+            var firstReferenceName = first.RightReference.ToString();
+            var secondReferenceName = second.RightReference.ToString();
+            var firstLocation = first.RightReference.GetLocation();
+            var secondLocation = second.RightReference.GetLocation();
 
             if (firstReferenceName != secondReferenceName)
                 return false;

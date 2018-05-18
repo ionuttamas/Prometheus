@@ -1,20 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
-using Microsoft.CodeAnalysis;
 using Prometheus.Engine.ReachabilityProver.Model;
 
-namespace Prometheus.Engine.ReachabilityProver
+namespace Prometheus.Engine.Reachability.Prover
 {
     internal class ReachabilityCache
     {
-        private readonly Dictionary<Location, Dictionary<Location, Reference>> reachabilityCache;
+        private readonly Dictionary<Reference, Dictionary<Reference, Reference>> reachabilityCache;
 
         public ReachabilityCache()
         {
-            reachabilityCache = new Dictionary<Location, Dictionary<Location, Reference>>();
+            reachabilityCache = new Dictionary<Reference, Dictionary<Reference, Reference>>();
         }
 
-        public void AddToCache(Location first, Location second, Reference commonReference)
+        public void AddToCache(Reference first, Reference second, Reference commonReference)
         {
             if (reachabilityCache.ContainsKey(first))
             {
@@ -28,10 +27,10 @@ namespace Prometheus.Engine.ReachabilityProver
                 return;
             }
 
-            reachabilityCache[first] = new Dictionary<Location, Reference> { [second] = commonReference };
+            reachabilityCache[first] = new Dictionary<Reference, Reference> { [second] = commonReference };
         }
 
-        public bool Contains(Location first, Location second)
+        public bool Contains(Reference first, Reference second)
         {
             if (reachabilityCache.ContainsKey(first) && reachabilityCache[first].ContainsKey(second))
             {
@@ -46,7 +45,7 @@ namespace Prometheus.Engine.ReachabilityProver
             return false;
         }
 
-        public Reference GetFromCache(Location first, Location second)
+        public Reference GetFromCache(Reference first, Reference second)
         {
             if (reachabilityCache.ContainsKey(first) && reachabilityCache[first].ContainsKey(second))
             {

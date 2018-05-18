@@ -10,6 +10,7 @@ namespace Prometheus.Engine.Reachability.Tracker
     internal class ReferenceParser : IReferenceParser
     {
         private const string FIRST_TOKEN = "First";
+        private const string FIRST_OR_DEFAULT_TOKEN = "FirstOrDefault";
         private const string WHERE_TOKEN = "Where";
 
         public Reference Parse(SyntaxNode node)
@@ -48,25 +49,58 @@ namespace Prometheus.Engine.Reachability.Tracker
 
         private Reference ParseLambdaExpression(InvocationExpressionSyntax node)
         {
-            var referenceNode = node.DescendantNodes<IdentifierNameSyntax>().First();
-            var memberExpression = node.Expression.As<MemberAccessExpressionSyntax>();
-            var expressionIdentifier = memberExpression.Name;
-            var query = node.ArgumentList.Arguments[0].Expression.As<SimpleLambdaExpressionSyntax>();
+            var nodeText = node.ToString();
 
-            if (expressionIdentifier.Identifier.Text == FIRST_TOKEN)
-            {
-                return new Reference(referenceNode) {
-                    Query = new FirstExpressionQuery(query)
-                };
-            }
+            if (nodeText.Contains(WHERE_TOKEN))
+                return ParseWhereExpression(node);
 
-            if (expressionIdentifier.Identifier.Text == WHERE_TOKEN) {
-                return new Reference(referenceNode) {
-                    Query = new WhereExpressionQuery(query)
-                };
-            }
+            if (nodeText.Contains(FIRST_TOKEN) || nodeText.Contains(FIRST_OR_DEFAULT_TOKEN))
+                return ParseFirstExpression(node);
 
             throw new NotSupportedException($"Only {FIRST_TOKEN} and {WHERE_TOKEN} lambda expressions are supported");
+        }
+
+        private static Reference ParseFirstExpression(InvocationExpressionSyntax node)
+        {
+            var referenceNode = node.DescendantNodes<IdentifierNameSyntax>().First();
+            var expressionIdentifier = node
+                .Expression.As<MemberAccessExpressionSyntax>()
+                .Name.Identifier.Text;
+
+            if (expressionIdentifier != FIRST_TOKEN && expressionIdentifier != FIRST_OR_DEFAULT_TOKEN)
+                throw new NotSupportedException(
+                    "Only instance.First() or instance.FirstOrDefault() expressions with one call level are allowed");
+
+            var query = node
+                .ArgumentList.Arguments[0]
+                .Expression.As<SimpleLambdaExpressionSyntax>();
+            return new Reference(referenceNode)
+            {
+                Query = new FirstExpressionQuery(query)
+            };
+        }
+
+        private static Reference ParseWhereExpression(InvocationExpressionSyntax node)
+        {
+            var referenceNode = node.DescendantNodes<IdentifierNameSyntax>().First();
+            var expressionIdentifier = node
+                .Expression.As<MemberAccessExpressionSyntax>()
+                .Expression.As<InvocationExpressionSyntax>()
+                .Expression.As<MemberAccessExpressionSyntax>()
+                .Name.Identifier.Text;
+
+            if (expressionIdentifier != WHERE_TOKEN)
+                throw new NotSupportedException("Only instance.Where() expressions with one call level are allowed");
+
+            var query = node
+                .Expression.As<MemberAccessExpressionSyntax>()
+                .Expression.As<InvocationExpressionSyntax>()
+                .ArgumentList.Arguments[0]
+                .Expression.As<SimpleLambdaExpressionSyntax>();
+            return new Reference(referenceNode)
+            {
+                Query = new WhereExpressionQuery(query)
+            };
         }
     }
 }

@@ -3,7 +3,6 @@ using Microsoft.CodeAnalysis;
 using NUnit.Framework;
 using Prometheus.Common;
 using Prometheus.Engine.Reachability.Tracker;
-using Prometheus.Engine.ReachabilityProver;
 using Prometheus.Engine.Thread;
 using Prometheus.Engine.Types;
 using TestProject.Services;
@@ -44,14 +43,14 @@ namespace Prometheus.Engine.UnitTests
             Assert.True(assignments.Count == 2);
 
             Assert.AreEqual(0, assignments[0].Conditions.Count);
-            Assert.AreEqual("_customerRepository", assignments[0].Reference.InstanceReference.ToString());
-            Assert.AreEqual("customers", assignments[0].Reference.ToString());
-            Assert.AreEqual("x", assignments[0].Reference.Query.ToString());
+            Assert.AreEqual("_customerRepository", assignments[0].RightReference.InstanceReference.ToString());
+            Assert.AreEqual("customers", assignments[0].RightReference.ToString());
+            Assert.AreEqual("x", assignments[0].RightReference.Query.ToString());
 
             Assert.AreEqual(0, assignments[1].Conditions.Count);
-            Assert.AreEqual("_customerRepository", assignments[1].Reference.InstanceReference.ToString());
-            Assert.AreEqual("customers", assignments[1].Reference.ToString());
-            Assert.AreEqual("x + y", assignments[1].Reference.Query.ToString());
+            Assert.AreEqual("_customerRepository", assignments[1].RightReference.InstanceReference.ToString());
+            Assert.AreEqual("customers", assignments[1].RightReference.ToString());
+            Assert.AreEqual("x + y", assignments[1].RightReference.Query.ToString());
         }
 
         [Test]
@@ -63,9 +62,9 @@ namespace Prometheus.Engine.UnitTests
 
             Assert.True(assignments.Count == 1);
             Assert.AreEqual(0, assignments[0].Conditions.Count);
-            Assert.AreEqual("_customerRepository", assignments[0].Reference.InstanceReference.ToString());
-            Assert.AreEqual("customers", assignments[0].Reference.ToString());
-            Assert.AreEqual("x => x.AccountBalance == accountBalance", assignments[0].Reference.Query.ToString());
+            Assert.AreEqual("_customerRepository", assignments[0].RightReference.InstanceReference.ToString());
+            Assert.AreEqual("customers", assignments[0].RightReference.ToString());
+            Assert.AreEqual("x => x.AccountBalance == accountBalance", assignments[0].RightReference.Query.ToString());
         }
 
         [Test]
@@ -77,9 +76,9 @@ namespace Prometheus.Engine.UnitTests
 
             Assert.True(assignments.Count == 1);
             Assert.AreEqual(0, assignments[0].Conditions.Count);
-            Assert.AreEqual("_customerRepository", assignments[0].Reference.InstanceReference.ToString());
-            Assert.AreEqual("customers", assignments[0].Reference.ToString());
-            Assert.AreEqual("x => x.Age == age", assignments[0].Reference.Query.ToString());
+            Assert.AreEqual("_customerRepository", assignments[0].RightReference.InstanceReference.ToString());
+            Assert.AreEqual("customers", assignments[0].RightReference.ToString());
+            Assert.AreEqual("x => x.Age == age", assignments[0].RightReference.Query.ToString());
         }
 
         [Test]
@@ -92,7 +91,7 @@ namespace Prometheus.Engine.UnitTests
 
             Assert.AreEqual(1, assignments.Count);
             Assert.AreEqual(0, assignments[0].Conditions.Count);
-            Assert.AreEqual("sharedCustomer", assignments[0].Reference.ToString());
+            Assert.AreEqual("sharedCustomer", assignments[0].RightReference.ToString());
         }
 
         [Test]

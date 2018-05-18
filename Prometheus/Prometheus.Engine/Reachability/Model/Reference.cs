@@ -57,5 +57,19 @@ namespace Prometheus.Engine.ReachabilityProver.Model
         {
             return Node != null ? Node.ToString() : Token.ToString();
         }
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null || GetType() != obj.GetType())
+                return false;
+
+            Reference instance = (Reference)obj;
+
+            return instance.GetLocation() == GetLocation();
+        }
+
+        public override int GetHashCode() {
+            return GetLocation().GetHashCode();
+        }
     }
 }

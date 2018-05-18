@@ -74,7 +74,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
             if (matchingField != null)
             {
                 return GetConstructorAssignments(identifier, classDeclaration)
-                    .Where(x => x.Reference.Node == null || x.Reference.Node.Kind() == SyntaxKind.IdentifierName)
+                    .Where(x => x.RightReference.Node == null || x.RightReference.Node.Kind() == SyntaxKind.IdentifierName)
                     .ToList();
             }
 
@@ -87,11 +87,11 @@ namespace Prometheus.Engine.Reachability.Tracker {
             // Exclude all except reference names; method calls "a = GetReference(c, d)" are not supported at the moment TODO: double check here
             //TODO: currently we support only one level method call assigment: "a = instance.Get(..);"
             result = result
-                .Where(x => x.Reference.Node == null || (x.Reference.Node.Kind() == SyntaxKind.InvocationExpression ||
-                                                         x.Reference.Node.Kind() == SyntaxKind.ElementAccessExpression ||
-                                                         x.Reference.Node.Kind() == SyntaxKind.IdentifierName ||
-                                                         x.Reference.Node.Kind() == SyntaxKind.VariableDeclarator ||
-                                                         x.Reference.Node.Kind() == SyntaxKind.Argument))
+                .Where(x => x.RightReference.Node == null || (x.RightReference.Node.Kind() == SyntaxKind.InvocationExpression ||
+                                                         x.RightReference.Node.Kind() == SyntaxKind.ElementAccessExpression ||
+                                                         x.RightReference.Node.Kind() == SyntaxKind.IdentifierName ||
+                                                         x.RightReference.Node.Kind() == SyntaxKind.VariableDeclarator ||
+                                                         x.RightReference.Node.Kind() == SyntaxKind.Argument))
                 .ToList();
 
             return result;
@@ -175,12 +175,12 @@ namespace Prometheus.Engine.Reachability.Tracker {
 
             if (argument is InvocationExpressionSyntax)
             {
-                return ProcessMethodInvocationAssigment(argument.As<InvocationExpressionSyntax>());
+                return ProcessMethodInvocationAssigment(bindingNode, argument.As<InvocationExpressionSyntax>());
             }
 
             var conditionalAssignment = new ConditionalAssignment {
-                Reference = {Node = argument},
-                AssignmentLocation = bindingNode.GetLocation()
+                RightReference = {Node = argument},
+                LeftReference = new Reference(bindingNode)
             };
             SyntaxNode currentNode = bindingNode;
             var classDeclaration = argument.FirstAncestorOrSelf<ClassDeclarationSyntax>();
@@ -190,7 +190,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
 
             if (matchingField != null) {
                 //If the assignment is a shared class field/property, we overwrite the reference; otherwise we track its assignments
-                conditionalAssignment.Reference.Node = matchingField.Declaration.Variables[0];
+                conditionalAssignment.RightReference.Node = matchingField.Declaration.Variables[0];
             }
 
             var ifElseConditions = ExtractIfElseConditions(currentNode);
@@ -199,7 +199,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
             return new List<ConditionalAssignment>{ conditionalAssignment };
         }
 
-        private List<ConditionalAssignment> ProcessMethodInvocationAssigment(InvocationExpressionSyntax invocationExpression) {
+        private List<ConditionalAssignment> ProcessMethodInvocationAssigment(SyntaxNode bindingNode, InvocationExpressionSyntax invocationExpression) {
             var memberAccess = invocationExpression.Expression.As<MemberAccessExpressionSyntax>();
             var instanceExpression = memberAccess.Expression.As<IdentifierNameSyntax>();
             var methodName = memberAccess.Name.Identifier.Text;
@@ -221,14 +221,14 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 .Where(x => x.Expression.Kind()!=SyntaxKind.ObjectCreationExpression) //TODO: are we interested in "return new X()"?
                 .Select(x =>
                 {
-                    var reference = referenceParser.Parse(x.Expression);
-                    reference.InstanceReference = instanceExpression;
+                    var returnReference = referenceParser.Parse(x.Expression);
+                    returnReference.InstanceReference = instanceExpression;
 
                     return new ConditionalAssignment
                     {
-                        Reference = reference,
+                        RightReference = returnReference,
                         Conditions = conditions,
-                        AssignmentLocation = invocationExpression.GetLocation()
+                        LeftReference = new Reference(bindingNode)
                     };
                 })
                 .ToList();
