@@ -13,7 +13,7 @@ namespace Prometheus.Engine.Reachability.Tracker
         private const string FIRST_OR_DEFAULT_TOKEN = "FirstOrDefault";
         private const string WHERE_TOKEN = "Where";
 
-        public Reference Parse(SyntaxNode node)
+        public (Reference, IReferenceQuery) Parse(SyntaxNode node)
         {
             if (node is ReturnStatementSyntax)
                 return InternalParse(node.As<ReturnStatementSyntax>().Expression);
@@ -21,33 +21,32 @@ namespace Prometheus.Engine.Reachability.Tracker
             return InternalParse(node);
         }
 
-        private Reference InternalParse(SyntaxNode node)
+        private (Reference, IReferenceQuery) InternalParse(SyntaxNode node)
         {
             if (node is IdentifierNameSyntax)
-                return new Reference(node);
+                return (new Reference(node), null);
 
             if (node is ElementAccessExpressionSyntax)
                 return ParseElementAccessExpression(node.As<ElementAccessExpressionSyntax>());
 
-            //todo: discern between various invocations: now only supporting reference = instance.First/Where/FirstOrDefault
+            //todo: discern between various invocations: now only supporting "reference = instance.First/Where/FirstOrDefault"
             if (node is InvocationExpressionSyntax)
                 return ParseLambdaExpression(node.As<InvocationExpressionSyntax>());
 
             throw new NotSupportedException($"Only {nameof(IndexArgumentQuery)}, {nameof(FirstExpressionQuery)} and {nameof(WhereExpressionQuery)} reference queries are supported");
         }
 
-        private Reference ParseElementAccessExpression(ElementAccessExpressionSyntax node)
+        private (Reference, IReferenceQuery) ParseElementAccessExpression(ElementAccessExpressionSyntax node)
         {
             var elementAccessExpression = node.As<ElementAccessExpressionSyntax>();
             var referenceNode = elementAccessExpression.Expression.As<IdentifierNameSyntax>();
             var query = elementAccessExpression.ArgumentList.Arguments[0];
 
-            return new Reference(referenceNode) {
-                Query = new IndexArgumentQuery(query)
-            };
+
+            return (new Reference(referenceNode), new IndexArgumentQuery(query));
         }
 
-        private Reference ParseLambdaExpression(InvocationExpressionSyntax node)
+        private (Reference, IReferenceQuery) ParseLambdaExpression(InvocationExpressionSyntax node)
         {
             var nodeText = node.ToString();
 
@@ -60,7 +59,7 @@ namespace Prometheus.Engine.Reachability.Tracker
             throw new NotSupportedException($"Only {FIRST_TOKEN} and {WHERE_TOKEN} lambda expressions are supported");
         }
 
-        private static Reference ParseFirstExpression(InvocationExpressionSyntax node)
+        private static (Reference, IReferenceQuery) ParseFirstExpression(InvocationExpressionSyntax node)
         {
             var referenceNode = node.DescendantNodes<IdentifierNameSyntax>().First();
             var expressionIdentifier = node
@@ -74,13 +73,11 @@ namespace Prometheus.Engine.Reachability.Tracker
             var query = node
                 .ArgumentList.Arguments[0]
                 .Expression.As<SimpleLambdaExpressionSyntax>();
-            return new Reference(referenceNode)
-            {
-                Query = new FirstExpressionQuery(query)
-            };
+
+            return (new Reference(referenceNode), new FirstExpressionQuery(query));
         }
 
-        private static Reference ParseWhereExpression(InvocationExpressionSyntax node)
+        private static (Reference, IReferenceQuery) ParseWhereExpression(InvocationExpressionSyntax node)
         {
             var referenceNode = node.DescendantNodes<IdentifierNameSyntax>().First();
             var expressionIdentifier = node
@@ -97,10 +94,8 @@ namespace Prometheus.Engine.Reachability.Tracker
                 .Expression.As<InvocationExpressionSyntax>()
                 .ArgumentList.Arguments[0]
                 .Expression.As<SimpleLambdaExpressionSyntax>();
-            return new Reference(referenceNode)
-            {
-                Query = new WhereExpressionQuery(query)
-            };
+
+            return (new Reference(referenceNode), new WhereExpressionQuery(query));
         }
     }
 }

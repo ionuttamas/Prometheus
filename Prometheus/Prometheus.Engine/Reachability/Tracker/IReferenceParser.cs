@@ -5,6 +5,6 @@ namespace Prometheus.Engine.Reachability.Tracker
 {
     public interface IReferenceParser
     {
-        Reference Parse(SyntaxNode node);
+        (Reference, IReferenceQuery) Parse(SyntaxNode node);
     }
 }

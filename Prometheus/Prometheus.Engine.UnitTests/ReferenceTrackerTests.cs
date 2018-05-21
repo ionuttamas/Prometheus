@@ -43,16 +43,16 @@ namespace Prometheus.Engine.UnitTests
             Assert.True(assignments.Count == 2);
 
             Assert.AreEqual(0, assignments[0].Conditions.Count);
-            Assert.AreEqual("_customerRepository", assignments[0].RightReference.CallContext.InstanceReference.ToString());
-            Assert.AreEqual(2, assignments[0].RightReference.CallContext.ArgumentsTable.Count);
+            Assert.AreEqual("_customerRepository", assignments[0].RightReference.MethodCalls.Peek().CallContext.InstanceReference.ToString());
+            Assert.AreEqual(2, assignments[0].RightReference.MethodCalls.Peek().CallContext.ArgumentsTable.Count);
             Assert.AreEqual("customers", assignments[0].RightReference.ToString());
-            Assert.AreEqual("x", assignments[0].RightReference.Query.ToString());
+            Assert.AreEqual("x", assignments[0].RightReference.MethodCalls.Peek().Query.ToString());
 
             Assert.AreEqual(0, assignments[1].Conditions.Count);
-            Assert.AreEqual("_customerRepository", assignments[1].RightReference.CallContext.InstanceReference.ToString());
-            Assert.AreEqual(2, assignments[1].RightReference.CallContext.ArgumentsTable.Count);
+            Assert.AreEqual("_customerRepository", assignments[1].RightReference.MethodCalls.Peek().CallContext.InstanceReference.ToString());
+            Assert.AreEqual(2, assignments[1].RightReference.MethodCalls.Peek().CallContext.ArgumentsTable.Count);
             Assert.AreEqual("customers", assignments[1].RightReference.ToString());
-            Assert.AreEqual("x + y", assignments[1].RightReference.Query.ToString());
+            Assert.AreEqual("x + y", assignments[1].RightReference.MethodCalls.Peek().Query.ToString());
         }
 
         [Test]
@@ -64,10 +64,10 @@ namespace Prometheus.Engine.UnitTests
 
             Assert.True(assignments.Count == 1);
             Assert.AreEqual(0, assignments[0].Conditions.Count);
-            Assert.AreEqual("_customerRepository", assignments[0].RightReference.CallContext.InstanceReference.ToString());
-            Assert.AreEqual(1, assignments[0].RightReference.CallContext.ArgumentsTable.Count);
+            Assert.AreEqual("_customerRepository", assignments[0].RightReference.MethodCalls.Peek().CallContext.InstanceReference.ToString());
+            Assert.AreEqual(1, assignments[0].RightReference.MethodCalls.Peek().CallContext.ArgumentsTable.Count);
             Assert.AreEqual("customers", assignments[0].RightReference.ToString());
-            Assert.AreEqual("x => x.AccountBalance == accountBalance", assignments[0].RightReference.Query.ToString());
+            Assert.AreEqual("x => x.AccountBalance == accountBalance", assignments[0].RightReference.MethodCalls.Peek().Query.ToString());
         }
 
         [Test]
@@ -79,10 +79,10 @@ namespace Prometheus.Engine.UnitTests
 
             Assert.True(assignments.Count == 1);
             Assert.AreEqual(0, assignments[0].Conditions.Count);
-            Assert.AreEqual("_customerRepository", assignments[0].RightReference.CallContext.InstanceReference.ToString());
-            Assert.AreEqual(1, assignments[0].RightReference.CallContext.ArgumentsTable.Count);
+            Assert.AreEqual("_customerRepository", assignments[0].RightReference.MethodCalls.Peek().CallContext.InstanceReference.ToString());
+            Assert.AreEqual(1, assignments[0].RightReference.MethodCalls.Peek().CallContext.ArgumentsTable.Count);
             Assert.AreEqual("customers", assignments[0].RightReference.ToString());
-            Assert.AreEqual("x => x.Age == age", assignments[0].RightReference.Query.ToString());
+            Assert.AreEqual("x => x.Age == age", assignments[0].RightReference.MethodCalls.Peek().Query.ToString());
         }
 
         [Test]
