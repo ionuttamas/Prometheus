@@ -201,9 +201,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
         private List<ConditionalAssignment> GetConditionalAssignments(SyntaxNode bindingNode, SyntaxNode argument) {
 
             if (argument is InvocationExpressionSyntax)
-            {
                 return ProcessMethodInvocationAssigment(bindingNode, argument.As<InvocationExpressionSyntax>());
-            }
 
             var conditionalAssignment = new ConditionalAssignment {
                 RightReference = {Node = argument},
@@ -242,13 +240,21 @@ namespace Prometheus.Engine.Reachability.Tracker {
             var method = classDeclaration
                 .DescendantNodes<MethodDeclarationSyntax>(x => x.Identifier.Text == methodName && x.ParameterList.Parameters.Count==parametersCount)
                 .First();
+            var argumentsTable = new Dictionary<ParameterSyntax, ArgumentSyntax>();
+
+            for (int i = 0; i < method.ParameterList.Parameters.Count; i++)
+            {
+                argumentsTable[method.ParameterList.Parameters[i]] = invocationExpression.ArgumentList.Arguments[i];
+            }
+
             var returnExpressions = method
                 .DescendantNodes<ReturnStatementSyntax>()
                 .Where(x => x.Expression.Kind()!=SyntaxKind.ObjectCreationExpression) //TODO: are we interested in "return new X()"?
                 .Select(x =>
                 {
                     var returnReference = referenceParser.Parse(x.Expression);
-                    returnReference.InstanceReference = instanceExpression;
+                    returnReference.CallContext.InstanceReference = instanceExpression;
+                    returnReference.CallContext.ArgumentsTable = argumentsTable;
 
                     return new ConditionalAssignment
                     {
