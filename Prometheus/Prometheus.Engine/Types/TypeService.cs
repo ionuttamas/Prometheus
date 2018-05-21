@@ -217,8 +217,7 @@ namespace Prometheus.Engine.Types
 
         private bool ProcessAssignment(MethodDeclarationSyntax containingMethod, string token, out string typeName) {
             var localDeclaration = containingMethod
-                .DescendantNodes<LocalDeclarationStatementSyntax>()
-                .FirstOrDefault(x => x.Declaration.Variables[0].Identifier.Text == token);
+                .FirstDescendantNode<LocalDeclarationStatementSyntax>(x => x.Declaration.Variables[0].Identifier.Text == token);
 
             if (localDeclaration == null)
             {
@@ -278,8 +277,7 @@ namespace Prometheus.Engine.Types
         {
             var classDeclaration = methodDeclaration.GetContainingClass();
             var fieldDeclaration = classDeclaration
-                .DescendantNodes<FieldDeclarationSyntax>()
-                .FirstOrDefault(x => x.Declaration.Variables[0].Identifier.Text == identifier);
+                .FirstDescendantNode<FieldDeclarationSyntax>(x => x.Declaration.Variables[0].Identifier.Text == identifier);
 
             if (fieldDeclaration != null)
             {

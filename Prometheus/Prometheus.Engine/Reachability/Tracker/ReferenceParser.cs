@@ -29,7 +29,7 @@ namespace Prometheus.Engine.Reachability.Tracker
             if (node is ElementAccessExpressionSyntax)
                 return ParseElementAccessExpression(node.As<ElementAccessExpressionSyntax>());
 
-            //todo: discern between various invocations
+            //todo: discern between various invocations: now only supporting reference = instance.First/Where/FirstOrDefault
             if (node is InvocationExpressionSyntax)
                 return ParseLambdaExpression(node.As<InvocationExpressionSyntax>());
 

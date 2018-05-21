@@ -68,8 +68,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
             var method = identifier.GetLocation().GetContainingMethod();
             var classDeclaration = method.FirstAncestorOrSelf<ClassDeclarationSyntax>();
             var matchingField = classDeclaration
-                .DescendantNodes<FieldDeclarationSyntax>()
-                .FirstOrDefault(x => x.Declaration.Variables.Any(v => v.Identifier.Text == identifierName));
+                .FirstDescendantNode<FieldDeclarationSyntax>(x => x.Declaration.Variables.Any(v => v.Identifier.Text == identifierName));
 
             if (matchingField != null)
             {
@@ -127,16 +126,44 @@ namespace Prometheus.Engine.Reachability.Tracker {
         /// <returns></returns>
         private List<ConditionalAssignment> GetConstructorAssignments(SyntaxToken identifier, ClassDeclarationSyntax classDeclaration)
         {
-            //TODO: we need to track exactly how the field gets initialized in the constructor; for now we enforce an argument with the same name in the constructor
             //TODO: we dont't know if the field was reasigned in another place (other than the constructor) before assigned to the field
-            var constructorParameterIndex = identifier
+            var constructorDeclaration = identifier
                 .GetLocation()
-                .GetContainingConstructor()
+                .GetContainingConstructor();
+
+            string parameterIdentifier;
+
+            var thisAssignment = constructorDeclaration
+                .DescendantNodes<AssignmentExpressionSyntax>(x => x.Left is MemberAccessExpressionSyntax &&
+                                                                  x.Left.As<MemberAccessExpressionSyntax>()
+                                                                   .Expression is ThisExpressionSyntax)
+                .FirstOrDefault(x => x.Left.As<MemberAccessExpressionSyntax>().Name.Identifier.Text == identifier.Text);
+            var normalAssignment = constructorDeclaration
+                .DescendantNodes<AssignmentExpressionSyntax>(x => x.Left is IdentifierNameSyntax)
+                .FirstOrDefault(x => x.Left.As<IdentifierNameSyntax>().Identifier.Text == identifier.Text);
+
+            if (thisAssignment != null)
+            {
+                parameterIdentifier = thisAssignment.Right.As<IdentifierNameSyntax>().Identifier.Text;
+            }
+            else if (normalAssignment != null)
+            {
+                parameterIdentifier = normalAssignment.Right.As<IdentifierNameSyntax>().Identifier.Text;
+            }
+            else
+            {
+                throw new NotSupportedException(
+                    "Only direct assignments to IdentifierNameSyntax are currently allowed for fields");
+            }
+
+            var constructorParameterIndex = constructorDeclaration
                 .ParameterList
                 .Parameters
-                .IndexOf(x => x.Identifier.Text == identifier.ToString());
+                .IndexOf(x => x.Identifier.Text == parameterIdentifier);
+
             var constructorAssignments = FindObjectCreations(classDeclaration)
-                .Where(x => {
+                .Where(x =>
+                {
                     var threadPath = threadSchedule.GetThreadPath(solution, x.GetLocation());
                     return threadPath != null && threadPath.Invocations.Any();
                 })
@@ -185,8 +212,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
             SyntaxNode currentNode = bindingNode;
             var classDeclaration = argument.FirstAncestorOrSelf<ClassDeclarationSyntax>();
             var matchingField = classDeclaration
-                .DescendantNodes<FieldDeclarationSyntax>()
-                .FirstOrDefault(x => x.Declaration.Variables.Any(v => v.Identifier.Text == argument.ToString()));
+                .FirstDescendantNode<FieldDeclarationSyntax>(x => x.Declaration.Variables.Any(v => v.Identifier.Text == argument.ToString()));
 
             if (matchingField != null) {
                 //If the assignment is a shared class field/property, we overwrite the reference; otherwise we track its assignments
