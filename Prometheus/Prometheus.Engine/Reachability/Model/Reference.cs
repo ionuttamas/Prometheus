@@ -85,5 +85,10 @@ namespace Prometheus.Engine.ReachabilityProver.Model
         /// the ArgumentsTable = {(a, x), (b, y)}.
         /// </summary>
         public Dictionary<ParameterSyntax, ArgumentSyntax> ArgumentsTable { get; set; }
+        /// <summary>
+        /// The invocation expression for the assignment.
+        /// E.g. for "reference = instance.Get(x, y)" => "instance.Get(x, y)" will be the invocation expression.
+        /// </summary>
+        public InvocationExpressionSyntax InvocationExpression { get; set; }
     }
 }

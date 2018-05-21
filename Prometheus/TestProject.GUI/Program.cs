@@ -17,6 +17,7 @@ namespace TestProject.GUI {
         private static DeadlockedQueue<int> deadlockedQueue;
         private static Customer sharedCustomer;
         private static CustomerRepository customerRepository;
+        private static List<Customer> customers;
 
         static void Main(string[] args)
         {
@@ -25,6 +26,7 @@ namespace TestProject.GUI {
             var orderProcessor = new OrderProcessor(queue, 10);
             var thread = new Thread(Do);
             var transferService = new TransferService();
+            customerRepository = new CustomerRepository(customers);
 
             var transferService1 = new TransferService1(customerRepository);
             transferService1.MethodAssignment_IfTransfer(sharedCustomer, null, 100);

@@ -1,5 +1,4 @@
 ﻿using System;
-using Prometheus.Engine.ReachabilityProver;
 using Prometheus.Engine.ReachabilityProver.Model;
 
 namespace Prometheus.Engine.ConditionProver {
