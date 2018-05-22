@@ -73,8 +73,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
             var identifierName = identifier.ToString();
             var method = identifier.GetLocation().GetContainingMethod();
             var classDeclaration = method.FirstAncestorOrSelf<ClassDeclarationSyntax>();
-            var matchingField = classDeclaration
-                .FirstDescendantNode<FieldDeclarationSyntax>(x => x.Declaration.Variables.Any(v => v.Identifier.Text == identifierName));
+            var matchingField = classDeclaration.FirstDescendantNode<FieldDeclarationSyntax>(x => x.Declaration.Variables.Any(v => v.Identifier.Text == identifierName));
 
             if (matchingField != null)
             {
@@ -179,7 +178,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 })
                 .Where(x =>
                 {
-                    if (methodCalls == null)
+                    if (methodCalls == null || methodCalls.Count==0)
                         return true;
 
                     if(!(x.Parent is AssignmentExpressionSyntax))

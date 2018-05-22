@@ -19,6 +19,7 @@ namespace Prometheus.Engine.Reachability.Prover
             this.conditionProver = conditionProver;
             reachabilityCache = new ReachabilityCache();
             conditionProver.Configure(HaveCommonReference);
+            referenceTracker.Configure(HaveCommonReference);
         }
 
         /// <summary>
@@ -39,10 +40,12 @@ namespace Prometheus.Engine.Reachability.Prover
                 RightReference = second,
                 LeftReference = second
             };
+
             return InternalHaveCommonReference(firstAssignment, secondAssignment, out commonNode);
         }
 
-        public void Dispose() {
+        public void Dispose()
+        {
             conditionProver.Dispose();
         }
 
@@ -53,7 +56,7 @@ namespace Prometheus.Engine.Reachability.Prover
             if (reachabilityCache.Contains(first.LeftReference, second.LeftReference))
             {
                 commonReference = reachabilityCache.GetFromCache(first.LeftReference, second.LeftReference);
-                return commonReference!=null && conditionProver.IsSatisfiable(first, second);
+                return commonReference != null && conditionProver.IsSatisfiable(first, second);
             }
 
             if (!conditionProver.IsSatisfiable(first, second))
@@ -62,15 +65,15 @@ namespace Prometheus.Engine.Reachability.Prover
                 return false;
             }
 
-            if (AreEquivalent(first, second))
+            if (AreEquivalent(first.RightReference, second.RightReference))
             {
                 commonReference = first.RightReference;
                 reachabilityCache.AddToCache(first.LeftReference, second.LeftReference, commonReference);
                 return true;
             }
 
-            List<ConditionalAssignment> firstAssignments = referenceTracker.GetAssignments(first.RightReference.Node?.DescendantTokens().First() ?? first.RightReference.Token);
-            List<ConditionalAssignment> secondAssignments = referenceTracker.GetAssignments(second.RightReference.Node?.DescendantTokens().First() ?? second.RightReference.Token);
+            var firstAssignments = referenceTracker.GetAssignments(first.RightReference.Node?.DescendantTokens().First() ?? first.RightReference.Token, first.RightReference.MethodCalls);
+            var secondAssignments = referenceTracker.GetAssignments(second.RightReference.Node?.DescendantTokens().First() ?? second.RightReference.Token, second.RightReference.MethodCalls);
 
             if (!firstAssignments.Any() && !secondAssignments.Any())
             {
@@ -108,18 +111,22 @@ namespace Prometheus.Engine.Reachability.Prover
         /// This can be a class field/property used by both thread functions or parameters passed to threads that are the same
         /// TODO: currently this checks only for field equivalence
         /// </summary>
-        private static bool AreEquivalent(ConditionalAssignment first, ConditionalAssignment second)
+        private static bool AreEquivalent(Reference first, Reference second)
         {
-            var firstReferenceName = first.RightReference.ToString();
-            var secondReferenceName = second.RightReference.ToString();
-            var firstLocation = first.RightReference.GetLocation();
-            var secondLocation = second.RightReference.GetLocation();
+            var firstReferenceName = first.ToString();
+            var secondReferenceName = second.ToString();
+            var firstLocation = first.GetLocation();
+            var secondLocation = second.GetLocation();
 
             if (firstReferenceName != secondReferenceName)
                 return false;
 
-            return firstLocation == secondLocation;
+            if (firstLocation == secondLocation)
+                return false;
+
+            //TODO: compare queries...
         }
+
 
     }
 }

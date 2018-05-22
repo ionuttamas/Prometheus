@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Prometheus.Engine.ReachabilityProver.Model
@@ -9,7 +8,6 @@ namespace Prometheus.Engine.ReachabilityProver.Model
     /// Holds the conditional assignment for a given reference "left = right" expression.
     /// </summary>
     public class ConditionalAssignment {
-        //TODO: split to members
         public HashSet<Condition> Conditions { get; set; }
         public Reference LeftReference { get; set; }
         public Reference RightReference { get; set; }
