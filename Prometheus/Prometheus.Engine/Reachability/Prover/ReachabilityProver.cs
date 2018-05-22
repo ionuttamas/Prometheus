@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Prometheus.Engine.ConditionProver;
@@ -113,20 +113,39 @@ namespace Prometheus.Engine.Reachability.Prover
         /// </summary>
         private static bool AreEquivalent(Reference first, Reference second)
         {
-            var firstReferenceName = first.ToString();
-            var secondReferenceName = second.ToString();
-            var firstLocation = first.GetLocation();
-            var secondLocation = second.GetLocation();
-
-            if (firstReferenceName != secondReferenceName)
+            if (first.ToString() != second.ToString())
                 return false;
 
-            if (firstLocation == secondLocation)
+            if (first.GetLocation() == second.GetLocation())
                 return false;
+
+            /* Currently, we perform a strict equivalence testing for the reference query stack:
+               e.g. for:
+                    first.MethodCalls = { [a], Where(x => x.Member == capturedValue1), [b] }
+                    second.MethodCalls = { [c], Where(x => x.Member == capturedValue2), [d] }
+               we enforce that a ≡ c, capturedValue1 ≡ capturedValue2, b ≡ d.
+               In the future, we will support inclusion query support (one reference is included in the second).
+             */
+            if (first.MethodCalls.Count != second.MethodCalls.Count)
+                return false;
+
+
 
             //TODO: compare queries...
         }
 
+        private static bool AreMethodCallsEquivalent(MethodCall first, MethodCall second)
+        {
+            var type = first.Query.GetType();
 
+            if (type != second.Query.GetType())
+                return false;
+
+        }
+
+        private static bool AreIndexQueriesEquivalent(IndexArgumentQuery first, IndexArgumentQuery second)
+        {
+
+        }
     }
 }

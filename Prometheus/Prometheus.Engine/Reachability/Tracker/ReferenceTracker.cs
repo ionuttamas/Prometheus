@@ -118,13 +118,14 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 .Where(x => methodCalls == null || x == methodCalls.Peek().CallContext.InvocationExpression)
                 .SelectMany(x => GetConditionalAssignments(x, x.ArgumentList.Arguments[parameterIndex]))
                 .Select(x => {
-                    if (methodCalls != null) {
-                        if (x.RightReference.MethodCalls.Count != 0) {
-                            methodCalls.Push(x.RightReference.MethodCalls.Peek());
-                        }
+                    if (methodCalls == null)
+                        return x;
 
-                        x.RightReference.MethodCalls = methodCalls;
+                    if (x.RightReference.MethodCalls.Count != 0) {
+                        methodCalls.Push(x.RightReference.MethodCalls.Peek());
                     }
+
+                    x.RightReference.MethodCalls = methodCalls;
 
                     return x;
                 })
@@ -166,6 +167,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 throw new NotSupportedException($"Only direct assignments to {nameof(IdentifierNameSyntax)} are currently allowed for fields");
             }
 
+            //TODO: also check for properties/fields assigned outside of constructor "instance.Member = reference" or "instance = new Instance { Member = reference }";
             var constructorParameterIndex = constructorDeclaration
                 .ParameterList
                 .Parameters
@@ -265,6 +267,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
             var memberAccess = invocationExpression.Expression.As<MemberAccessExpressionSyntax>();
             var instanceExpression = memberAccess.Expression.As<IdentifierNameSyntax>();
             var methodName = memberAccess.Name.Identifier.Text;
+            //TODO: handle when code is outside of the current solution (3rd party code)
             var type = typeService.GetType(instanceExpression);
             var classDeclaration = typeService.GetClassDeclaration(type);
             var parametersCount = invocationExpression.ArgumentList.Arguments.Count;
