@@ -141,9 +141,10 @@ namespace Prometheus.Engine.Reachability.Prover
             if (type != second.Query.GetType())
                 return false;
 
+
         }
 
-        private static bool AreIndexQueriesEquivalent(IndexArgumentQuery first, IndexArgumentQuery second)
+        private static bool AreIndexQueriesEquivalent(MethodCall first, MethodCall second)
         {
 
         }

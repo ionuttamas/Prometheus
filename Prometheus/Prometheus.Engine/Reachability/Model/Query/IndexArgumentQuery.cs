@@ -1,4 +1,6 @@
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Prometheus.Common;
 
 namespace Prometheus.Engine.ReachabilityProver.Model
 {
@@ -16,6 +18,23 @@ namespace Prometheus.Engine.ReachabilityProver.Model
 
         public override string ToString() {
             return Argument.ToString();
+        }
+
+        public bool IsStructurallyEquivalentTo(IReferenceQuery query)
+        {
+            if (query.GetType() != typeof(IndexArgumentQuery))
+                return false;
+
+            var indexQuery = query.As<IndexArgumentQuery>();
+
+            if (Argument.Expression.Kind() == SyntaxKind.IdentifierName &&
+                indexQuery.Argument.Expression.Kind() == SyntaxKind.IdentifierName)
+                return true;
+
+
+
+
+            throw new System.NotImplementedException();
         }
     }
 }
