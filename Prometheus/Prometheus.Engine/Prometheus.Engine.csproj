@@ -185,6 +185,8 @@
   <ItemGroup>
     <Compile Include="ConditionProver\IConditionProver.cs" />
     <Compile Include="ConditionProver\Z3ConditionProver.cs" />
+    <Compile Include="ExpressionMatcher\IExpressionMatcher.cs" />
+    <Compile Include="ExpressionMatcher\Z3ExpressionMatcher.cs" />
     <Compile Include="Model\IModelStateConfigurator.cs" />
     <Compile Include="Model\NetModelStateConfigurator.cs" />
     <Compile Include="Reachability\Model\CallContext.cs" />
