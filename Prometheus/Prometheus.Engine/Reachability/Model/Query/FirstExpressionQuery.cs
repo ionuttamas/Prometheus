@@ -1,22 +1,14 @@
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Prometheus.Engine.ReachabilityProver.Model
+namespace Prometheus.Engine.Reachability.Model.Query
 {
     /// <summary>
     /// Handles reference queries like "customers.First(x => x.IsActive && x.Age > 30)" for IEnumerable references.
     /// </summary>
-    public class FirstExpressionQuery : IReferenceQuery
+    public class FirstExpressionQuery : PredicateExpressionQuery
     {
-        public SimpleLambdaExpressionSyntax Predicate { get; set; }
-
-        public FirstExpressionQuery(SimpleLambdaExpressionSyntax predicate)
+        public FirstExpressionQuery(SimpleLambdaExpressionSyntax predicate) : base(predicate)
         {
-            Predicate = predicate;
-        }
-
-        public override string ToString()
-        {
-            return Predicate.ToString();
         }
     }
 }

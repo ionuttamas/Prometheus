@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace Prometheus.Common
 {
     public static class ConvertExtensions

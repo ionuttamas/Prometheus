@@ -1,3 +1,5 @@
+using Prometheus.Engine.Reachability.Model.Query;
+
 namespace Prometheus.Engine.ReachabilityProver.Model
 {
     public class MethodCall

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -8,6 +8,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Z3;
 using Prometheus.Common;
 using Prometheus.Engine.ConditionProver;
+using Prometheus.Engine.Reachability.Model.Query;
 using Prometheus.Engine.ReachabilityProver.Model;
 using Prometheus.Engine.Types;
 
@@ -27,26 +28,70 @@ namespace Prometheus.Engine.ExpressionMatcher
             context.Dispose();
         }
 
-        public Dictionary<SyntaxNode, SyntaxNode> AreEquivalent(IReferenceQuery first, IReferenceQuery second)
+        /// <summary>
+        /// Checks whether it is structurally equivalent to another query.
+        /// It handles commutativity and other variations for clauses such as: "x + y ≡ c + d" or "x.Age > 30 && x.Balance > 100 ≡ y.Balance > 100 && y.Age > 30"
+        /// </summary>
+        public bool AreEquivalent(IReferenceQuery first, IReferenceQuery second, out Dictionary<SyntaxNode, SyntaxNode> satisfiableTable)
         {
-            throw new NotImplementedException();
+            var type = first.GetType();
+
+            if (type != second.GetType())
+                throw new ArgumentException($"Cannot compare reference queries of type {type} and {second.GetType()}");
+
+            if (first is PredicateExpressionQuery)
+            {
+                return ArePredicateLambdasEquivalent(first.As<PredicateExpressionQuery>().Predicate,
+                    second.As<PredicateExpressionQuery>().Predicate, out satisfiableTable);
+            }
+
+            if (first is IndexArgumentQuery) {
+                return AreGeneralExpressionsEquivalent(first.As<IndexArgumentQuery>().Argument.Expression,
+                    second.As<IndexArgumentQuery>().Argument.Expression, out satisfiableTable);
+            }
+
+            throw new ArgumentException($"{type} reference query is currently not supported");
         }
 
-        private Dictionary<SyntaxNode, SyntaxNode> AreIndexQueriesEquivalent(IndexArgumentQuery first, IndexArgumentQuery second) {
-            var expression;
+        private bool AreGeneralExpressionsEquivalent(ExpressionSyntax first, ExpressionSyntax second, out Dictionary<SyntaxNode, SyntaxNode> satisfiableTable) {
+            //todo: this is more tricky given multiple return types
+            satisfiableTable = null;
+            return false;
         }
 
-        private Dictionary<SyntaxNode, SyntaxNode> AreFirstQueriesEquivalent(FirstExpressionQuery first, FirstExpressionQuery second) {
-            throw new NotImplementedException();
-        }
-
-        private Dictionary<SyntaxNode, SyntaxNode> AreFirstQueriesEquivalent(WhereExpressionQuery first, WhereExpressionQuery second) {
-            throw new NotImplementedException();
-        }
+        private bool ArePredicateLambdasEquivalent(SimpleLambdaExpressionSyntax first, SimpleLambdaExpressionSyntax second, out Dictionary<SyntaxNode, SyntaxNode> satisfiableTable)
+        {
+            var firstParameter = first.Parameter;
+            BoolExpr firstExpression = ParseExpression(first.Body.As<ExpressionSyntax>(), out var processedMembers);
+            satisfiableTable = new Dictionary<SyntaxNode, SyntaxNode>();
 
 
-        private Dictionary<SyntaxNode, SyntaxNode> ArePredicateQueriesEquivalent(SimpleLambdaExpressionSyntax first, SimpleLambdaExpressionSyntax second) {
-            throw new NotImplementedException();
+            List<SyntaxNode> sourceCapturedVariables = GetCapturedVariables(first);
+            List<SyntaxNode> targetCapturedVariables = GetCapturedVariables(second);
+
+            if (sourceCapturedVariables.Count != targetCapturedVariables.Count)
+                return false;
+
+            foreach (IEnumerable<SyntaxNode> permutation in GetPermutations(sourceCapturedVariables))
+            {
+                var variablesMapping = permutation.Select((x, ix) => new {Index = ix, Node = x}).ToDictionary(x => x.Node, x => targetCapturedVariables[x.Index]);
+                var predicateRewriter = new PredicateRewriter(firstParameter, variablesMapping);
+                var rewrittenLambda = predicateRewriter.Visit(second).As<SimpleLambdaExpressionSyntax>();
+
+                BoolExpr secondExpression = ParseExpression(rewrittenLambda.Body.As<ExpressionSyntax>(), processedMembers);
+                Solver solver = context.MkSolver();
+                BoolExpr expression = context.MkEq(firstExpression, secondExpression);
+                solver.Assert(expression);
+                Status status = solver.Check();
+
+                if (status == Status.SATISFIABLE)
+                {
+                    satisfiableTable = variablesMapping;
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         #region Non-cached processing
@@ -342,6 +387,36 @@ namespace Prometheus.Engine.ExpressionMatcher
             var identifier = memberAccess.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == rootToken).First();
 
             return identifier;
+        }
+
+        private List<SyntaxNode> GetCapturedVariables(SimpleLambdaExpressionSyntax lambda)
+        {
+            var parameter = lambda.Parameter;
+            //TODO: currently we support only IdentifierNameSyntax
+            var capturedVariables = lambda
+                .Body
+                .DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text != parameter.Identifier.Text)
+                .Select(x=>x.As<SyntaxNode>())
+                .DistinctBy(x=>x.ToString())
+                .ToList();
+
+            return capturedVariables;
+        }
+
+        private static IEnumerable<IEnumerable<T>> GetPermutations<T>(IEnumerable<T> collection)
+        {
+            return GetPermutations(collection, collection.Count());
+        }
+
+        private static IEnumerable<IEnumerable<T>> GetPermutations<T>(IEnumerable<T> collection, int length) {
+            if (length == 1)
+                return collection.Select(x => new[] { x });
+
+            var list = collection.ToList();
+            var result = GetPermutations(list, length - 1)
+                        .SelectMany(x => list.Where(e => !x.Contains(e)), (t1, t2) => t1.Concat(new[] { t2 }));
+
+            return result;
         }
 
         private class NodeType {

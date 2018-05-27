@@ -96,15 +96,4 @@ namespace Prometheus.Common
             return DuplicateSpacesRegex.Replace(input, " ").Trim();
         }
     }
-
-    public static class CollectionExtensions
-    {
-        public static void Merge<TK, TV>(this Dictionary<TK, TV> table, Dictionary<TK, TV> newValues)
-        {
-            foreach (var entry in newValues)
-            {
-                table[entry.Key] = entry.Value;
-            }
-        }
-    }
 }

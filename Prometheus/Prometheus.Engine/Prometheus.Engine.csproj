@@ -186,6 +186,7 @@
     <Compile Include="ConditionProver\IConditionProver.cs" />
     <Compile Include="ConditionProver\Z3ConditionProver.cs" />
     <Compile Include="ExpressionMatcher\IExpressionMatcher.cs" />
+    <Compile Include="ExpressionMatcher\PredicateRewriter.cs" />
     <Compile Include="ExpressionMatcher\Z3ExpressionMatcher.cs" />
     <Compile Include="Model\IModelStateConfigurator.cs" />
     <Compile Include="Model\NetModelStateConfigurator.cs" />
@@ -195,6 +196,7 @@
     <Compile Include="Reachability\Model\MethodCall.cs" />
     <Compile Include="Reachability\Model\Query\FirstExpressionQuery.cs" />
     <Compile Include="Reachability\Model\Query\IndexArgumentQuery.cs" />
+    <Compile Include="Reachability\Model\Query\PredicateExpressionQuery.cs" />
     <Compile Include="Reachability\Tracker\IReferenceParser.cs" />
     <Compile Include="Reachability\Model\Query\IReferenceQuery.cs" />
     <Compile Include="Reachability\Model\Query\WhereExpressionQuery.cs" />

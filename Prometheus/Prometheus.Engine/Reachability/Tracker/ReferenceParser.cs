@@ -3,6 +3,7 @@ using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Prometheus.Common;
+using Prometheus.Engine.Reachability.Model.Query;
 using Prometheus.Engine.ReachabilityProver.Model;
 
 namespace Prometheus.Engine.Reachability.Tracker

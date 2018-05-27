@@ -1,6 +1,7 @@
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Prometheus.Common;
+using Prometheus.Engine.Reachability.Model.Query;
 
 namespace Prometheus.Engine.ReachabilityProver.Model
 {

@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq.Expressions;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Prometheus.Engine.ReachabilityProver.Model;
+using Prometheus.Engine.Reachability.Model.Query;
 
 namespace Prometheus.Engine.ExpressionMatcher {
     public interface IQueryMatcher : IDisposable
@@ -11,6 +9,6 @@ namespace Prometheus.Engine.ExpressionMatcher {
         /// <summary>
         /// Checks whether two expressions are equivalent and returns the table under which the equivalence is constrained.
         /// </summary>
-        Dictionary<SyntaxNode, SyntaxNode> AreEquivalent(IReferenceQuery first, IReferenceQuery second);
+        bool AreEquivalent(IReferenceQuery first, IReferenceQuery second, out Dictionary<SyntaxNode, SyntaxNode> satisfiableTable);
     }
 }
