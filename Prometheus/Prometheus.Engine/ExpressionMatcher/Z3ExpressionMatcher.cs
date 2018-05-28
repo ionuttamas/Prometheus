@@ -8,6 +8,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Z3;
 using Prometheus.Common;
 using Prometheus.Engine.ConditionProver;
+using Prometheus.Engine.ExpressionMatcher.Rewriters;
 using Prometheus.Engine.Reachability.Model.Query;
 using Prometheus.Engine.ReachabilityProver.Model;
 using Prometheus.Engine.Types;
@@ -56,29 +57,56 @@ namespace Prometheus.Engine.ExpressionMatcher
         private bool AreGeneralExpressionsEquivalent(ExpressionSyntax first, ExpressionSyntax second, out Dictionary<SyntaxNode, SyntaxNode> satisfiableTable) {
             //todo: this is more tricky given multiple return types
             satisfiableTable = null;
+            List<SyntaxNode> sourceVariables = GetVariables(first);
+            List<SyntaxNode> targetVariables = GetVariables(second);
+
+            if (sourceVariables.Count != targetVariables.Count)
+                return false;
+
+            Expr firstExpression = ParseExpression(first.As<ExpressionSyntax>(), out var processedMembers);
+
+            foreach (IEnumerable<SyntaxNode> permutation in GetPermutations(sourceVariables))
+            {
+                var sourcePermutation = permutation.ToList();
+                var variablesMapping = targetVariables.Select((x, ix) => new { Index = ix, Node = x }).ToDictionary(x => x.Node, x => sourcePermutation[x.Index]);
+                var rewriter = new ExpressionRewriter(variablesMapping);
+                var rewrittenExpression = rewriter.Visit(second).As<ExpressionSyntax>();
+
+                Expr secondExpression = ParseExpression(rewrittenExpression, processedMembers);
+                Solver solver = context.MkSolver();
+                BoolExpr expression = context.MkEq(firstExpression, secondExpression);
+                solver.Assert(expression);
+                Status status = solver.Check();
+
+                if (status == Status.SATISFIABLE) {
+                    satisfiableTable = variablesMapping;
+                    return true;
+                }
+            }
+
             return false;
         }
 
         private bool ArePredicateLambdasEquivalent(SimpleLambdaExpressionSyntax first, SimpleLambdaExpressionSyntax second, out Dictionary<SyntaxNode, SyntaxNode> satisfiableTable)
         {
-            var firstParameter = first.Parameter;
-            BoolExpr firstExpression = ParseExpression(first.Body.As<ExpressionSyntax>(), out var processedMembers);
-            satisfiableTable = new Dictionary<SyntaxNode, SyntaxNode>();
-
-
+            satisfiableTable = null;
             List<SyntaxNode> sourceCapturedVariables = GetCapturedVariables(first);
             List<SyntaxNode> targetCapturedVariables = GetCapturedVariables(second);
 
             if (sourceCapturedVariables.Count != targetCapturedVariables.Count)
                 return false;
 
+            var firstParameter = first.Parameter;
+            Expr firstExpression = ParseExpression(first.Body.As<ExpressionSyntax>(), out var processedMembers);
+
             foreach (IEnumerable<SyntaxNode> permutation in GetPermutations(sourceCapturedVariables))
             {
-                var variablesMapping = permutation.Select((x, ix) => new {Index = ix, Node = x}).ToDictionary(x => x.Node, x => targetCapturedVariables[x.Index]);
+                var sourcePermutation = permutation.ToList();
+                var variablesMapping = targetCapturedVariables.Select((x, ix) => new {Index = ix, Node = x}).ToDictionary(x => x.Node, x => sourcePermutation[x.Index]);
                 var predicateRewriter = new PredicateRewriter(firstParameter, variablesMapping);
                 var rewrittenLambda = predicateRewriter.Visit(second).As<SimpleLambdaExpressionSyntax>();
 
-                BoolExpr secondExpression = ParseExpression(rewrittenLambda.Body.As<ExpressionSyntax>(), processedMembers);
+                Expr secondExpression = ParseExpression(rewrittenLambda.Body.As<ExpressionSyntax>(), processedMembers);
                 Solver solver = context.MkSolver();
                 BoolExpr expression = context.MkEq(firstExpression, secondExpression);
                 solver.Assert(expression);
@@ -96,7 +124,7 @@ namespace Prometheus.Engine.ExpressionMatcher
 
         #region Non-cached processing
 
-        private BoolExpr ParseExpression(ExpressionSyntax expressionSyntax, out Dictionary<string, NodeType> processedMembers) {
+        private Expr ParseExpression(ExpressionSyntax expressionSyntax, out Dictionary<string, NodeType> processedMembers) {
             var expressionKind = expressionSyntax.Kind();
 
             switch (expressionKind) {
@@ -104,7 +132,7 @@ namespace Prometheus.Engine.ExpressionMatcher
                     return ParsePrefixUnaryExpression((PrefixUnaryExpressionSyntax)expressionSyntax, out processedMembers);
                 case SyntaxKind.SimpleMemberAccessExpression:
                     processedMembers = new Dictionary<string, NodeType>();
-                    return context.MkBoolConst(expressionSyntax.ToString());
+                    return context.MkConst(expressionSyntax.ToString(), typeService.GetSort(context, typeService.GetType(expressionSyntax)));
             }
 
             var binaryExpression = (BinaryExpressionSyntax)expressionSyntax;
@@ -125,7 +153,7 @@ namespace Prometheus.Engine.ExpressionMatcher
 
         }
 
-        private BoolExpr ParseBinaryExpression(BinaryExpressionSyntax binaryExpression, out Dictionary<string, NodeType> processedMembers) {
+        private Expr ParseBinaryExpression(BinaryExpressionSyntax binaryExpression, out Dictionary<string, NodeType> processedMembers) {
             SyntaxKind expressionKind = binaryExpression.Kind();
             Expr left = ParseExpressionMember(binaryExpression.Left, out var leftProcessedMembers);
             Expr right = ParseExpressionMember(binaryExpression.Right, out var rightProcessedMembers);
@@ -136,19 +164,30 @@ namespace Prometheus.Engine.ExpressionMatcher
 
             switch (expressionKind) {
                 case SyntaxKind.LogicalAndExpression:
-                    return context.MkAnd((BoolExpr)left, (BoolExpr)right);
+                    return context.MkAnd(left.As<BoolExpr>(), right.As<BoolExpr>());
                 case SyntaxKind.LogicalOrExpression:
-                    return context.MkOr((BoolExpr)left, (BoolExpr)right);
+                    return context.MkOr(left.As<BoolExpr>(), right.As<BoolExpr>());
 
                 case SyntaxKind.GreaterThanExpression:
                     //todo: fix comparison expression for string expressions
-                    return context.MkGt((ArithExpr)left, (ArithExpr)right);
+                    return context.MkGt(left.As<ArithExpr>(), right.As<ArithExpr>());
                 case SyntaxKind.GreaterThanOrEqualExpression:
-                    return context.MkGe((ArithExpr)left, (ArithExpr)right);
+                    return context.MkGe(left.As<ArithExpr>(), right.As<ArithExpr>());
                 case SyntaxKind.LessThanExpression:
-                    return context.MkLt((ArithExpr)left, (ArithExpr)right);
+                    return context.MkLt(left.As<ArithExpr>(), right.As<ArithExpr>());
                 case SyntaxKind.LessThanOrEqualExpression:
-                    return context.MkLe((ArithExpr)left, (ArithExpr)right);
+                    return context.MkLe(left.As<ArithExpr>(), right.As<ArithExpr>());
+
+                case SyntaxKind.AddExpression:
+                    return context.MkAdd(left.As<ArithExpr>(), right.As<ArithExpr>());
+                case SyntaxKind.SubtractExpression:
+                    return context.MkSub(left.As<ArithExpr>(), right.As<ArithExpr>());
+                case SyntaxKind.MultiplyExpression:
+                    return context.MkMul(left.As<ArithExpr>(), right.As<ArithExpr>());
+                case SyntaxKind.DivideExpression:
+                    return context.MkDiv(left.As<ArithExpr>(), right.As<ArithExpr>());
+                case SyntaxKind.ModuloExpression:
+                    return context.MkMod(left.As<IntExpr>(), right.As<IntExpr>());
 
                 //TODO: Fix this: since this is only for numeric values
                 case SyntaxKind.EqualsExpression:
@@ -160,10 +199,10 @@ namespace Prometheus.Engine.ExpressionMatcher
             }
         }
 
-        private BoolExpr ParsePrefixUnaryExpression(PrefixUnaryExpressionSyntax prefixUnaryExpression, out Dictionary<string, NodeType> processedMembers) {
+        private Expr ParsePrefixUnaryExpression(PrefixUnaryExpressionSyntax prefixUnaryExpression, out Dictionary<string, NodeType> processedMembers) {
             if (prefixUnaryExpression.Kind() == SyntaxKind.LogicalNotExpression) {
                 var innerExpression = prefixUnaryExpression.Operand;
-                var parsedExpression = ParseExpression(innerExpression, out processedMembers);
+                var parsedExpression = ParseExpression(innerExpression, out processedMembers).As<BoolExpr>();
                 return context.MkNot(parsedExpression);
             }
 
@@ -240,7 +279,7 @@ namespace Prometheus.Engine.ExpressionMatcher
 
         #region Cached processing
 
-        private BoolExpr ParseExpression(ExpressionSyntax expressionSyntax, Dictionary<string, NodeType> cachedMembers) {
+        private Expr ParseExpression(ExpressionSyntax expressionSyntax, Dictionary<string, NodeType> cachedMembers) {
             var expressionKind = expressionSyntax.Kind();
 
             switch (expressionKind) {
@@ -268,7 +307,7 @@ namespace Prometheus.Engine.ExpressionMatcher
 
         }
 
-        private BoolExpr ParseBinaryExpression(BinaryExpressionSyntax binaryExpression, Dictionary<string, NodeType> cachedMembers) {
+        private Expr ParseBinaryExpression(BinaryExpressionSyntax binaryExpression, Dictionary<string, NodeType> cachedMembers) {
             SyntaxKind expressionKind = binaryExpression.Kind();
             Expr left = ParseExpressionMember(binaryExpression.Left, cachedMembers);
             Expr right = ParseExpressionMember(binaryExpression.Right, cachedMembers);
@@ -287,6 +326,17 @@ namespace Prometheus.Engine.ExpressionMatcher
                 case SyntaxKind.LessThanOrEqualExpression:
                     return context.MkLe((ArithExpr)left, (ArithExpr)right);
 
+                case SyntaxKind.AddExpression:
+                    return context.MkAdd(left.As<ArithExpr>(), right.As<ArithExpr>());
+                case SyntaxKind.SubtractExpression:
+                    return context.MkSub(left.As<ArithExpr>(), right.As<ArithExpr>());
+                case SyntaxKind.MultiplyExpression:
+                    return context.MkMul(left.As<ArithExpr>(), right.As<ArithExpr>());
+                case SyntaxKind.DivideExpression:
+                    return context.MkDiv(left.As<ArithExpr>(), right.As<ArithExpr>());
+                case SyntaxKind.ModuloExpression:
+                    return context.MkMod(left.As<IntExpr>(), right.As<IntExpr>());
+
                 //TODO: Fix this: since this is only for numeric values
                 case SyntaxKind.EqualsExpression:
                     return context.MkEq(left, right);
@@ -297,10 +347,10 @@ namespace Prometheus.Engine.ExpressionMatcher
             }
         }
 
-        private BoolExpr ParsePrefixUnaryExpression(PrefixUnaryExpressionSyntax prefixUnaryExpression, Dictionary<string, NodeType> cachedMembers) {
+        private Expr ParsePrefixUnaryExpression(PrefixUnaryExpressionSyntax prefixUnaryExpression, Dictionary<string, NodeType> cachedMembers) {
             if (prefixUnaryExpression.Kind() == SyntaxKind.LogicalNotExpression) {
                 var innerExpression = prefixUnaryExpression.Operand;
-                var parsedExpression = ParseExpression(innerExpression, cachedMembers);
+                var parsedExpression = ParseExpression(innerExpression, cachedMembers).As<BoolExpr>();
                 return context.MkNot(parsedExpression);
             }
 
@@ -387,6 +437,17 @@ namespace Prometheus.Engine.ExpressionMatcher
             var identifier = memberAccess.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == rootToken).First();
 
             return identifier;
+        }
+
+        private List<SyntaxNode> GetVariables(ExpressionSyntax expression) {
+            //TODO: currently we support only IdentifierNameSyntax
+            var variables = expression
+                .DescendantNodes<IdentifierNameSyntax>()
+                .Select(x => x.As<SyntaxNode>())
+                .DistinctBy(x => x.ToString())
+                .ToList();
+
+            return variables;
         }
 
         private List<SyntaxNode> GetCapturedVariables(SimpleLambdaExpressionSyntax lambda)
