@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Prometheus.Engine.ConditionProver;
+using Prometheus.Engine.ExpressionMatcher;
 using Prometheus.Engine.Reachability.Tracker;
 using Prometheus.Engine.ReachabilityProver.Model;
 
@@ -11,12 +12,14 @@ namespace Prometheus.Engine.Reachability.Prover
     {
         private readonly ReferenceTracker referenceTracker;
         private readonly IConditionProver conditionProver;
+        private readonly IQueryMatcher queryMatcher;
         private readonly ReachabilityCache reachabilityCache;
 
-        public ReachabilityProver(ReferenceTracker referenceTracker, IConditionProver conditionProver)
+        public ReachabilityProver(ReferenceTracker referenceTracker, IConditionProver conditionProver, IQueryMatcher queryMatcher)
         {
             this.referenceTracker = referenceTracker;
             this.conditionProver = conditionProver;
+            this.queryMatcher = queryMatcher;
             reachabilityCache = new ReachabilityCache();
             conditionProver.Configure(HaveCommonReference);
             referenceTracker.Configure(HaveCommonReference);
@@ -111,7 +114,7 @@ namespace Prometheus.Engine.Reachability.Prover
         /// This can be a class field/property used by both thread functions or parameters passed to threads that are the same
         /// TODO: currently this checks only for field equivalence
         /// </summary>
-        private static bool AreEquivalent(Reference first, Reference second)
+        private bool AreEquivalent(Reference first, Reference second)
         {
             if (first.ToString() != second.ToString())
                 return false;
@@ -122,31 +125,32 @@ namespace Prometheus.Engine.Reachability.Prover
             /* Currently, we perform a strict equivalence testing for the reference query stack:
                e.g. for:
                     first.MethodCalls = { [a], Where(x => x.Member == capturedValue1), [b] }
-                    second.MethodCalls = { [c], Where(x => x.Member == capturedValue2), [d] }
+                    second.MethodCalls = { [c], Where(x => capturedValue2 == x.Member), [d] }
                we enforce that a ≡ c, capturedValue1 ≡ capturedValue2, b ≡ d.
                In the future, we will support inclusion query support (one reference is included in the second).
              */
             if (first.MethodCalls.Count != second.MethodCalls.Count)
                 return false;
 
+            var firstMethodCalls = first.MethodCalls.ToList();
+            var secondMethodCalls = second.MethodCalls.ToList();
 
+            for (int i = 0; i < firstMethodCalls.Count; i++)
+            {
+                if (!queryMatcher.AreEquivalent(firstMethodCalls[i].Query, secondMethodCalls[i].Query, out var satisfiableTable))
+                    continue;
 
-            //TODO: compare queries...
-        }
+                foreach (var nodeMapping in satisfiableTable)
+                {
+                    var firstReference = new Reference(nodeMapping.Key){ MethodCalls = new Stack<MethodCall>(new[] { firstMethodCalls[i] }) };
+                    var secondReference = new Reference(nodeMapping.Value){ MethodCalls = new Stack<MethodCall>(new[] { secondMethodCalls[i] }) };
 
-        private static bool AreMethodCallsEquivalent(MethodCall first, MethodCall second)
-        {
-            var type = first.Query.GetType();
+                    if (!HaveCommonReference(firstReference, secondReference, out var _))
+                        return false;
+                }
+            }
 
-            if (type != second.Query.GetType())
-                return false;
-
-
-        }
-
-        private static bool AreIndexQueriesEquivalent(MethodCall first, MethodCall second)
-        {
-
+            return true;
         }
     }
 }

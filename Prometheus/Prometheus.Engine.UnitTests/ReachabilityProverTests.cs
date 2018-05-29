@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis;
 using NUnit.Framework;
 using Prometheus.Common;
 using Prometheus.Engine.ConditionProver;
+using Prometheus.Engine.ExpressionMatcher;
 using Prometheus.Engine.Reachability.Tracker;
 using Prometheus.Engine.ReachabilityProver;
 using Prometheus.Engine.ReachabilityProver.Model;
@@ -24,9 +25,10 @@ namespace Prometheus.Engine.UnitTests
             ThreadSchedule threadSchedule = new ThreadAnalyzer(solution).GetThreadSchedule(solution.Projects.First(x => x.Name == "TestProject.GUI"));
             ITypeService typeService = new TypeService(solution);
             IConditionProver conditionProver = new Z3ConditionProver(typeService);
+            IQueryMatcher queryMatcher = new Z3QueryMatcher(typeService);
             IReferenceParser referenceParser = new ReferenceParser();
             ReferenceTracker referenceTracker = new ReferenceTracker(solution, threadSchedule, typeService, referenceParser);
-            reachabilityProver = new Reachability.Prover.ReachabilityProver(referenceTracker, conditionProver);
+            reachabilityProver = new Reachability.Prover.ReachabilityProver(referenceTracker, conditionProver, queryMatcher);
         }
 
         [TearDown]

@@ -1,13 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Linq.Expressions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Z3;
 using Prometheus.Common;
-using Prometheus.Engine.ConditionProver;
 using Prometheus.Engine.ExpressionMatcher.Rewriters;
 using Prometheus.Engine.Reachability.Model.Query;
 using Prometheus.Engine.ReachabilityProver.Model;
@@ -29,10 +27,6 @@ namespace Prometheus.Engine.ExpressionMatcher
             context.Dispose();
         }
 
-        /// <summary>
-        /// Checks whether it is structurally equivalent to another query.
-        /// It handles commutativity and other variations for clauses such as: "x + y ≡ c + d" or "x.Age > 30 && x.Balance > 100 ≡ y.Balance > 100 && y.Age > 30"
-        /// </summary>
         public bool AreEquivalent(IReferenceQuery first, IReferenceQuery second, out Dictionary<SyntaxNode, SyntaxNode> satisfiableTable)
         {
             var type = first.GetType();
@@ -383,27 +377,10 @@ namespace Prometheus.Engine.ExpressionMatcher
             }
 
             var memberType = typeService.GetType(memberExpression);
-            var memberReference = new Reference(memberExpression);
+            var cachedMember = cachedMembers.Values.FirstOrDefault(x => x.Type == memberType && x.Node.ToString()==memberExpression.ToString());
 
-            foreach (NodeType node in cachedMembers.Values.Where(x => x.Type == memberType)) {
-                //TODO: MAJOR
-                //TODO: for now, we only match "amount1" with "amount2" (identifier with identifier) or "[from].AccountBalance" with "[from2].AccountBalance"
-                //TODO: need to extend to "amount" with "[from].AccountBalance" and other combinations
-                if (node.Node is IdentifierNameSyntax && memberExpression is IdentifierNameSyntax) {
-                    if (reachabilityDelegate(new Reference(node.Node), memberReference, out Reference _))
-                        return node.Expression;
-                }
-
-                if (node.Node is MemberAccessExpressionSyntax && memberExpression is MemberAccessExpressionSyntax) {
-                    var firstMember = (MemberAccessExpressionSyntax)node.Node;
-                    var secondMember = (MemberAccessExpressionSyntax)memberExpression;
-                    var firstRootReference = new Reference(GetRootIdentifier(firstMember));
-                    var secondRootReference = new Reference(GetRootIdentifier(secondMember));
-
-                    if (reachabilityDelegate(firstRootReference, secondRootReference, out Reference _))
-                        return node.Expression;
-                }
-            }
+            if (cachedMember != null)
+                return cachedMember.Expression;
 
             return ParseCachedVariableExpression(memberExpression, memberType, cachedMembers);
         }
@@ -428,16 +405,6 @@ namespace Prometheus.Engine.ExpressionMatcher
         }
 
         #endregion
-
-        /// <summary>
-        /// For a member access expression such as "person.Address.Street" returns "person" as root identifier.
-        /// </summary>
-        private IdentifierNameSyntax GetRootIdentifier(MemberAccessExpressionSyntax memberAccess) {
-            string rootToken = memberAccess.ToString().Split('.').First();
-            var identifier = memberAccess.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == rootToken).First();
-
-            return identifier;
-        }
 
         private List<SyntaxNode> GetVariables(ExpressionSyntax expression) {
             //TODO: currently we support only IdentifierNameSyntax
@@ -464,16 +431,15 @@ namespace Prometheus.Engine.ExpressionMatcher
             return capturedVariables;
         }
 
-        private static IEnumerable<IEnumerable<T>> GetPermutations<T>(IEnumerable<T> collection)
+        private static IEnumerable<IEnumerable<T>> GetPermutations<T>(List<T> list)
         {
-            return GetPermutations(collection, collection.Count());
+            return GetPermutations(list, list.Count);
         }
 
-        private static IEnumerable<IEnumerable<T>> GetPermutations<T>(IEnumerable<T> collection, int length) {
+        private static IEnumerable<IEnumerable<T>> GetPermutations<T>(List<T> list, int length) {
             if (length == 1)
-                return collection.Select(x => new[] { x });
+                return list.Select(x => new[] { x });
 
-            var list = collection.ToList();
             var result = GetPermutations(list, length - 1)
                         .SelectMany(x => list.Where(e => !x.Contains(e)), (t1, t2) => t1.Concat(new[] { t2 }));
 
