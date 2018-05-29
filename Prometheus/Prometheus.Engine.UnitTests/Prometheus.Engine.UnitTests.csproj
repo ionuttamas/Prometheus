@@ -222,6 +222,7 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="QueryMatcherTests.cs" />
     <Compile Include="ReachabilityProverTests.cs" />
     <Compile Include="ReferenceTrackerTests.cs" />
     <Compile Include="AtomicAnalyzerTests.cs" />

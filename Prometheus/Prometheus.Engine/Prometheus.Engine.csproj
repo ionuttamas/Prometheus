@@ -191,10 +191,10 @@
     <Compile Include="ExpressionMatcher\Z3QueryMatcher.cs" />
     <Compile Include="Model\IModelStateConfigurator.cs" />
     <Compile Include="Model\NetModelStateConfigurator.cs" />
-    <Compile Include="Reachability\Model\CallContext.cs" />
+    <Compile Include="Reachability\Model\Reference\CallContext.cs" />
     <Compile Include="Reachability\Model\Condition\Condition.cs" />
     <Compile Include="Reachability\Model\Condition\ConditionalAssignment.cs" />
-    <Compile Include="Reachability\Model\MethodCall.cs" />
+    <Compile Include="Reachability\Model\Reference\ReferenceContext.cs" />
     <Compile Include="Reachability\Model\Query\FirstExpressionQuery.cs" />
     <Compile Include="Reachability\Model\Query\IndexArgumentQuery.cs" />
     <Compile Include="Reachability\Model\Query\PredicateExpressionQuery.cs" />
@@ -203,7 +203,7 @@
     <Compile Include="Reachability\Model\Query\WhereExpressionQuery.cs" />
     <Compile Include="Reachability\Prover\ReachabilityCache.cs" />
     <Compile Include="Reachability\Prover\ReachabilityProver.cs" />
-    <Compile Include="Reachability\Model\Reference.cs" />
+    <Compile Include="Reachability\Model\Reference\Reference.cs" />
     <Compile Include="Reachability\Tracker\ReferenceParser.cs" />
     <Compile Include="Reachability\Tracker\ReferenceTracker.cs" />
     <Compile Include="Thread\InvocationPath.cs" />

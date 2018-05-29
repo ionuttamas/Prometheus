@@ -64,7 +64,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
         /// </code>
         /// </example>
         /// </summary>
-        public List<ConditionalAssignment> GetAssignments(SyntaxToken identifier, Stack<MethodCall> methodCalls = null)
+        public List<ConditionalAssignment> GetAssignments(SyntaxToken identifier, Stack<ReferenceContext> methodCalls = null)
         {
             if (!threadSchedule.GetThreadPath(solution, identifier.GetLocation()).Invocations.Any())
                 return new List<ConditionalAssignment>();
@@ -104,7 +104,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
         /// <summary>
         /// Gets the assignments made from various calls to the given method along the binding parameter.
         /// </summary>
-        private List<ConditionalAssignment> GetMethodCallAssignments(MethodDeclarationSyntax method, int parameterIndex, Stack<MethodCall> methodCalls = null)
+        private List<ConditionalAssignment> GetMethodCallAssignments(MethodDeclarationSyntax method, int parameterIndex, Stack<ReferenceContext> referenceContexts = null)
         {
             //TODO: this does not take into account if a parameter was assigned to another value before being assigned again
             var methodCallAssignments = solution
@@ -115,17 +115,17 @@ namespace Prometheus.Engine.Reachability.Tracker {
                     return threadPath != null && threadPath.Invocations.Any();
                 })
                 .Select(x => x.GetNode<InvocationExpressionSyntax>())
-                .Where(x => methodCalls == null || x == methodCalls.Peek().CallContext.InvocationExpression)
+                .Where(x => referenceContexts == null || x == referenceContexts.Peek().CallContext.InvocationExpression)
                 .SelectMany(x => GetConditionalAssignments(x, x.ArgumentList.Arguments[parameterIndex]))
                 .Select(x => {
-                    if (methodCalls == null)
+                    if (referenceContexts == null)
                         return x;
 
-                    if (x.RightReference.MethodCalls.Count != 0) {
-                        methodCalls.Push(x.RightReference.MethodCalls.Peek());
+                    if (x.RightReference.ReferenceContexts.Count != 0) {
+                        referenceContexts.Push(x.RightReference.ReferenceContexts.Peek());
                     }
 
-                    x.RightReference.MethodCalls = methodCalls;
+                    x.RightReference.ReferenceContexts = referenceContexts;
 
                     return x;
                 })
@@ -138,7 +138,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
         /// Gets the assignments made from the initializing the constructor in any thread path
         /// The assignment comes from a field/property of the current class.
         /// </summary>
-        private List<ConditionalAssignment> GetConstructorAssignments(SyntaxToken identifier, ClassDeclarationSyntax classDeclaration, Stack<MethodCall> methodCalls = null)
+        private List<ConditionalAssignment> GetConstructorAssignments(SyntaxToken identifier, ClassDeclarationSyntax classDeclaration, Stack<ReferenceContext> referenceContexts = null)
         {
             //TODO: we dont't know if the field was reasigned in another place (other than the constructor) before assigned to the field
             var constructorDeclaration = identifier
@@ -180,7 +180,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 })
                 .Where(x =>
                 {
-                    if (methodCalls == null || methodCalls.Count==0)
+                    if (referenceContexts == null || referenceContexts.Count==0)
                         return true;
 
                     if(!(x.Parent is AssignmentExpressionSyntax))
@@ -191,20 +191,20 @@ namespace Prometheus.Engine.Reachability.Tracker {
                         .As<IdentifierNameSyntax>());
 
                     //TODO: currently, we do not handle situations in which the found reference assignment happened before the current assignment
-                    return reachabilityDelegate(reference, new Reference(methodCalls.Peek().CallContext.InstanceReference), out var _);
+                    return reachabilityDelegate(reference, new Reference(referenceContexts.Peek().CallContext.InstanceReference), out var _);
                 })
                 .SelectMany(x => GetConditionalAssignments(x, x.ArgumentList.Arguments[constructorParameterIndex]))
                 .Select(x =>
                 {
-                    if (methodCalls != null)
-                    {
-                        if (x.RightReference.MethodCalls.Count != 0)
-                        {
-                            methodCalls.Push(x.RightReference.MethodCalls.Peek());
-                        }
+                    if (referenceContexts == null)
+                        return x;
 
-                        x.RightReference.MethodCalls = methodCalls;
+                    if (x.RightReference.ReferenceContexts.Count != 0)
+                    {
+                        referenceContexts.Push(x.RightReference.ReferenceContexts.Peek());
                     }
+
+                    x.RightReference.ReferenceContexts = referenceContexts;
 
                     return x;
                 })
@@ -300,7 +300,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                         ArgumentsTable = argumentsTable,
                         InvocationExpression = invocationExpression
                     };
-                    returnReference.MethodCalls.Push(new MethodCall(callContext, query));
+                    returnReference.ReferenceContexts.Push(new ReferenceContext(callContext, query));
 
                     return new ConditionalAssignment
                     {

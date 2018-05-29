@@ -75,8 +75,8 @@ namespace Prometheus.Engine.Reachability.Prover
                 return true;
             }
 
-            var firstAssignments = referenceTracker.GetAssignments(first.RightReference.Node?.DescendantTokens().First() ?? first.RightReference.Token, first.RightReference.MethodCalls);
-            var secondAssignments = referenceTracker.GetAssignments(second.RightReference.Node?.DescendantTokens().First() ?? second.RightReference.Token, second.RightReference.MethodCalls);
+            var firstAssignments = referenceTracker.GetAssignments(first.RightReference.Node?.DescendantTokens().First() ?? first.RightReference.Token, first.RightReference.ReferenceContexts);
+            var secondAssignments = referenceTracker.GetAssignments(second.RightReference.Node?.DescendantTokens().First() ?? second.RightReference.Token, second.RightReference.ReferenceContexts);
 
             if (!firstAssignments.Any() && !secondAssignments.Any())
             {
@@ -129,11 +129,11 @@ namespace Prometheus.Engine.Reachability.Prover
                we enforce that a ≡ c, capturedValue1 ≡ capturedValue2, b ≡ d.
                In the future, we will support inclusion query support (one reference is included in the second).
              */
-            if (first.MethodCalls.Count != second.MethodCalls.Count)
+            if (first.ReferenceContexts.Count != second.ReferenceContexts.Count)
                 return false;
 
-            var firstMethodCalls = first.MethodCalls.ToList();
-            var secondMethodCalls = second.MethodCalls.ToList();
+            var firstMethodCalls = first.ReferenceContexts.ToList();
+            var secondMethodCalls = second.ReferenceContexts.ToList();
 
             for (int i = 0; i < firstMethodCalls.Count; i++)
             {
@@ -142,8 +142,8 @@ namespace Prometheus.Engine.Reachability.Prover
 
                 foreach (var nodeMapping in satisfiableTable)
                 {
-                    var firstReference = new Reference(nodeMapping.Key){ MethodCalls = new Stack<MethodCall>(new[] { firstMethodCalls[i] }) };
-                    var secondReference = new Reference(nodeMapping.Value){ MethodCalls = new Stack<MethodCall>(new[] { secondMethodCalls[i] }) };
+                    var firstReference = new Reference(nodeMapping.Key){ ReferenceContexts = new Stack<ReferenceContext>(new[] { firstMethodCalls[i] }) };
+                    var secondReference = new Reference(nodeMapping.Value){ ReferenceContexts = new Stack<ReferenceContext>(new[] { secondMethodCalls[i] }) };
 
                     if (!HaveCommonReference(firstReference, secondReference, out var _))
                         return false;
