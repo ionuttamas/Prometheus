@@ -38,7 +38,7 @@ namespace Prometheus.Engine.UnitTests
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var transferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TransferService1));
             var firstIdentifier = transferServiceClass.GetMethodDescendant(nameof(TransferService1.MethodAssignment_WithIndexQuery_1)).DescendantTokens<SyntaxToken>(x => x.ToString() == "indexCustomer1").First();
-            var secondIdentifier = transferServiceClass.GetMethodDescendant(nameof(TransferService1.MethodAssignment_WithIndexQuery_1)).DescendantTokens<SyntaxToken>(x => x.ToString() == "indexCustomer2").First();
+            var secondIdentifier = transferServiceClass.GetMethodDescendant(nameof(TransferService1.MethodAssignment_WithIndexQuery_2)).DescendantTokens<SyntaxToken>(x => x.ToString() == "indexCustomer2").First();
             var firstAssignment = referenceTracker.GetAssignments(firstIdentifier).First();
             var secondAssignment = referenceTracker.GetAssignments(secondIdentifier).First();
 

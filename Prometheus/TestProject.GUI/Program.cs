@@ -18,6 +18,7 @@ namespace TestProject.GUI {
         private static Customer sharedCustomer;
         private static CustomerRepository customerRepository;
         private static List<Customer> customers;
+        private static TransferService1 transferService1;
 
         static void Main(string[] args)
         {
@@ -28,8 +29,11 @@ namespace TestProject.GUI {
             var transferService = new TransferService();
             customerRepository = new CustomerRepository(customers);
 
-            var transferService1 = new TransferService1(customerRepository);
+            transferService1 = new TransferService1(customerRepository);
             transferService1.MethodAssignment_IfTransfer(sharedCustomer, null, 100);
+            transferService1.MethodAssignment_WithIndexQuery_1(sharedCustomer, null, 100);
+            transferService1.MethodAssignment_WithFirstQuery_1(sharedCustomer, null, 100);
+            transferService1.MethodAssignment_WithWhereQuery_1(sharedCustomer, null, 100);
 
             transferService.Transfer(sharedCustomer, null, 200);
             transferService.SimpleIfTransfer(sharedCustomer, null, 200);
@@ -71,6 +75,10 @@ namespace TestProject.GUI {
 
             var transferService2 = new TransferService2(customerRepository);
             transferService2.MethodAssignment_IfTransfer(sharedCustomer, null, 100);
+
+            transferService1.MethodAssignment_WithIndexQuery_2(sharedCustomer, null, 100);
+            transferService1.MethodAssignment_WithFirstQuery_2(sharedCustomer, null, 100);
+            transferService1.MethodAssignment_WithWhereQuery_2(sharedCustomer, null, 100);
 
             var proverTransferService = new ProverTransferService();
             proverTransferService.SimpleIf_NegatedTransfer(sharedCustomer, null, 100);
