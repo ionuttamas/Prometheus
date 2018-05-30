@@ -243,8 +243,11 @@ namespace Prometheus.Engine.Reachability.Tracker {
             if (argument is InvocationExpressionSyntax)
                 return ProcessMethodInvocationAssigment(bindingNode, argument.As<InvocationExpressionSyntax>());
 
+            var (rightReference, query) = referenceParser.Parse(argument);
+            rightReference.ReferenceContexts.Push(new ReferenceContext(null, query));
+
             var conditionalAssignment = new ConditionalAssignment {
-                RightReference = {Node = argument},
+                RightReference = rightReference,
                 LeftReference = new Reference(bindingNode)
             };
             SyntaxNode currentNode = bindingNode;
@@ -294,6 +297,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 .Select(x =>
                 {
                     var (returnReference, query) = referenceParser.Parse(x.Expression);
+
                     var callContext = new CallContext
                     {
                         InstanceReference = instanceExpression,

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Linq;
-using System.Reflection;
 using Microsoft.CodeAnalysis.FindSymbols;
 using Microsoft.Z3;
 

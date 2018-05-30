@@ -50,7 +50,7 @@ namespace Prometheus.Engine.Types
         {
             typeName = null;
 
-            if (!tokenTypeNameCache.ContainsKey(method))
+            if (method==null || !tokenTypeNameCache.ContainsKey(method))
                 return false;
 
             return tokenTypeNameCache[method].TryGetValue(token, out typeName);

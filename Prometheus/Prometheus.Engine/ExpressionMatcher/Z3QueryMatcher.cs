@@ -127,6 +127,8 @@ namespace Prometheus.Engine.ExpressionMatcher
                 case SyntaxKind.SimpleMemberAccessExpression:
                     processedMembers = new Dictionary<string, NodeType>();
                     return context.MkConst(expressionSyntax.ToString(), typeService.GetSort(context, typeService.GetType(expressionSyntax)));
+                case SyntaxKind.ParenthesizedExpression:
+                    return ParseExpression(expressionSyntax.As<ParenthesizedExpressionSyntax>().Expression, out processedMembers);
             }
 
             var binaryExpression = (BinaryExpressionSyntax)expressionSyntax;
@@ -140,6 +142,11 @@ namespace Prometheus.Engine.ExpressionMatcher
                 case SyntaxKind.LessThanOrEqualExpression:
                 case SyntaxKind.EqualsExpression:
                 case SyntaxKind.NotEqualsExpression:
+                case SyntaxKind.AddExpression:
+                case SyntaxKind.SubtractExpression:
+                case SyntaxKind.DivideExpression:
+                case SyntaxKind.MultiplyExpression:
+                case SyntaxKind.ModuloExpression:
                     return ParseBinaryExpression(binaryExpression, out processedMembers);
                 default:
                     throw new NotImplementedException();
@@ -281,6 +288,8 @@ namespace Prometheus.Engine.ExpressionMatcher
                     return ParsePrefixUnaryExpression((PrefixUnaryExpressionSyntax)expressionSyntax, cachedMembers);
                 case SyntaxKind.SimpleMemberAccessExpression:
                     return context.MkBoolConst(expressionSyntax.ToString());
+                case SyntaxKind.ParenthesizedExpression:
+                    return ParseExpression(expressionSyntax.As<ParenthesizedExpressionSyntax>().Expression, cachedMembers);
             }
 
             var binaryExpression = (BinaryExpressionSyntax)expressionSyntax;
@@ -294,6 +303,11 @@ namespace Prometheus.Engine.ExpressionMatcher
                 case SyntaxKind.LessThanOrEqualExpression:
                 case SyntaxKind.EqualsExpression:
                 case SyntaxKind.NotEqualsExpression:
+                case SyntaxKind.AddExpression:
+                case SyntaxKind.SubtractExpression:
+                case SyntaxKind.DivideExpression:
+                case SyntaxKind.MultiplyExpression:
+                case SyntaxKind.ModuloExpression:
                     return ParseBinaryExpression(binaryExpression, cachedMembers);
                 default:
                     throw new NotImplementedException();

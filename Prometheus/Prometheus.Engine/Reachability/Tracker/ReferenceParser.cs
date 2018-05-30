@@ -28,7 +28,7 @@ namespace Prometheus.Engine.Reachability.Tracker
                 return (new Reference(node), null);
 
             if (node is ElementAccessExpressionSyntax)
-                return ParseElementAccessExpression(node.As<ElementAccessExpressionSyntax>());
+                return ParseIndexerExpression(node.As<ElementAccessExpressionSyntax>());
 
             //todo: discern between various invocations: now only supporting "reference = instance.First/Where/FirstOrDefault"
             if (node is InvocationExpressionSyntax)
@@ -37,12 +37,11 @@ namespace Prometheus.Engine.Reachability.Tracker
             throw new NotSupportedException($"Only {nameof(IndexArgumentQuery)}, {nameof(FirstExpressionQuery)} and {nameof(WhereExpressionQuery)} reference queries are supported");
         }
 
-        private (Reference, IReferenceQuery) ParseElementAccessExpression(ElementAccessExpressionSyntax node)
+        private (Reference, IReferenceQuery) ParseIndexerExpression(ElementAccessExpressionSyntax node)
         {
             var elementAccessExpression = node.As<ElementAccessExpressionSyntax>();
             var referenceNode = elementAccessExpression.Expression.As<IdentifierNameSyntax>();
             var query = elementAccessExpression.ArgumentList.Arguments[0];
-
 
             return (new Reference(referenceNode), new IndexArgumentQuery(query));
         }
