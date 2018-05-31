@@ -4,7 +4,6 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Linq;
 using Microsoft.CodeAnalysis.FindSymbols;
-using Microsoft.Z3;
 
 namespace Prometheus.Common
 {
@@ -35,14 +34,16 @@ namespace Prometheus.Common
             return tree.GetRoot().FindNode(location.Location.SourceSpan);
         }
 
-        public static MethodDeclarationSyntax GetMethodDescendant(this SyntaxNode node, string name)
+        public static MethodDeclarationSyntax GetMethodDescendant(this SyntaxNode node, string methodName)
         {
-            return node.DescendantNodes().OfType<MethodDeclarationSyntax>().FirstOrDefault(x=>x.Identifier.Text==name);
+            return node.DescendantNodes().OfType<MethodDeclarationSyntax>().FirstOrDefault(x=>x.Identifier.Text==methodName);
         }
 
-        public static MethodDeclarationSyntax GetContainingMethod(this SyntaxNode node)
+        public static MethodDeclarationSyntax GetContainingMethod(this SyntaxNode node, Solution solution = null)
         {
-            MethodDeclarationSyntax callingMethod = node.GetLocation().GetContainingMethod();
+            MethodDeclarationSyntax callingMethod = node
+                .GetLocation()
+                .GetContainingMethod();
 
             return callingMethod;
         }
@@ -221,23 +222,6 @@ namespace Prometheus.Common
             }
 
             throw new NotImplementedException("Currently only IdentiferNameSyntax are allowed");
-        }
-    }
-
-    public static class Z3Extensions
-    {
-        public static Sort GetSort(this Type type, Context context)
-        {
-            if (type == typeof (decimal) || type == typeof (double) || type == typeof (float))
-                return context.RealSort;
-
-            if (type == typeof(int))
-                return context.IntSort;
-
-            if (type == typeof(bool))
-                return context.BoolSort;
-
-            throw new NotSupportedException($"Type {type} is not supported");
         }
     }
 }

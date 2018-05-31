@@ -37,12 +37,14 @@ namespace Prometheus.Engine.ExpressionMatcher
             if (first is PredicateExpressionQuery)
             {
                 return ArePredicateLambdasEquivalent(first.As<PredicateExpressionQuery>().Predicate,
-                    second.As<PredicateExpressionQuery>().Predicate, out satisfiableTable);
+                                                     second.As<PredicateExpressionQuery>().Predicate,
+                                                     out satisfiableTable);
             }
 
             if (first is IndexArgumentQuery) {
                 return AreGeneralExpressionsEquivalent(first.As<IndexArgumentQuery>().Argument.Expression,
-                    second.As<IndexArgumentQuery>().Argument.Expression, out satisfiableTable);
+                                                       second.As<IndexArgumentQuery>().Argument.Expression,
+                                                       out satisfiableTable);
             }
 
             throw new ArgumentException($"{type} reference query is currently not supported");
@@ -62,18 +64,25 @@ namespace Prometheus.Engine.ExpressionMatcher
             foreach (IEnumerable<SyntaxNode> permutation in GetPermutations(sourceVariables))
             {
                 var sourcePermutation = permutation.ToList();
-                var variablesMapping = targetVariables.Select((x, ix) => new { Index = ix, Node = x }).ToDictionary(x => x.Node, x => sourcePermutation[x.Index]);
-                var rewriter = new ExpressionRewriter(variablesMapping);
+                var variablesMap = targetVariables.Select((x, ix) => new { Index = ix, Node = x }).ToDictionary(x => x.Node, x => sourcePermutation[x.Index]);
+                var rewriter = new ExpressionRewriter(variablesMap);
                 var rewrittenExpression = rewriter.Visit(second).As<ExpressionSyntax>();
 
-                Expr secondExpression = ParseExpression(rewrittenExpression, processedMembers);
+                var transformation = new ExpressionTransformation
+                {
+                    OriginalExpression = second,
+                    RewrittenExpression = rewrittenExpression,
+                    VariablesMap = variablesMap
+                };
+
+                Expr secondExpression = ParseExpression(transformation, processedMembers);
                 Solver solver = context.MkSolver();
-                BoolExpr expression = context.MkEq(firstExpression, secondExpression);
-                solver.Assert(expression);
+                BoolExpr equalityExpression = context.MkEq(firstExpression, secondExpression);
+                solver.Assert(equalityExpression);
                 Status status = solver.Check();
 
                 if (status == Status.SATISFIABLE) {
-                    satisfiableTable = variablesMapping;
+                    satisfiableTable = variablesMap;
                     return true;
                 }
             }
@@ -280,8 +289,8 @@ namespace Prometheus.Engine.ExpressionMatcher
 
         #region Cached processing
 
-        private Expr ParseExpression(ExpressionSyntax expressionSyntax, Dictionary<string, NodeType> cachedMembers) {
-            var expressionKind = expressionSyntax.Kind();
+        private Expr ParseExpression(ExpressionTransformation expressionSyntax, Dictionary<string, NodeType> cachedMembers) {
+            var expressionKind = expressionSyntax.RewrittenExpression.Kind();
 
             switch (expressionKind) {
                 case SyntaxKind.LogicalNotExpression:
@@ -292,7 +301,7 @@ namespace Prometheus.Engine.ExpressionMatcher
                     return ParseExpression(expressionSyntax.As<ParenthesizedExpressionSyntax>().Expression, cachedMembers);
             }
 
-            var binaryExpression = (BinaryExpressionSyntax)expressionSyntax;
+            var binaryExpression = (BinaryExpressionSyntax)expressionSyntax.RewrittenExpression;
 
             switch (expressionKind) {
                 case SyntaxKind.LogicalAndExpression:
@@ -368,17 +377,14 @@ namespace Prometheus.Engine.ExpressionMatcher
         private Expr ParseExpressionMember(ExpressionSyntax memberExpression, Dictionary<string, NodeType> cachedMembers) {
             var expressionKind = memberExpression.Kind();
 
-            if (memberExpression is BinaryExpressionSyntax) {
+            if (memberExpression is BinaryExpressionSyntax)
                 return ParseBinaryExpression((BinaryExpressionSyntax)memberExpression, cachedMembers);
-            }
 
-            if (expressionKind == SyntaxKind.NumericLiteralExpression) {
+            if (expressionKind == SyntaxKind.NumericLiteralExpression)
                 return ParseNumericLiteral(memberExpression.ToString());
-            }
 
-            if (expressionKind == SyntaxKind.StringLiteralExpression) {
+            if (expressionKind == SyntaxKind.StringLiteralExpression)
                 return ParseStringLiteral(memberExpression.ToString());
-            }
 
             if (expressionKind != SyntaxKind.SimpleMemberAccessExpression && expressionKind != SyntaxKind.IdentifierName) {
                 return expressionKind == SyntaxKind.UnaryMinusExpression
@@ -386,9 +392,8 @@ namespace Prometheus.Engine.ExpressionMatcher
                     : ParseExpression(memberExpression, cachedMembers);
             }
 
-            if (expressionKind == SyntaxKind.UnaryMinusExpression) {
+            if (expressionKind == SyntaxKind.UnaryMinusExpression)
                 return ParseUnaryExpression(memberExpression, cachedMembers);
-            }
 
             var memberType = typeService.GetType(memberExpression);
             var cachedMember = cachedMembers.Values.FirstOrDefault(x => x.Type == memberType && x.Node.ToString()==memberExpression.ToString());
@@ -464,6 +469,13 @@ namespace Prometheus.Engine.ExpressionMatcher
             public SyntaxNode Node { get; set; }
             public Expr Expression { get; set; }
             public Type Type { get; set; }
+        }
+
+        private class ExpressionTransformation
+        {
+            public ExpressionSyntax OriginalExpression { get; set; }
+            public ExpressionSyntax RewrittenExpression { get; set; }
+            public Dictionary<SyntaxNode, SyntaxNode> VariablesMap { get; set; }
         }
     }
 }

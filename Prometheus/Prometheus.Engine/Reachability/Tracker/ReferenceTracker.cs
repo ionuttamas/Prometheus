@@ -218,7 +218,6 @@ namespace Prometheus.Engine.Reachability.Tracker {
         /// </summary>
         private List<ConditionalAssignment> GetMethodAssignments(SyntaxToken identifier)
         {
-            //TODO
             var method = identifier.GetLocation().GetContainingMethod();
             var identifierName = identifier.ToString();
             var simpleAssignments = method

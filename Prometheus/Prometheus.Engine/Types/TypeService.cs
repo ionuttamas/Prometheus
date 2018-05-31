@@ -13,6 +13,7 @@ namespace Prometheus.Engine.Types
 {
     internal class TypeService : ITypeService
     {
+        private readonly Solution solution;
         private readonly List<TypeInfo> solutionTypes;
         private readonly List<ClassDeclarationSyntax> classDeclarations;
         private readonly Dictionary<string, Type> primitiveTypes;
@@ -21,6 +22,7 @@ namespace Prometheus.Engine.Types
 
         public TypeService(Solution solution)
         {
+            this.solution = solution;
             //todo: needs to get projects referenced assemblies
             solutionTypes = solution
                 .Projects
