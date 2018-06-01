@@ -76,7 +76,7 @@ namespace Prometheus.Engine.ExpressionMatcher
                 var secondResult = ParseExpression(transformation, processedMembers);
                 Solver solver = context.MkSolver();
                 BoolExpr equalityExpression = context.MkEq(firstResult.Item1, secondResult.Item1);
-                BoolExpr forAllExpression = context.MkForall(firstResult.Item2.Concat(secondResult.Item2).ToArray(), equalityExpression);
+                BoolExpr forAllExpression = context.MkForall(firstResult.Item2.Concat(secondResult.Item2).DistinctBy(x=>x.ToString()).ToArray(), equalityExpression);
                 solver.Assert(forAllExpression);
                 Status status = solver.Check();
 
@@ -111,7 +111,7 @@ namespace Prometheus.Engine.ExpressionMatcher
                 var secondResult = ParseExpression(expressionTransformation, processedMembers);
                 Solver solver = context.MkSolver();
                 BoolExpr equalityExpression = context.MkEq(firstResult.Item1, secondResult.Item1);
-                Quantifier forAllExpression = context.MkForall(firstResult.Item2.Concat(secondResult.Item2).ToArray(), equalityExpression);
+                Quantifier forAllExpression = context.MkForall(firstResult.Item2.Concat(secondResult.Item2).DistinctBy(x=>x.ToString()).ToArray(), equalityExpression);
                 solver.Assert(forAllExpression);
                 Status status = solver.Check();
 
