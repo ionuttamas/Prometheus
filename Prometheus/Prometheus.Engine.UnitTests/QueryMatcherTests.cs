@@ -48,8 +48,8 @@ namespace Prometheus.Engine.UnitTests
 
             Assert.True(areEquivalent);
             Assert.True(satisfiableTable.Count == 2);
-            Assert.True(satisfiableTable.Any(x=>x.Key.ToString()== "from2.Age" && x.Value.ToString()== "from1.Age"));
-            Assert.True(satisfiableTable.Any(x=>x.Key.ToString()== "to2.Age" && x.Value.ToString()== "to1.Age"));
+            Assert.True(satisfiableTable.Any(x=>x.Key.ToString()== "from2" && x.Value.ToString()== "from1"));
+            Assert.True(satisfiableTable.Any(x=>x.Key.ToString()== "to2" && x.Value.ToString()== "to1"));
         }
 
         [Test]
@@ -67,8 +67,8 @@ namespace Prometheus.Engine.UnitTests
 
             Assert.True(areEquivalent);
             Assert.True(satisfiableTable.Count == 2);
-            Assert.True(satisfiableTable.Any(x => x.Key.ToString() == "from1" && x.Value.ToString() == "from2"));
-            Assert.True(satisfiableTable.Any(x => x.Key.ToString() == "to1" && x.Value.ToString() == "to2"));
+            Assert.True(satisfiableTable.Any(x => x.Key.ToString() == "from2" && x.Value.ToString() == "from1"));
+            Assert.True(satisfiableTable.Any(x => x.Key.ToString() == "to2" && x.Value.ToString() == "to1"));
         }
 
         [Test]

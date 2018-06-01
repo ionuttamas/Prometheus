@@ -269,6 +269,27 @@ namespace Prometheus.Engine.Reachability.Tracker {
             var memberAccess = invocationExpression.Expression.As<MemberAccessExpressionSyntax>();
             var instanceExpression = memberAccess.Expression.As<IdentifierNameSyntax>();
             var methodName = memberAccess.Name.Identifier.Text;
+            //We only take into consideration the calling method conditions
+            var conditions = ExtractIfElseConditions(invocationExpression);
+
+            //TODO: This fails for "instance = Get(...)";
+            if (referenceParser.IsBuildInMethod(methodName))
+            {
+                var (reference, query)  = referenceParser.Parse(invocationExpression);
+                var callContext = new CallContext {
+                    InstanceReference = instanceExpression
+                };
+                reference.ReferenceContexts.Push(new ReferenceContext(callContext, query));
+
+                var assignment = new ConditionalAssignment {
+                    RightReference = reference,
+                    Conditions = conditions,
+                    LeftReference = new Reference(bindingNode)
+                };
+
+                return new List<ConditionalAssignment> { assignment };
+            }
+
             //TODO: handle when code is outside of the current solution (3rd party code)
             var type = typeService.GetType(instanceExpression);
             var classDeclaration = typeService.GetClassDeclaration(type);
@@ -277,8 +298,6 @@ namespace Prometheus.Engine.Reachability.Tracker {
             if (classDeclaration==null)
                 throw new NotSupportedException($"Type {type} is was not found in solution");
 
-            //We only take into consideration the calling method conditions
-            var conditions = ExtractIfElseConditions(invocationExpression);
             //TODO: this only checks the name and the param count and picks the first method
             var method = classDeclaration
                 .DescendantNodes<MethodDeclarationSyntax>(x => x.Identifier.Text == methodName && x.ParameterList.Parameters.Count==parametersCount)

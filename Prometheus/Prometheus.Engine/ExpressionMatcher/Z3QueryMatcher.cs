@@ -81,7 +81,9 @@ namespace Prometheus.Engine.ExpressionMatcher
                 Status status = solver.Check();
 
                 if (status == Status.SATISFIABLE) {
-                    satisfiableTable = variablesMap;
+                    satisfiableTable = variablesMap
+                        .ToDictionary(x=>x.Key is MemberAccessExpressionSyntax?GetRootIdentifier(x.Key.As<MemberAccessExpressionSyntax>()):x.Key,
+                                      x => x.Value is MemberAccessExpressionSyntax ? GetRootIdentifier(x.Value.As<MemberAccessExpressionSyntax>()) : x.Value);
                     return true;
                 }
             }
@@ -104,8 +106,8 @@ namespace Prometheus.Engine.ExpressionMatcher
             foreach (IEnumerable<SyntaxNode> permutation in GetPermutations(sourceCapturedVariables))
             {
                 var sourcePermutation = permutation.ToList();
-                var variablesMapping = targetCapturedVariables.Select((x, ix) => new {Index = ix, Node = x}).ToDictionary(x => x.Node, x => sourcePermutation[x.Index]);
-                var predicateRewriter = new PredicateRewriter(firstParameter, variablesMapping);
+                var variablesMap = targetCapturedVariables.Select((x, ix) => new {Index = ix, Node = x}).ToDictionary(x => x.Node, x => sourcePermutation[x.Index]);
+                var predicateRewriter = new PredicateRewriter(firstParameter, variablesMap);
                 var rewrittenLambda = predicateRewriter.Visit(second).As<SimpleLambdaExpressionSyntax>();
                 var expressionTransformation = new ExpressionTransformation(second.Body.As<ExpressionSyntax>(), rewrittenLambda.Body.As<ExpressionSyntax>());
                 var secondResult = ParseExpression(expressionTransformation, processedMembers);
@@ -117,7 +119,9 @@ namespace Prometheus.Engine.ExpressionMatcher
 
                 if (status == Status.SATISFIABLE)
                 {
-                    satisfiableTable = variablesMapping;
+                    satisfiableTable = variablesMap
+                        .ToDictionary(x => x.Key is MemberAccessExpressionSyntax ? GetRootIdentifier(x.Key.As<MemberAccessExpressionSyntax>()) : x.Key,
+                            x => x.Value is MemberAccessExpressionSyntax ? GetRootIdentifier(x.Value.As<MemberAccessExpressionSyntax>()) : x.Value);
                     return true;
                 }
             }
@@ -485,12 +489,11 @@ namespace Prometheus.Engine.ExpressionMatcher
         {
             var parameter = lambda.Parameter;
             var variables = lambda.Body
-                .DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text != parameter.Identifier.Text && x.Parent.Kind() != SyntaxKind.SimpleMemberAccessExpression)
+                .DescendantNodes<IdentifierNameSyntax>().Where(x => x.Identifier.Text != parameter.Identifier.Text && x.Parent.Kind() != SyntaxKind.SimpleMemberAccessExpression)
                 .Select(x => x.As<SyntaxNode>())
-                .Concat(lambda.Body.DescendantNodes<MemberAccessExpressionSyntax>(x => x.Name.Identifier.Text != parameter.Identifier.Text).Select(x => x.As<SyntaxNode>()))
+                .Concat(lambda.Body.DescendantNodes<MemberAccessExpressionSyntax>().Where(x => x.Expression.As<IdentifierNameSyntax>().Identifier.Text != parameter.Identifier.Text).Select(x => x.As<SyntaxNode>()))
                 .DistinctBy(x => x.ToString())
                 .ToList();
-
             return variables;
         }
 
@@ -507,6 +510,16 @@ namespace Prometheus.Engine.ExpressionMatcher
                         .SelectMany(x => list.Where(e => !x.Contains(e)), (t1, t2) => t1.Concat(new[] { t2 }));
 
             return result;
+        }
+
+        /// <summary>
+        /// For a member access expression such as "person.Address.Street" returns "person" as root identifier.
+        /// </summary>
+        private IdentifierNameSyntax GetRootIdentifier(MemberAccessExpressionSyntax memberAccess) {
+            string rootToken = memberAccess.ToString().Split('.').First();
+            var identifier = memberAccess.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == rootToken).First();
+
+            return identifier;
         }
 
         private class NodeType {

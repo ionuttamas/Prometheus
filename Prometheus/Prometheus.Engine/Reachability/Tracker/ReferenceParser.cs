@@ -14,6 +14,11 @@ namespace Prometheus.Engine.Reachability.Tracker
         private const string FIRST_OR_DEFAULT_TOKEN = "FirstOrDefault";
         private const string WHERE_TOKEN = "Where";
 
+        public bool IsBuildInMethod(string methodName)
+        {
+            return methodName == FIRST_OR_DEFAULT_TOKEN || methodName == FIRST_TOKEN || methodName == WHERE_TOKEN;
+        }
+
         public (Reference, IReferenceQuery) Parse(SyntaxNode node)
         {
             if (node is ReturnStatementSyntax)
