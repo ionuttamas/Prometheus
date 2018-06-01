@@ -42,10 +42,11 @@ namespace Prometheus.Engine.UnitTests
             var firstAssignment = referenceTracker.GetAssignments(firstIdentifier).First();
             var secondAssignment = referenceTracker.GetAssignments(secondIdentifier).First();
 
-            queryMatcher.AreEquivalent(firstAssignment.RightReference.ReferenceContexts.First().Query,
+            var areEquivalent = queryMatcher.AreEquivalent(firstAssignment.RightReference.ReferenceContexts.First().Query,
                                        secondAssignment.RightReference.ReferenceContexts.First().Query,
                                        out var satisfiableTable);
 
+            Assert.True(areEquivalent);
             Assert.True(satisfiableTable.Count == 2);
             Assert.True(satisfiableTable.Any(x=>x.Key.ToString()== "from1" && x.Value.ToString()== "from2"));
             Assert.True(satisfiableTable.Any(x=>x.Key.ToString()== "to1" && x.Value.ToString()== "to2"));
@@ -60,10 +61,11 @@ namespace Prometheus.Engine.UnitTests
             var firstAssignment = referenceTracker.GetAssignments(firstIdentifier).First();
             var secondAssignment = referenceTracker.GetAssignments(secondIdentifier).First();
 
-            queryMatcher.AreEquivalent(firstAssignment.RightReference.ReferenceContexts.First().Query,
+            var areEquivalent = queryMatcher.AreEquivalent(firstAssignment.RightReference.ReferenceContexts.First().Query,
                 secondAssignment.RightReference.ReferenceContexts.First().Query,
                 out var satisfiableTable);
 
+            Assert.True(areEquivalent);
             Assert.True(satisfiableTable.Count == 2);
             Assert.True(satisfiableTable.Any(x => x.Key.ToString() == "from1" && x.Value.ToString() == "from2"));
             Assert.True(satisfiableTable.Any(x => x.Key.ToString() == "to1" && x.Value.ToString() == "to2"));
@@ -78,10 +80,11 @@ namespace Prometheus.Engine.UnitTests
             var firstAssignment = referenceTracker.GetAssignments(firstIdentifier).First();
             var secondAssignment = referenceTracker.GetAssignments(secondIdentifier).First();
 
-            queryMatcher.AreEquivalent(firstAssignment.RightReference.ReferenceContexts.First().Query,
+            var areEquivalent = queryMatcher.AreEquivalent(firstAssignment.RightReference.ReferenceContexts.First().Query,
                 secondAssignment.RightReference.ReferenceContexts.First().Query,
                 out var satisfiableTable);
 
+            Assert.True(areEquivalent);
             Assert.True(satisfiableTable.Count == 2);
             Assert.True(satisfiableTable.Any(x => x.Key.ToString() == "from1" && x.Value.ToString() == "from2"));
             Assert.True(satisfiableTable.Any(x => x.Key.ToString() == "to1" && x.Value.ToString() == "to2"));
