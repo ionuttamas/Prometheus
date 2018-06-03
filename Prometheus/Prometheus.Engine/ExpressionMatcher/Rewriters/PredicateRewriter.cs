@@ -1,7 +1,9 @@
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Prometheus.Common;
 
 namespace Prometheus.Engine.ExpressionMatcher.Rewriters
 {
@@ -31,19 +33,28 @@ namespace Prometheus.Engine.ExpressionMatcher.Rewriters
 
         public override SyntaxNode VisitIdentifierName(IdentifierNameSyntax node)
         {
-            if (capturedVariablesTable.ContainsKey(node))
-                return capturedVariablesTable[node];
+            var keyValue = capturedVariablesTable.FirstOrDefault(x => x.Key.ToString() == node.ToString());
+
+            if (!keyValue.Equals(default(KeyValuePair<SyntaxNode, SyntaxNode>)))
+                return keyValue.Value;
 
             return base.VisitIdentifierName(node);
         }
 
         public override SyntaxNode VisitMemberAccessExpression(MemberAccessExpressionSyntax node)
         {
-            if (node.Name.Identifier.Text != sourceParameter.Identifier.Text)
+            if (node.GetRootIdentifier().Identifier.Text != sourceParameter.Identifier.Text)
+            {
+                var keyValue = capturedVariablesTable.FirstOrDefault(x => x.Key.ToString() == node.ToString());
+
+                if (!keyValue.Equals(default(KeyValuePair<SyntaxNode, SyntaxNode>)))
+                    return keyValue.Value;
+
                 return base.VisitMemberAccessExpression(node);
+            }
 
             var targetIdentifier = SyntaxFactory.IdentifierName(targetParameter.Identifier.Text);
-            node = node.WithName(targetIdentifier);
+            node = node.WithExpression(targetIdentifier);
             return node;
         }
     }

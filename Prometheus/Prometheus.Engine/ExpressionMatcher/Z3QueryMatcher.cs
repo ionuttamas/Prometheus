@@ -65,6 +65,10 @@ namespace Prometheus.Engine.ExpressionMatcher
             {
                 var sourcePermutation = permutation.ToList();
                 var variablesMap = targetVariables.Select((x, ix) => new { Index = ix, Node = x }).ToDictionary(x => x.Node, x => sourcePermutation[x.Index]);
+
+                if (variablesMap.Any(x => typeService.GetType(x.Key.As<ExpressionSyntax>()) != typeService.GetType(x.Value.As<ExpressionSyntax>())))
+                    continue;
+
                 var rewriter = new ExpressionRewriter(variablesMap);
                 var rewrittenExpression = rewriter.Visit(second).As<ExpressionSyntax>();
                 var transformation = new ExpressionTransformation
@@ -82,8 +86,8 @@ namespace Prometheus.Engine.ExpressionMatcher
 
                 if (status == Status.SATISFIABLE) {
                     satisfiableTable = variablesMap
-                        .ToDictionary(x=>x.Key is MemberAccessExpressionSyntax?GetRootIdentifier(x.Key.As<MemberAccessExpressionSyntax>()):x.Key,
-                                      x => x.Value is MemberAccessExpressionSyntax ? GetRootIdentifier(x.Value.As<MemberAccessExpressionSyntax>()) : x.Value);
+                        .ToDictionary(x=>x.Key is MemberAccessExpressionSyntax ? x.Key.As<MemberAccessExpressionSyntax>().GetRootIdentifier() :x.Key,
+                                      x => x.Value is MemberAccessExpressionSyntax ? x.Value.As<MemberAccessExpressionSyntax>().GetRootIdentifier() : x.Value);
                     return true;
                 }
             }
@@ -107,6 +111,10 @@ namespace Prometheus.Engine.ExpressionMatcher
             {
                 var sourcePermutation = permutation.ToList();
                 var variablesMap = targetCapturedVariables.Select((x, ix) => new {Index = ix, Node = x}).ToDictionary(x => x.Node, x => sourcePermutation[x.Index]);
+
+                if(variablesMap.Any(x=>typeService.GetType(x.Key.As<ExpressionSyntax>())!= typeService.GetType(x.Value.As<ExpressionSyntax>())))
+                    continue;
+
                 var predicateRewriter = new PredicateRewriter(firstParameter, variablesMap);
                 var rewrittenLambda = predicateRewriter.Visit(second).As<SimpleLambdaExpressionSyntax>();
                 var expressionTransformation = new ExpressionTransformation(second.Body.As<ExpressionSyntax>(), rewrittenLambda.Body.As<ExpressionSyntax>());
@@ -120,8 +128,8 @@ namespace Prometheus.Engine.ExpressionMatcher
                 if (status == Status.SATISFIABLE)
                 {
                     satisfiableTable = variablesMap
-                        .ToDictionary(x => x.Key is MemberAccessExpressionSyntax ? GetRootIdentifier(x.Key.As<MemberAccessExpressionSyntax>()) : x.Key,
-                            x => x.Value is MemberAccessExpressionSyntax ? GetRootIdentifier(x.Value.As<MemberAccessExpressionSyntax>()) : x.Value);
+                        .ToDictionary(x => x.Key is MemberAccessExpressionSyntax ? x.Key.As<MemberAccessExpressionSyntax>().GetRootIdentifier() : x.Key,
+                            x => x.Value is MemberAccessExpressionSyntax ? x.Value.As<MemberAccessExpressionSyntax>().GetRootIdentifier() : x.Value);
                     return true;
                 }
             }
@@ -488,12 +496,21 @@ namespace Prometheus.Engine.ExpressionMatcher
         private static List<SyntaxNode> GetCapturedVariables(SimpleLambdaExpressionSyntax lambda)
         {
             var parameter = lambda.Parameter;
+            var members = lambda.Body.DescendantNodes<MemberAccessExpressionSyntax>()
+                .Where(x => x.GetRootIdentifier().Identifier.Text != parameter.Identifier.Text)
+                .ToList();
+
+            members.RemoveAll(x => members.Any(m => m.DescendantNodes<MemberAccessExpressionSyntax>().Contains(x)));
+
             var variables = lambda.Body
                 .DescendantNodes<IdentifierNameSyntax>().Where(x => x.Identifier.Text != parameter.Identifier.Text && x.Parent.Kind() != SyntaxKind.SimpleMemberAccessExpression)
                 .Select(x => x.As<SyntaxNode>())
-                .Concat(lambda.Body.DescendantNodes<MemberAccessExpressionSyntax>().Where(x => GetRootIdentifier(x).Identifier.Text != parameter.Identifier.Text))
+                .Concat(members)
                 .DistinctBy(x => x.ToString())
                 .ToList();
+
+
+
             return variables;
         }
 
@@ -510,16 +527,6 @@ namespace Prometheus.Engine.ExpressionMatcher
                         .SelectMany(x => list.Where(e => !x.Contains(e)), (t1, t2) => t1.Concat(new[] { t2 }));
 
             return result;
-        }
-
-        /// <summary>
-        /// For a member access expression such as "person.Address.Street" returns "person" as root identifier.
-        /// </summary>
-        private static IdentifierNameSyntax GetRootIdentifier(MemberAccessExpressionSyntax memberAccess) {
-            string rootToken = memberAccess.ToString().Split('.').First();
-            var identifier = memberAccess.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == rootToken).First();
-
-            return identifier;
         }
 
         private class NodeType {

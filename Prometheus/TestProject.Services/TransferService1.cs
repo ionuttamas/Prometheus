@@ -35,12 +35,14 @@ namespace TestProject.Services
         public void MethodAssignment_WithFirstQuery_1(Customer from1, Customer to1, decimal amount) {
             var customers = _customerRepository.GetWhere(to1.Age);
             //TODO: support reference type comparison as "x.DeliveryAddress == to1.DeliveryAddress"
-            Customer firstCustomer1 = customers.First(x => (x.Age == from1.Age || x.AccountBalance==from1.AccountBalance) && x.DeliveryAddress.City == to1.DeliveryAddress.City);
+            Customer firstCustomer1 = customers.First(x => x.Age == from1.Age && x.DeliveryAddress.City == to1.DeliveryAddress.City);
+            //Customer firstCustomer1 = customers.First(x => (x.Age == from1.Age || x.AccountBalance==from1.AccountBalance) && x.DeliveryAddress.City == to1.DeliveryAddress.City);
         }
 
         public void MethodAssignment_WithFirstQuery_2(Customer from2, Customer to2, decimal amount) {
             var customers = _customerRepository.GetWhere(to2.Age);
-            Customer firstCustomer2 = customers.FirstOrDefault(x => x.AccountBalance == from2.AccountBalance && x.DeliveryAddress.City == to2.DeliveryAddress.City || x.Age == from2.Age && x.DeliveryAddress.City == to2.DeliveryAddress.City);
+            Customer firstCustomer2 = customers.FirstOrDefault(x => x.DeliveryAddress.City == to2.DeliveryAddress.City && x.Age == from2.Age);
+            //Customer firstCustomer2 = customers.FirstOrDefault(x => (x.AccountBalance == from2.AccountBalance && x.DeliveryAddress.City == to2.DeliveryAddress.City) || (x.Age == from2.Age && x.DeliveryAddress.City == to2.DeliveryAddress.City));
         }
 
         public void MethodAssignment_WithWhereQuery_1(Customer from1, Customer to1, decimal amount) {

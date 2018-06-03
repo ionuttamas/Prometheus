@@ -326,8 +326,8 @@ namespace Prometheus.Engine.ConditionProver
                 if (node.Node is MemberAccessExpressionSyntax && memberExpression is MemberAccessExpressionSyntax) {
                     var firstMember = (MemberAccessExpressionSyntax)node.Node;
                     var secondMember = (MemberAccessExpressionSyntax)memberExpression;
-                    var firstRootReference = new Reference(GetRootIdentifier(firstMember));
-                    var secondRootReference = new Reference(GetRootIdentifier(secondMember));
+                    var firstRootReference = new Reference(firstMember.GetRootIdentifier());
+                    var secondRootReference = new Reference(secondMember.GetRootIdentifier());
 
                     if (reachabilityDelegate(firstRootReference, secondRootReference, out Reference _))
                         return node.Expression;
@@ -357,16 +357,6 @@ namespace Prometheus.Engine.ConditionProver
         }
 
         #endregion
-
-        /// <summary>
-        /// For a member access expression such as "person.Address.Street" returns "person" as root identifier.
-        /// </summary>
-        private IdentifierNameSyntax GetRootIdentifier(MemberAccessExpressionSyntax memberAccess) {
-            string rootToken = memberAccess.ToString().Split('.').First();
-            var identifier = memberAccess.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == rootToken).First();
-
-            return identifier;
-        }
 
         private class NodeType {
             public SyntaxNode Node { get; set; }

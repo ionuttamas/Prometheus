@@ -48,6 +48,16 @@ namespace Prometheus.Common
             return callingMethod;
         }
 
+        /// <summary>
+        /// For a member access expression such as "person.Address.Street" returns "person" as root identifier.
+        /// </summary>
+        public static IdentifierNameSyntax GetRootIdentifier(this MemberAccessExpressionSyntax memberAccess) {
+            string rootToken = memberAccess.ToString().Split('.').First();
+            var identifier = memberAccess.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == rootToken).First();
+
+            return identifier;
+        }
+
         public static ClassDeclarationSyntax GetContainingClass(this SyntaxNode node) {
             ClassDeclarationSyntax classDeclaration = node.GetLocation().GetContainingClass();
 
