@@ -66,7 +66,7 @@ namespace Prometheus.Engine.UnitTests
                 out var satisfiableTable);
 
             Assert.True(areEquivalent);
-            Assert.True(satisfiableTable.Count == 2);
+            Assert.AreEqual(2, satisfiableTable.Count);
             Assert.True(satisfiableTable.Any(x => x.Key.ToString() == "from2" && x.Value.ToString() == "from1"));
             Assert.True(satisfiableTable.Any(x => x.Key.ToString() == "to2" && x.Value.ToString() == "to1"));
         }
@@ -75,8 +75,8 @@ namespace Prometheus.Engine.UnitTests
         public void QueryMatcher_ForWhereQueryAssignments_MatchesCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var transferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TransferService1));
-            var firstIdentifier = transferServiceClass.GetMethodDescendant(nameof(TransferService1.MethodAssignment_WithFirstQuery_1)).DescendantTokens<SyntaxToken>(x => x.ToString() == "whereCustomers1").First();
-            var secondIdentifier = transferServiceClass.GetMethodDescendant(nameof(TransferService1.MethodAssignment_WithFirstQuery_2)).DescendantTokens<SyntaxToken>(x => x.ToString() == "whereCustomers2").First();
+            var firstIdentifier = transferServiceClass.GetMethodDescendant(nameof(TransferService1.MethodAssignment_WithWhereQuery_1)).DescendantTokens<SyntaxToken>(x => x.ToString() == "whereCustomers1").First();
+            var secondIdentifier = transferServiceClass.GetMethodDescendant(nameof(TransferService1.MethodAssignment_WithWhereQuery_2)).DescendantTokens<SyntaxToken>(x => x.ToString() == "whereCustomers2").First();
             var firstAssignment = referenceTracker.GetAssignments(firstIdentifier).First();
             var secondAssignment = referenceTracker.GetAssignments(secondIdentifier).First();
 
@@ -85,9 +85,9 @@ namespace Prometheus.Engine.UnitTests
                 out var satisfiableTable);
 
             Assert.True(areEquivalent);
-            Assert.True(satisfiableTable.Count == 2);
-            Assert.True(satisfiableTable.Any(x => x.Key.ToString() == "from1" && x.Value.ToString() == "from2"));
-            Assert.True(satisfiableTable.Any(x => x.Key.ToString() == "to1" && x.Value.ToString() == "to2"));
+            Assert.AreEqual(2, satisfiableTable.Count);
+            Assert.True(satisfiableTable.Any(x => x.Key.ToString() == "from2" && x.Value.ToString() == "from1"));
+            Assert.True(satisfiableTable.Any(x => x.Key.ToString() == "to2" && x.Value.ToString() == "to1"));
         }
     }
 }

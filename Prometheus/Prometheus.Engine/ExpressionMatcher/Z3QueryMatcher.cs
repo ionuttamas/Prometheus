@@ -87,7 +87,10 @@ namespace Prometheus.Engine.ExpressionMatcher
                 if (status == Status.SATISFIABLE) {
                     satisfiableTable = variablesMap
                         .ToDictionary(x=>x.Key is MemberAccessExpressionSyntax ? x.Key.As<MemberAccessExpressionSyntax>().GetRootIdentifier() :x.Key,
-                                      x => x.Value is MemberAccessExpressionSyntax ? x.Value.As<MemberAccessExpressionSyntax>().GetRootIdentifier() : x.Value);
+                                      x => x.Value is MemberAccessExpressionSyntax ? x.Value.As<MemberAccessExpressionSyntax>().GetRootIdentifier() : x.Value)
+                        .DistinctBy(x => new { Key = x.Key.ToString(), Value = x.Value.ToString() })
+                        .ToDictionary(x => x.Key, x => x.Value);
+
                     return true;
                 }
             }
@@ -129,7 +132,10 @@ namespace Prometheus.Engine.ExpressionMatcher
                 {
                     satisfiableTable = variablesMap
                         .ToDictionary(x => x.Key is MemberAccessExpressionSyntax ? x.Key.As<MemberAccessExpressionSyntax>().GetRootIdentifier() : x.Key,
-                            x => x.Value is MemberAccessExpressionSyntax ? x.Value.As<MemberAccessExpressionSyntax>().GetRootIdentifier() : x.Value);
+                            x => x.Value is MemberAccessExpressionSyntax ? x.Value.As<MemberAccessExpressionSyntax>().GetRootIdentifier() : x.Value)
+                        .DistinctBy(x => new { Key = x.Key.ToString(), Value = x.Value.ToString() })
+                        .ToDictionary(x=>x.Key, x=>x.Value);
+
                     return true;
                 }
             }

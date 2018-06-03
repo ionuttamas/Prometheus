@@ -87,16 +87,12 @@ namespace Prometheus.Engine.Reachability.Tracker
             var referenceNode = node.DescendantNodes<IdentifierNameSyntax>().First();
             var expressionIdentifier = node
                 .Expression.As<MemberAccessExpressionSyntax>()
-                .Expression.As<InvocationExpressionSyntax>()
-                .Expression.As<MemberAccessExpressionSyntax>()
                 .Name.Identifier.Text;
 
             if (expressionIdentifier != WHERE_TOKEN)
                 throw new NotSupportedException("Only instance.Where() expressions with one call level are allowed");
 
             var query = node
-                .Expression.As<MemberAccessExpressionSyntax>()
-                .Expression.As<InvocationExpressionSyntax>()
                 .ArgumentList.Arguments[0]
                 .Expression.As<SimpleLambdaExpressionSyntax>();
 

@@ -53,6 +53,9 @@ namespace Prometheus.Engine.ExpressionMatcher.Rewriters
                 return base.VisitMemberAccessExpression(node);
             }
 
+            if (node.Expression.ToString() != sourceParameter.Identifier.Text)
+                return base.VisitMemberAccessExpression(node);
+
             var targetIdentifier = SyntaxFactory.IdentifierName(targetParameter.Identifier.Text);
             node = node.WithExpression(targetIdentifier);
             return node;
