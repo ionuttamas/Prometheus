@@ -76,9 +76,9 @@ namespace TestProject.GUI {
             var transferService2 = new TransferService2(customerRepository);
             transferService2.MethodAssignment_IfTransfer(sharedCustomer, null, 100);
 
-            transferService1.MethodAssignment_WithIndexQuery_2(sharedCustomer, null, 100);
-            transferService1.MethodAssignment_WithFirstQuery_2(sharedCustomer, null, 100);
-            transferService1.MethodAssignment_WithWhereQuery_2(sharedCustomer, null, 100);
+            transferService2.MethodAssignment_WithIndexQuery_2(sharedCustomer, null, 100);
+            transferService2.MethodAssignment_WithFirstQuery_2(sharedCustomer, null, 100);
+            transferService2.MethodAssignment_WithWhereQuery_2(sharedCustomer, null, 100);
 
             var proverTransferService = new ProverTransferService();
             proverTransferService.SimpleIf_NegatedTransfer(sharedCustomer, null, 100);

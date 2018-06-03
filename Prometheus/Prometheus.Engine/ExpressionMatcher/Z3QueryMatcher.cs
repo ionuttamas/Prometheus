@@ -488,9 +488,11 @@ namespace Prometheus.Engine.ExpressionMatcher
 
         #endregion
 
+        #region Utils
+
         private static List<SyntaxNode> GetVariables(ExpressionSyntax expression) {
             var variables = expression
-                .DescendantNodes<IdentifierNameSyntax>(x=>x.Parent.Kind() != SyntaxKind.SimpleMemberAccessExpression)
+                .DescendantNodes<IdentifierNameSyntax>(x => x.Parent.Kind() != SyntaxKind.SimpleMemberAccessExpression)
                 .Select(x => x.As<SyntaxNode>())
                 .Concat(expression.DescendantNodes<MemberAccessExpressionSyntax>())
                 .DistinctBy(x => x.ToString())
@@ -499,8 +501,7 @@ namespace Prometheus.Engine.ExpressionMatcher
             return variables;
         }
 
-        private static List<SyntaxNode> GetCapturedVariables(SimpleLambdaExpressionSyntax lambda)
-        {
+        private static List<SyntaxNode> GetCapturedVariables(SimpleLambdaExpressionSyntax lambda) {
             var parameter = lambda.Parameter;
             var members = lambda.Body.DescendantNodes<MemberAccessExpressionSyntax>()
                 .Where(x => x.GetRootIdentifier().Identifier.Text != parameter.Identifier.Text)
@@ -520,8 +521,7 @@ namespace Prometheus.Engine.ExpressionMatcher
             return variables;
         }
 
-        private static IEnumerable<IEnumerable<T>> GetPermutations<T>(List<T> list)
-        {
+        private static IEnumerable<IEnumerable<T>> GetPermutations<T>(List<T> list) {
             return GetPermutations(list, list.Count);
         }
 
@@ -541,20 +541,19 @@ namespace Prometheus.Engine.ExpressionMatcher
             public Type Type { get; set; }
         }
 
-        private class ExpressionTransformation
-        {
+        private class ExpressionTransformation {
             public ExpressionSyntax OriginalExpression { get; set; }
             public ExpressionSyntax RewrittenExpression { get; set; }
 
-            public ExpressionTransformation()
-            {
+            public ExpressionTransformation() {
             }
 
-            public ExpressionTransformation(ExpressionSyntax originalExpression, ExpressionSyntax rewrittenExpression)
-            {
+            public ExpressionTransformation(ExpressionSyntax originalExpression, ExpressionSyntax rewrittenExpression) {
                 OriginalExpression = originalExpression;
                 RewrittenExpression = rewrittenExpression;
             }
         }
+
+        #endregion
     }
 }

@@ -140,10 +140,10 @@ namespace Prometheus.Engine.Reachability.Prover
                 if (!queryMatcher.AreEquivalent(firstMethodCalls[i].Query, secondMethodCalls[i].Query, out var satisfiableTable))
                     continue;
 
-                foreach (var nodeMapping in satisfiableTable)
+                foreach (var variableMapping in satisfiableTable)
                 {
-                    var firstReference = new Reference(nodeMapping.Key){ ReferenceContexts = new Stack<ReferenceContext>(new[] { firstMethodCalls[i] }) };
-                    var secondReference = new Reference(nodeMapping.Value){ ReferenceContexts = new Stack<ReferenceContext>(new[] { secondMethodCalls[i] }) };
+                    var firstReference = new Reference(variableMapping.Key){ ReferenceContexts = new Stack<ReferenceContext>(new[] { firstMethodCalls[i] }) };
+                    var secondReference = new Reference(variableMapping.Value){ ReferenceContexts = new Stack<ReferenceContext>(new[] { secondMethodCalls[i] }) };
 
                     if (!HaveCommonReference(firstReference, secondReference, out var _))
                         return false;

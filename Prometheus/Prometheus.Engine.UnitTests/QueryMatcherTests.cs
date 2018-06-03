@@ -36,9 +36,10 @@ namespace Prometheus.Engine.UnitTests
         [Test]
         public void QueryMatcher_ForIndexQueryAssignments_MatchesCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
-            var transferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TransferService1));
-            var firstIdentifier = transferServiceClass.GetMethodDescendant(nameof(TransferService1.MethodAssignment_WithIndexQuery_1)).DescendantTokens<SyntaxToken>(x => x.ToString() == "indexCustomer1").First();
-            var secondIdentifier = transferServiceClass.GetMethodDescendant(nameof(TransferService1.MethodAssignment_WithIndexQuery_2)).DescendantTokens<SyntaxToken>(x => x.ToString() == "indexCustomer2").First();
+            var transferService1Class = project.GetCompilation().GetClassDeclaration(typeof(TransferService1));
+            var transferService2Class = project.GetCompilation().GetClassDeclaration(typeof(TransferService2));
+            var firstIdentifier = transferService1Class.GetMethodDescendant(nameof(TransferService1.MethodAssignment_WithIndexQuery_1)).DescendantTokens<SyntaxToken>(x => x.ToString() == "indexCustomer1").First();
+            var secondIdentifier = transferService2Class.GetMethodDescendant(nameof(TransferService2.MethodAssignment_WithIndexQuery_2)).DescendantTokens<SyntaxToken>(x => x.ToString() == "indexCustomer2").First();
             var firstAssignment = referenceTracker.GetAssignments(firstIdentifier).First();
             var secondAssignment = referenceTracker.GetAssignments(secondIdentifier).First();
 
@@ -55,9 +56,10 @@ namespace Prometheus.Engine.UnitTests
         [Test]
         public void QueryMatcher_ForFirstQueryAssignments_MatchesCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
-            var transferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TransferService1));
-            var firstIdentifier = transferServiceClass.GetMethodDescendant(nameof(TransferService1.MethodAssignment_WithFirstQuery_1)).DescendantTokens<SyntaxToken>(x => x.ToString() == "firstCustomer1").First();
-            var secondIdentifier = transferServiceClass.GetMethodDescendant(nameof(TransferService1.MethodAssignment_WithFirstQuery_2)).DescendantTokens<SyntaxToken>(x => x.ToString() == "firstCustomer2").First();
+            var transferService1Class = project.GetCompilation().GetClassDeclaration(typeof(TransferService1));
+            var transferService2Class = project.GetCompilation().GetClassDeclaration(typeof(TransferService2));
+            var firstIdentifier = transferService1Class.GetMethodDescendant(nameof(TransferService1.MethodAssignment_WithFirstQuery_1)).DescendantTokens<SyntaxToken>(x => x.ToString() == "firstCustomer1").First();
+            var secondIdentifier = transferService2Class.GetMethodDescendant(nameof(TransferService2.MethodAssignment_WithFirstQuery_2)).DescendantTokens<SyntaxToken>(x => x.ToString() == "firstCustomer2").First();
             var firstAssignment = referenceTracker.GetAssignments(firstIdentifier).First();
             var secondAssignment = referenceTracker.GetAssignments(secondIdentifier).First();
 
@@ -74,9 +76,10 @@ namespace Prometheus.Engine.UnitTests
         [Test]
         public void QueryMatcher_ForWhereQueryAssignments_MatchesCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
-            var transferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TransferService1));
-            var firstIdentifier = transferServiceClass.GetMethodDescendant(nameof(TransferService1.MethodAssignment_WithWhereQuery_1)).DescendantTokens<SyntaxToken>(x => x.ToString() == "whereCustomers1").First();
-            var secondIdentifier = transferServiceClass.GetMethodDescendant(nameof(TransferService1.MethodAssignment_WithWhereQuery_2)).DescendantTokens<SyntaxToken>(x => x.ToString() == "whereCustomers2").First();
+            var transferService1Class = project.GetCompilation().GetClassDeclaration(typeof(TransferService1));
+            var transferService2Class = project.GetCompilation().GetClassDeclaration(typeof(TransferService2));
+            var firstIdentifier = transferService1Class.GetMethodDescendant(nameof(TransferService1.MethodAssignment_WithWhereQuery_1)).DescendantTokens<SyntaxToken>(x => x.ToString() == "whereCustomers1").First();
+            var secondIdentifier = transferService2Class.GetMethodDescendant(nameof(TransferService2.MethodAssignment_WithWhereQuery_2)).DescendantTokens<SyntaxToken>(x => x.ToString() == "whereCustomers2").First();
             var firstAssignment = referenceTracker.GetAssignments(firstIdentifier).First();
             var secondAssignment = referenceTracker.GetAssignments(secondIdentifier).First();
 
