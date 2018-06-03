@@ -478,7 +478,7 @@ namespace Prometheus.Engine.ExpressionMatcher
             var variables = expression
                 .DescendantNodes<IdentifierNameSyntax>(x=>x.Parent.Kind() != SyntaxKind.SimpleMemberAccessExpression)
                 .Select(x => x.As<SyntaxNode>())
-                .Concat(expression.DescendantNodes<MemberAccessExpressionSyntax>().Select(x => x.As<SyntaxNode>()))
+                .Concat(expression.DescendantNodes<MemberAccessExpressionSyntax>())
                 .DistinctBy(x => x.ToString())
                 .ToList();
 
@@ -491,7 +491,7 @@ namespace Prometheus.Engine.ExpressionMatcher
             var variables = lambda.Body
                 .DescendantNodes<IdentifierNameSyntax>().Where(x => x.Identifier.Text != parameter.Identifier.Text && x.Parent.Kind() != SyntaxKind.SimpleMemberAccessExpression)
                 .Select(x => x.As<SyntaxNode>())
-                .Concat(lambda.Body.DescendantNodes<MemberAccessExpressionSyntax>().Where(x => x.Expression.As<IdentifierNameSyntax>().Identifier.Text != parameter.Identifier.Text).Select(x => x.As<SyntaxNode>()))
+                .Concat(lambda.Body.DescendantNodes<MemberAccessExpressionSyntax>().Where(x => GetRootIdentifier(x).Identifier.Text != parameter.Identifier.Text))
                 .DistinctBy(x => x.ToString())
                 .ToList();
             return variables;
@@ -515,7 +515,7 @@ namespace Prometheus.Engine.ExpressionMatcher
         /// <summary>
         /// For a member access expression such as "person.Address.Street" returns "person" as root identifier.
         /// </summary>
-        private IdentifierNameSyntax GetRootIdentifier(MemberAccessExpressionSyntax memberAccess) {
+        private static IdentifierNameSyntax GetRootIdentifier(MemberAccessExpressionSyntax memberAccess) {
             string rootToken = memberAccess.ToString().Split('.').First();
             var identifier = memberAccess.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == rootToken).First();
 

@@ -28,15 +28,6 @@ namespace Prometheus.Engine.Types
             syntaxTokenTypeCache[syntaxToken] = type;
         }
 
-        public void AddToCache(MethodDeclarationSyntax method, string token, string typeName) {
-            if (!tokenTypeNameCache.ContainsKey(method))
-            {
-                tokenTypeNameCache[method] = new Dictionary<string, string>();
-            }
-
-            tokenTypeNameCache[method][token] = typeName;
-        }
-
         public bool TryGetType(ExpressionSyntax syntax, out Type type)
         {
             return expressionSyntaxTypeCache.TryGetValue(syntax, out type);

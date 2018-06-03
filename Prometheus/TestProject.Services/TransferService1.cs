@@ -34,22 +34,23 @@ namespace TestProject.Services
 
         public void MethodAssignment_WithFirstQuery_1(Customer from1, Customer to1, decimal amount) {
             var customers = _customerRepository.GetWhere(to1.Age);
-            Customer firstCustomer1 = customers.First(x => (x.Age == from1.Age || x.AccountBalance==from1.AccountBalance) && x.DeliveryAddress==to1.DeliveryAddress);
+            //TODO: support reference type comparison as "x.DeliveryAddress == to1.DeliveryAddress"
+            Customer firstCustomer1 = customers.First(x => (x.Age == from1.Age || x.AccountBalance==from1.AccountBalance) && x.DeliveryAddress.City == to1.DeliveryAddress.City);
         }
 
         public void MethodAssignment_WithFirstQuery_2(Customer from2, Customer to2, decimal amount) {
             var customers = _customerRepository.GetWhere(to2.Age);
-            Customer firstCustomer2 = customers.FirstOrDefault(x => x.AccountBalance == from2.AccountBalance && x.DeliveryAddress == to2.DeliveryAddress || x.Age == from2.Age && x.DeliveryAddress == to2.DeliveryAddress);
+            Customer firstCustomer2 = customers.FirstOrDefault(x => x.AccountBalance == from2.AccountBalance && x.DeliveryAddress.City == to2.DeliveryAddress.City || x.Age == from2.Age && x.DeliveryAddress.City == to2.DeliveryAddress.City);
         }
 
         public void MethodAssignment_WithWhereQuery_1(Customer from1, Customer to1, decimal amount) {
             var customers = _customerRepository.GetWhere(to1.Age);
-            var whereCustomers1 = customers.Where(x => (x.Age == from1.Age || x.AccountBalance == from1.AccountBalance) && x.DeliveryAddress == to1.DeliveryAddress);
+            var whereCustomers1 = customers.Where(x => (x.Age == from1.Age || x.AccountBalance == from1.AccountBalance) && x.DeliveryAddress.City == to1.DeliveryAddress.City);
         }
 
         public void MethodAssignment_WithWhereQuery_2(Customer from2, Customer to2, decimal amount) {
             var customers = _customerRepository.GetWhere(to2.Age);
-            var whereCustomers2 = customers.Where(x => x.AccountBalance == from2.AccountBalance && x.DeliveryAddress == to2.DeliveryAddress || x.Age == from2.Age && x.DeliveryAddress == to2.DeliveryAddress);
+            var whereCustomers2 = customers.Where(x => x.AccountBalance == from2.AccountBalance && x.DeliveryAddress.City == to2.DeliveryAddress.City || x.Age == from2.Age && x.DeliveryAddress.City == to2.DeliveryAddress.City);
         }
     }
 }

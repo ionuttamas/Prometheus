@@ -13,7 +13,6 @@ namespace Prometheus.Engine.Types
 {
     internal class TypeService : ITypeService
     {
-        private readonly Solution solution;
         private readonly List<TypeInfo> solutionTypes;
         private readonly List<ClassDeclarationSyntax> classDeclarations;
         private readonly Dictionary<string, Type> primitiveTypes;
@@ -22,7 +21,6 @@ namespace Prometheus.Engine.Types
 
         public TypeService(Solution solution)
         {
-            this.solution = solution;
             //todo: needs to get projects referenced assemblies
             solutionTypes = solution
                 .Projects
@@ -74,10 +72,25 @@ namespace Prometheus.Engine.Types
             if (typeCache.TryGetType(memberExpression, out var cachedType))
                 return cachedType;
 
-            var expressionKind = memberExpression.Kind();
-            var type = expressionKind == SyntaxKind.SimpleMemberAccessExpression
-                ? GetExpressionTypes((MemberAccessExpressionSyntax)memberExpression).Last()
-                : GetNodeType((IdentifierNameSyntax)memberExpression);
+            var lambdaExpression = memberExpression.AncestorNodes<SimpleLambdaExpressionSyntax>().FirstOrDefault();
+            Type type;
+
+            if (lambdaExpression != null)
+            {
+                var invocation = lambdaExpression.AncestorNodes<InvocationExpressionSyntax>().First();
+                var instance = invocation.Expression.As<MemberAccessExpressionSyntax>().Expression
+                    .As<IdentifierNameSyntax>();
+                var genericType = GetGenericArgumentType(instance);
+                type = GetExpressionTypes(genericType, memberExpression.As<MemberAccessExpressionSyntax>()).Last();
+
+            }
+            else
+            {
+                var expressionKind = memberExpression.Kind();
+                type = expressionKind == SyntaxKind.SimpleMemberAccessExpression
+                    ? GetExpressionTypes(memberExpression.As<MemberAccessExpressionSyntax>()).Last()
+                    : GetNodeType(memberExpression.As<IdentifierNameSyntax>());
+            }
 
             typeCache.AddToCache(memberExpression, type);
 
@@ -89,10 +102,9 @@ namespace Prometheus.Engine.Types
             if (typeCache.TryGetType(syntaxToken, out var cachedType))
                 return cachedType;
 
-            string typeName = GetTypeName(syntaxToken.GetLocation().GetContainingMethod(), syntaxToken.Text);
-            Type type = GetType(typeName);
-
-            typeCache.AddToCache(syntaxToken, type);
+            string typeName = GetTypeName(syntaxToken.GetLocation().GetContainingMethod(), syntaxToken.Text, out Type type);
+            Type result = type ??  GetType(typeName);
+            typeCache.AddToCache(syntaxToken, result);
 
             return type;
         }
@@ -119,6 +131,15 @@ namespace Prometheus.Engine.Types
             throw new ArgumentException($"Type {type} is not supported");
         }
 
+        private Type GetGenericArgumentType(IdentifierNameSyntax instance) {
+            var genericType = GetType(instance);
+
+            if (genericType.GenericTypeArguments.Length != 1)
+                throw new NotSupportedException($"{genericType} contains more that one generic type argument");
+
+            return genericType.GenericTypeArguments[0];
+        }
+
         /// <summary>
         /// Gets all the types of a given member expression.
         /// E.g. for person.Address.Street returns {typeof(Person), typeof(Address), typeof(string)}
@@ -126,11 +147,18 @@ namespace Prometheus.Engine.Types
         private List<Type> GetExpressionTypes(MemberAccessExpressionSyntax memberExpression) {
             Queue<string> memberTokens = new Queue<string>(memberExpression.ToString().Split('.'));
             string rootToken = memberTokens.First();
-            var typeName = GetTypeName(memberExpression.GetContainingMethod(), rootToken);
+            string typeName = GetTypeName(memberExpression.GetContainingMethod(), rootToken, out var type);
+            Type rootType = type ?? GetType(typeName);
+
+            return GetExpressionTypes(rootType, memberExpression);
+        }
+
+        private List<Type> GetExpressionTypes(Type rootType, MemberAccessExpressionSyntax memberExpression)
+        {
+            Queue<string> memberTokens = new Queue<string>(memberExpression.ToString().Split('.'));
             memberTokens.Dequeue();
 
             var types = new List<Type>();
-            Type rootType = GetType(typeName);
             Type currentType = rootType;
             types.Add(currentType);
 
@@ -161,41 +189,31 @@ namespace Prometheus.Engine.Types
         /// <summary>
         /// Gets the type for a given identifier.
         /// </summary>
-        private Type GetNodeType(IdentifierNameSyntax identifierNameSyntax) {
-            string typeName = GetTypeName(identifierNameSyntax.GetContainingMethod(), identifierNameSyntax.Identifier.Text);
-            Type type = GetType(typeName);
+        private Type GetNodeType(IdentifierNameSyntax identifierNameSyntax)
+        {
+            Type type;
+            string typeName = GetTypeName(identifierNameSyntax.GetContainingMethod(), identifierNameSyntax.Identifier.Text, out type);
 
-            return type;
+            return type ?? GetType(typeName);
         }
 
         #region Type name extraction
 
-        private string GetTypeName(MethodDeclarationSyntax containingMethod, string token) {
+        private string GetTypeName(MethodDeclarationSyntax containingMethod, string token, out Type type) {
             string typeName;
-
-            if (typeCache.TryGetTypeName(containingMethod, token, out var cachedTypeName))
-                return cachedTypeName;
+            type = null;
 
             if (ProcessFieldAssignment(containingMethod, token, out typeName))
-            {
-                typeCache.AddToCache(containingMethod, token, typeName);
                 return typeName;
-            }
+
             if (ProcessPropertyAssignment(containingMethod, token, out typeName))
-            {
-                typeCache.AddToCache(containingMethod, token, typeName);
                 return typeName;
-            }
+
             if (ProcessParameter(containingMethod, token, out typeName))
-            {
-                typeCache.AddToCache(containingMethod, token, typeName);
                 return typeName;
-            }
-            if (ProcessAssignment(containingMethod, token, out typeName))
-            {
-                typeCache.AddToCache(containingMethod, token, typeName);
+
+            if (ProcessAssignment(containingMethod, token, out typeName, out type))
                 return typeName;
-            }
 
             return null;
         }
@@ -217,28 +235,27 @@ namespace Prometheus.Engine.Types
             return false;
         }
 
-        private bool ProcessAssignment(MethodDeclarationSyntax containingMethod, string token, out string typeName) {
+        private bool ProcessAssignment(MethodDeclarationSyntax containingMethod, string token, out string typeName, out Type type) {
             var localDeclaration = containingMethod
                 .FirstDescendantNode<LocalDeclarationStatementSyntax>(x => x.Declaration.Variables[0].Identifier.Text == token);
+            type = null;
+            typeName = null;
 
             if (localDeclaration == null)
-            {
-                typeName = null;
                 return false;
-            }
 
             typeName = localDeclaration.Declaration.Type.ToString();
 
             if (typeName != VAR_TOKEN)
                 return true;
 
-            if (ProcessReferenceAssignment(localDeclaration, out typeName))
+            if (ProcessReferenceAssignment(localDeclaration, out typeName, out type))
                 return true;
 
             if (ProcessClassMethodAssignment(localDeclaration, out typeName))
                 return true;
 
-            if (ProcessInstanceMethodAssignment(localDeclaration, out typeName))
+            if (ProcessInstanceMethodAssignment(localDeclaration, out type))
                 return true;
 
             if (ProcessStaticMethodAssignment(localDeclaration, out typeName))
@@ -247,11 +264,12 @@ namespace Prometheus.Engine.Types
             return false;
         }
 
-        private bool ProcessReferenceAssignment(LocalDeclarationStatementSyntax declaration, out string typeName)
+        private bool ProcessReferenceAssignment(LocalDeclarationStatementSyntax declaration, out string typeName, out Type type)
         {
             var referenceExpression = declaration.Declaration.Variables[0].Initializer.Value;
             var referenceKind = referenceExpression.Kind();
             typeName = null;
+            type = null;
 
             if (referenceKind == SyntaxKind.SimpleMemberAccessExpression) {
                 var types = GetExpressionTypes((MemberAccessExpressionSyntax)referenceExpression);
@@ -271,7 +289,7 @@ namespace Prometheus.Engine.Types
             if (ProcessPropertyAssignment(containingMethod, identifier, out typeName))
                 return true;
 
-            typeName = GetTypeName(containingMethod, identifier);
+            typeName = GetTypeName(containingMethod, identifier, out type);
             return true;
         }
 
@@ -308,16 +326,15 @@ namespace Prometheus.Engine.Types
 
         private bool ProcessClassMethodAssignment(LocalDeclarationStatementSyntax declaration, out string typeName) {
             var referenceExpression = declaration.Declaration.Variables[0].Initializer.Value;
+            typeName = null;
 
             if (referenceExpression.Kind() != SyntaxKind.InvocationExpression) {
-                typeName = null;
                 return false;
             }
 
             var invocationExpression = (InvocationExpressionSyntax) referenceExpression;
 
             if (invocationExpression.Expression.Kind() != SyntaxKind.IdentifierName) {
-                typeName = null;
                 return false;
             }
 
@@ -331,11 +348,11 @@ namespace Prometheus.Engine.Types
             return true;
         }
 
-        private bool ProcessInstanceMethodAssignment(LocalDeclarationStatementSyntax declaration, out string typeName) {
+        private bool ProcessInstanceMethodAssignment(LocalDeclarationStatementSyntax declaration, out Type type) {
             var referenceExpression = declaration.Declaration.Variables[0].Initializer.Value;
+            type = null;
 
             if (referenceExpression.Kind() != SyntaxKind.InvocationExpression) {
-                typeName = null;
                 return false;
             }
 
@@ -343,25 +360,21 @@ namespace Prometheus.Engine.Types
 
             if (invocationExpression.Expression.Kind() != SyntaxKind.SimpleMemberAccessExpression)
             {
-                typeName = null;
                 return false;
             }
 
             //TODO we only process one level calls like "instance.Method()" not nested calls like "instance.[Field|Property|Method()]...Method()"
             var memberExpression = (MemberAccessExpressionSyntax)invocationExpression.Expression;
-            var instanceTypeName = GetTypeName(memberExpression.GetContainingMethod(), memberExpression.Expression.ToString());
+            var instanceTypeName = GetTypeName(memberExpression.GetContainingMethod(), memberExpression.Expression.ToString(), out type);
 
             if (instanceTypeName == null)
-            {
-                typeName = null;
                 return false;
-            }
 
             var instanceType = GetType(instanceTypeName);
             var method = instanceType.GetMethod(memberExpression.Name.ToString(),
                 BindingFlags.Public |
                 BindingFlags.Instance);
-            typeName = method.ReturnType.Name;
+            type = method.ReturnType;
 
             return true;
         }
