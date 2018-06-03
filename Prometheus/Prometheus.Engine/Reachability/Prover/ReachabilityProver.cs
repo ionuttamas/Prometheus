@@ -119,7 +119,7 @@ namespace Prometheus.Engine.Reachability.Prover
             if (first.ToString() != second.ToString())
                 return false;
 
-            if (first.GetLocation() == second.GetLocation())
+            if (first.GetLocation() != second.GetLocation())
                 return false;
 
             /* Currently, we perform a strict equivalence testing for the reference query stack:
