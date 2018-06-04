@@ -64,7 +64,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
         /// </code>
         /// </example>
         /// </summary>
-        public List<ConditionalAssignment> GetAssignments(SyntaxToken identifier, Stack<ReferenceContext> methodCalls = null)
+        public List<ConditionalAssignment> GetAssignments(SyntaxToken identifier, Stack<ReferenceContext> referenceContexts = null)
         {
             if (!threadSchedule.GetThreadPath(solution, identifier.GetLocation()).Invocations.Any())
                 return new List<ConditionalAssignment>();
@@ -77,7 +77,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
 
             if (matchingField != null)
             {
-                return GetConstructorAssignments(identifier, classDeclaration, methodCalls)
+                return GetConstructorAssignments(identifier, classDeclaration, referenceContexts)
                     .Where(x => x.RightReference.Node == null || x.RightReference.Node.Kind() == SyntaxKind.IdentifierName)
                     .ToList();
             }
@@ -87,7 +87,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
             //The assignment is not from a method parameter, so we search for the assignment inside
             var result = parameterIndex < 0
                 ? GetMethodAssignments(identifier)
-                : GetMethodCallAssignments(method, parameterIndex, methodCalls);
+                : GetMethodCallAssignments(method, parameterIndex, referenceContexts);
             // Exclude all except reference names; method calls "a = GetReference(c, d)" are not supported at the moment TODO: double check here
             //TODO: currently we support only one level method call assigment: "a = instance.Get(..);"
             result = result
@@ -141,9 +141,8 @@ namespace Prometheus.Engine.Reachability.Tracker {
         private List<ConditionalAssignment> GetConstructorAssignments(SyntaxToken identifier, ClassDeclarationSyntax classDeclaration, Stack<ReferenceContext> referenceContexts = null)
         {
             //TODO: we dont't know if the field was reasigned in another place (other than the constructor) before assigned to the field
-            var constructorDeclaration = identifier
-                .GetLocation()
-                .GetContainingConstructor();
+            //TODO: MAJOR: this gets only the first constructor: handle all constructors
+            var constructorDeclaration = classDeclaration.DescendantNodes<ConstructorDeclarationSyntax>().First();
             string parameterIdentifier;
             var thisAssignment = constructorDeclaration
                 .DescendantNodes<AssignmentExpressionSyntax>(x => x.Left is MemberAccessExpressionSyntax &&
@@ -410,7 +409,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 .SelectMany(x => x.GetCompilation()
                                   .SyntaxTrees.SelectMany(st => st.GetRoot()
                                                                   .DescendantNodes<ObjectCreationExpressionSyntax>()
-                                                                  .Where(oce => oce.GetTypeName() == className)));
+                                                                  .Where(oce => oce.Type is IdentifierNameSyntax && oce.GetTypeName() == className)));
 
             return objectCreations;
         }

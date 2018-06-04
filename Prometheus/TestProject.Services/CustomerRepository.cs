@@ -6,11 +6,9 @@ namespace TestProject.Services
     public class CustomerRepository
     {
         private readonly List<Customer> customers;
-        private readonly List<Customer> _custo;
 
         public CustomerRepository(List<Customer> customers)
         {
-            _custo = customers;
             this.customers = customers;
         }
 
