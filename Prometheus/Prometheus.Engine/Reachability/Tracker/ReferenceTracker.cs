@@ -75,7 +75,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
             var classDeclaration = method.FirstAncestorOrSelf<ClassDeclarationSyntax>();
             var matchingField = classDeclaration.FirstDescendantNode<FieldDeclarationSyntax>(x => x.Declaration.Variables.Any(v => v.Identifier.Text == identifierName));
 
-            if (matchingField != null)
+            if (matchingField != null && matchingField.Modifiers.All(x=>x.Kind()!=SyntaxKind.StaticKeyword))
             {
                 return GetConstructorAssignments(identifier, classDeclaration, referenceContexts)
                     .Where(x => x.RightReference.Node == null || x.RightReference.Node.Kind() == SyntaxKind.IdentifierName)
