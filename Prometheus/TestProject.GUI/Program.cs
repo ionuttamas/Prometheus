@@ -74,6 +74,7 @@ namespace TestProject.GUI {
             registrationService.SimpleIfRegister(sharedCustomer);
 
             var transferService2 = new TransferService2(customerRepository);
+            transferService2.MethodAssignment_SimpleAssign(customers[0]);
             transferService2.MethodAssignment_IfTransfer(sharedCustomer, null, 100);
 
             transferService2.MethodAssignment_WithIndexQuery_2(sharedCustomer, null, 100);

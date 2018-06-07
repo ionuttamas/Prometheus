@@ -11,15 +11,15 @@ namespace TestProject.Services
             _customerRepository = customerRepository;
         }
 
-        public void MethodAssignment_IfTransfer(Customer from, Customer to, decimal amount) {
-            var customer = _customerRepository.Compute(from.Age, to.Age);
+        public void MethodAssignment_IfTransfer(Customer from1, Customer to1, decimal amount) {
+            var customer = _customerRepository.Compute(from1.Age, to1.Age);
 
-            if (from.AccountBalance > 0) {
+            if (from1.AccountBalance > 0) {
                 Customer refCustomer = customer;
             }
 
-            Customer firstCustomer = _customerRepository.GetFirst(from.AccountBalance);
-            List<Customer> whereCustomers = _customerRepository.GetWhere(from.Age);
+            Customer firstCustomer = _customerRepository.GetFirst(from1.AccountBalance);
+            List<Customer> whereCustomers = _customerRepository.GetWhere(from1.Age);
         }
 
         public void MethodAssignment_WithIndexQuery_1(Customer from1, Customer to1, decimal amount) {

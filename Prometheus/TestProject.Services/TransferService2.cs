@@ -11,6 +11,11 @@ namespace TestProject.Services
             this.customerRepository = customerRepository;
         }
 
+        public void MethodAssignment_SimpleAssign(Customer customer)
+        {
+            var refCustomer = customer;
+        }
+
         public void MethodAssignment_IfTransfer(Customer from, Customer to, decimal amount)
         {
             var customer = customerRepository.Get(from.Age, to.Age);
