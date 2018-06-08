@@ -115,7 +115,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                     return threadPath != null && threadPath.Invocations.Any();
                 })
                 .Select(x => x.GetNode<InvocationExpressionSyntax>())
-                .Where(x => referenceContexts == null || x == referenceContexts.Peek().CallContext.InvocationExpression)
+                .Where(x => referenceContexts == null || referenceContexts.Count==0 || x == referenceContexts.Peek().CallContext?.InvocationExpression)
                 .SelectMany(x => GetConditionalAssignments(x, x.ArgumentList.Arguments[parameterIndex]))
                 .Select(x => {
                     if (referenceContexts == null)
@@ -240,6 +240,9 @@ namespace Prometheus.Engine.Reachability.Tracker {
 
             if (argument is InvocationExpressionSyntax)
                 return ProcessMethodInvocationAssigment(bindingNode, argument.As<InvocationExpressionSyntax>());
+
+            if(argument is ObjectCreationExpressionSyntax)
+                return new List<ConditionalAssignment>();
 
             var (rightReference, query) = referenceParser.Parse(argument);
             rightReference.ReferenceContexts.Push(new ReferenceContext(null, query));
