@@ -245,7 +245,11 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 return new List<ConditionalAssignment>();
 
             var (rightReference, query) = referenceParser.Parse(argument);
-            rightReference.ReferenceContexts.Push(new ReferenceContext(null, query));
+
+            if (query != null)
+            {
+                rightReference.ReferenceContexts.Push(new ReferenceContext(null, query));
+            }
 
             var conditionalAssignment = new ConditionalAssignment {
                 RightReference = rightReference,

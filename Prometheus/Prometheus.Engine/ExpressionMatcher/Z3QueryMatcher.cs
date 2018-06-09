@@ -152,6 +152,7 @@ namespace Prometheus.Engine.ExpressionMatcher
                 case SyntaxKind.LogicalNotExpression:
                     return ParsePrefixUnaryExpression((PrefixUnaryExpressionSyntax)expressionSyntax, out processedMembers);
                 case SyntaxKind.SimpleMemberAccessExpression:
+                case SyntaxKind.IdentifierName:
                     processedMembers = new Dictionary<string, NodeType>();
                     var expression = context.MkConst(expressionSyntax.ToString(), typeService.GetSort(context, typeService.GetType(expressionSyntax)));
                     return (expression, new List<Expr> { expression });
@@ -521,7 +522,11 @@ namespace Prometheus.Engine.ExpressionMatcher
             return variables;
         }
 
-        private static IEnumerable<IEnumerable<T>> GetPermutations<T>(List<T> list) {
+        private static IEnumerable<IEnumerable<T>> GetPermutations<T>(List<T> list)
+        {
+            if (list.Count == 0)
+                return Enumerable.Empty<IEnumerable<T>>();
+
             return GetPermutations(list, list.Count);
         }
 

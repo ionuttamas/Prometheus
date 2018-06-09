@@ -116,11 +116,8 @@ namespace Prometheus.Engine.Reachability.Prover
         /// </summary>
         private bool AreEquivalent(Reference first, Reference second)
         {
-            if (first.ToString() != second.ToString())
-                return false;
-
-            if (first.GetLocation() != second.GetLocation())
-                return false;
+            if (first.ToString() == second.ToString() && first.GetLocation() == second.GetLocation())
+                return true;
 
             /* Currently, we perform a strict equivalence testing for the reference query stack:
                e.g. for:
@@ -134,6 +131,9 @@ namespace Prometheus.Engine.Reachability.Prover
 
             var firstMethodCalls = first.ReferenceContexts.ToList();
             var secondMethodCalls = second.ReferenceContexts.ToList();
+
+            if (firstMethodCalls.Count == 0)
+                return false;
 
             for (int i = 0; i < firstMethodCalls.Count; i++)
             {
