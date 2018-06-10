@@ -6,10 +6,12 @@ namespace TestProject.Services
     public class CustomerRepository
     {
         private readonly List<Customer> customers;
+        private readonly Dictionary<string, Customer> customersTable;
 
         public CustomerRepository(List<Customer> customers)
         {
             this.customers = customers;
+            customersTable = new Dictionary<string, Customer>();
         }
 
         public Customer Get(int x, int y)
@@ -26,6 +28,15 @@ namespace TestProject.Services
                 return customers[x];
 
             return customers[x + y];
+        }
+
+        public Customer GetFirstIndexed()
+        {
+            return customers[0];
+        }
+
+        public Customer GetKeyIndexed() {
+            return customersTable["key"];
         }
 
         public Customer GetFirst(decimal accountBalance)

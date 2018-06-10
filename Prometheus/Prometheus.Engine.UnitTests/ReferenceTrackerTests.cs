@@ -86,6 +86,28 @@ namespace Prometheus.Engine.UnitTests
         }
 
         [Test]
+        public void ReferenceTracker_ForMethodCallAssignments_ForLiteralKeyIndexesReturns_TracksCorrectly() {
+            var project = solution.Projects.First(x => x.Name == "TestProject.Services");
+            var transferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TransferService1));
+            var firstIndexedIdentifier = transferServiceClass.GetMethodDescendant(nameof(TransferService1.MethodAssignment_IfTransfer)).DescendantTokens<SyntaxToken>(x => x.ToString() == "firstIndexedCustomer").First();
+            var keyIndexedIdentifier = transferServiceClass.GetMethodDescendant(nameof(TransferService1.MethodAssignment_IfTransfer)).DescendantTokens<SyntaxToken>(x => x.ToString() == "keyIndexedCustomer").First();
+            var firstIndexedAssignments = referenceTracker.GetAssignments(firstIndexedIdentifier);
+            var keyIndexedAssignments = referenceTracker.GetAssignments(keyIndexedIdentifier);
+
+            Assert.True(firstIndexedAssignments.Count == 1);
+            Assert.AreEqual(0, firstIndexedAssignments[0].Conditions.Count);
+            Assert.AreEqual("_customerRepository", firstIndexedAssignments[0].RightReference.ReferenceContexts.Peek().CallContext.InstanceReference.ToString());
+            Assert.AreEqual("customers", firstIndexedAssignments[0].RightReference.ToString());
+            Assert.AreEqual("0", firstIndexedAssignments[0].RightReference.ReferenceContexts.Peek().Query.ToString());
+
+            Assert.True(keyIndexedAssignments.Count == 1);
+            Assert.AreEqual(0, keyIndexedAssignments[0].Conditions.Count);
+            Assert.AreEqual("_customerRepository", keyIndexedAssignments[0].RightReference.ReferenceContexts.Peek().CallContext.InstanceReference.ToString());
+            Assert.AreEqual("customersTable", keyIndexedAssignments[0].RightReference.ToString());
+            Assert.AreEqual("\"key\"", keyIndexedAssignments[0].RightReference.ReferenceContexts.Peek().Query.ToString());
+        }
+
+        [Test]
         public void ReferenceTracker_ForMethodReferences_TracksCorrectly()
         {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
@@ -106,7 +128,7 @@ namespace Prometheus.Engine.UnitTests
             var assignments = referenceTracker.GetAssignments(identifier);
 
             Assert.AreEqual(1, assignments.Count);
-            Assert.True(assignments.First().Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Premium"));
+            Assert.True(assignments.First().Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Premium" && !x.IsNegated));
         }
 
         [Test]
@@ -117,7 +139,7 @@ namespace Prometheus.Engine.UnitTests
             var assignments = referenceTracker.GetAssignments(identifier);
 
             Assert.AreEqual(2, assignments.Count);
-            Assert.True(assignments[0].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Premium"));
+            Assert.True(assignments[0].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Premium" && !x.IsNegated));
             Assert.True(assignments[1].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Premium" && x.IsNegated));
         }
 
@@ -129,10 +151,10 @@ namespace Prometheus.Engine.UnitTests
             var assignments = referenceTracker.GetAssignments(identifier);
 
             Assert.AreEqual(3, assignments.Count);
-            Assert.True(assignments[0].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Premium"));
+            Assert.True(assignments[0].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Premium" && !x.IsNegated));
 
             Assert.True(assignments[1].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Premium" && x.IsNegated));
-            Assert.True(assignments[1].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Gold"));
+            Assert.True(assignments[1].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Gold" && !x.IsNegated));
 
             Assert.True(assignments[2].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Premium" && x.IsNegated));
             Assert.True(assignments[2].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Gold" && x.IsNegated));
@@ -146,16 +168,16 @@ namespace Prometheus.Engine.UnitTests
             var assignments = referenceTracker.GetAssignments(identifier);
 
             Assert.AreEqual(3, assignments.Count);
-            Assert.True(assignments[0].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Premium"));
-            Assert.True(assignments[0].Conditions.Any(x => x.ToString() == "amount > 0"));
+            Assert.True(assignments[0].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Premium" && !x.IsNegated));
+            Assert.True(assignments[0].Conditions.Any(x => x.ToString() == "amount > 0" && !x.IsNegated));
 
             Assert.True(assignments[1].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Premium" && x.IsNegated));
-            Assert.True(assignments[1].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Gold"));
+            Assert.True(assignments[1].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Gold" && !x.IsNegated));
             Assert.True(assignments[1].Conditions.Any(x => x.ToString() == "amount > 0"));
 
             Assert.True(assignments[2].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Premium" && x.IsNegated));
             Assert.True(assignments[2].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Gold" && x.IsNegated));
-            Assert.True(assignments[2].Conditions.Any(x => x.ToString() == "amount > 0"));
+            Assert.True(assignments[2].Conditions.Any(x => x.ToString() == "amount > 0" && !x.IsNegated));
         }
 
         [Test]
@@ -166,24 +188,24 @@ namespace Prometheus.Engine.UnitTests
             var assignments = referenceTracker.GetAssignments(identifier);
 
             Assert.AreEqual(6, assignments.Count);
-            Assert.True(assignments[0].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Premium"));
-            Assert.True(assignments[0].Conditions.Any(x => x.ToString() == "amount > 0"));
+            Assert.True(assignments[0].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Premium" && !x.IsNegated));
+            Assert.True(assignments[0].Conditions.Any(x => x.ToString() == "amount > 0" && !x.IsNegated));
 
             Assert.True(assignments[1].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Premium" && x.IsNegated));
-            Assert.True(assignments[1].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Gold"));
+            Assert.True(assignments[1].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Gold" && !x.IsNegated));
             Assert.True(assignments[1].Conditions.Any(x => x.ToString() == "amount > 0"));
 
             Assert.True(assignments[2].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Premium" && x.IsNegated));
             Assert.True(assignments[2].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Gold" && x.IsNegated));
-            Assert.True(assignments[2].Conditions.Any(x => x.ToString() == "amount > 0"));
+            Assert.True(assignments[2].Conditions.Any(x => x.ToString() == "amount > 0" && !x.IsNegated));
 
-            Assert.True(assignments[3].Conditions.Any(x => x.ToString() == "!from.IsActive && from.AccountBalance < 0"));
+            Assert.True(assignments[3].Conditions.Any(x => x.ToString() == "!from.IsActive && from.AccountBalance < 0" && !x.IsNegated));
             Assert.True(assignments[3].Conditions.Any(x => x.ToString() == "amount < 0"));
             Assert.True(assignments[3].Conditions.Any(x => x.ToString() == "amount > 0" && x.IsNegated));
 
             Assert.True(assignments[4].Conditions.Any(x => x.ToString() == "!from.IsActive && from.AccountBalance < 0" && x.IsNegated));
             Assert.True(assignments[4].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Gold && from.AccountBalance < 0"));
-            Assert.True(assignments[4].Conditions.Any(x => x.ToString() == "amount < 0"));
+            Assert.True(assignments[4].Conditions.Any(x => x.ToString() == "amount < 0" && !x.IsNegated));
             Assert.True(assignments[4].Conditions.Any(x => x.ToString() == "amount > 0" && x.IsNegated));
 
             Assert.True(assignments[5].Conditions.Any(x => x.ToString() == "!from.IsActive && from.AccountBalance > 0"));
@@ -199,27 +221,27 @@ namespace Prometheus.Engine.UnitTests
             var assignments = referenceTracker.GetAssignments(identifier);
 
             Assert.AreEqual(6, assignments.Count);
-            Assert.True(assignments[0].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Premium"));
-            Assert.True(assignments[0].Conditions.Any(x => x.ToString() == "amount > 0"));
+            Assert.True(assignments[0].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Premium" && !x.IsNegated));
+            Assert.True(assignments[0].Conditions.Any(x => x.ToString() == "amount > 0" && !x.IsNegated));
 
             Assert.True(assignments[1].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Premium" && x.IsNegated));
-            Assert.True(assignments[1].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Gold"));
-            Assert.True(assignments[1].Conditions.Any(x => x.ToString() == "amount > 0"));
+            Assert.True(assignments[1].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Gold" && !x.IsNegated));
+            Assert.True(assignments[1].Conditions.Any(x => x.ToString() == "amount > 0" && !x.IsNegated));
 
             Assert.True(assignments[2].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Premium" && x.IsNegated));
             Assert.True(assignments[2].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Gold" && x.IsNegated));
             Assert.True(assignments[2].Conditions.Any(x => x.ToString() == "amount > 0"));
 
-            Assert.True(assignments[3].Conditions.Any(x => x.ToString() == "!from.IsActive && from.AccountBalance < 0"));
-            Assert.True(assignments[3].Conditions.Any(x => x.ToString() == "amount < 0"));
+            Assert.True(assignments[3].Conditions.Any(x => x.ToString() == "!from.IsActive && from.AccountBalance < 0" && !x.IsNegated));
+            Assert.True(assignments[3].Conditions.Any(x => x.ToString() == "amount < 0" && !x.IsNegated));
             Assert.True(assignments[3].Conditions.Any(x => x.ToString() == "amount > 0" && x.IsNegated));
 
             Assert.True(assignments[4].Conditions.Any(x => x.ToString() == "!from.IsActive && from.AccountBalance < 0" && x.IsNegated));
-            Assert.True(assignments[4].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Gold && from.AccountBalance < 0"));
-            Assert.True(assignments[4].Conditions.Any(x => x.ToString() == "amount < 0"));
+            Assert.True(assignments[4].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Gold && from.AccountBalance < 0" && !x.IsNegated));
+            Assert.True(assignments[4].Conditions.Any(x => x.ToString() == "amount < 0" && !x.IsNegated));
             Assert.True(assignments[4].Conditions.Any(x => x.ToString() == "amount > 0" && x.IsNegated));
 
-            Assert.True(assignments[5].Conditions.Any(x => x.ToString() == "!from.IsActive && from.AccountBalance > 0"));
+            Assert.True(assignments[5].Conditions.Any(x => x.ToString() == "!from.IsActive && from.AccountBalance > 0" && !x.IsNegated));
             Assert.True(assignments[5].Conditions.Any(x => x.ToString() == "amount < 0" && x.IsNegated));
             Assert.True(assignments[5].Conditions.Any(x => x.ToString() == "amount > 0" && x.IsNegated));
 

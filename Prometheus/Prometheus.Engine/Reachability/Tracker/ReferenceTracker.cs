@@ -382,7 +382,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 if (ifStatement == null)
                     break;
 
-                conditions.Add(new Condition(ifClause, true));
+                conditions.Add(new Condition(ifStatement, true));
                 lastNode = ifStatement;
                 elseClause = ifStatement.Parent as ElseClauseSyntax;
             }

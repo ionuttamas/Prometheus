@@ -1,13 +1,6 @@
-using System;
-using System.Collections.Generic;
 using System.Linq;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.FindSymbols;
 using Microsoft.CodeAnalysis.MSBuild;
 using NUnit.Framework;
-using Prometheus.Common;
 using Prometheus.Engine.Thread;
 
 namespace Prometheus.Engine.UnitTests {

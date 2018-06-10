@@ -18,6 +18,8 @@ namespace TestProject.Services
                 Customer refCustomer = customer;
             }
 
+            Customer firstIndexedCustomer = _customerRepository.GetFirstIndexed();
+            Customer keyIndexedCustomer = _customerRepository.GetKeyIndexed();
             Customer firstCustomer = _customerRepository.GetFirst(from1.AccountBalance);
             List<Customer> whereCustomers = _customerRepository.GetWhere(from1.Age);
         }

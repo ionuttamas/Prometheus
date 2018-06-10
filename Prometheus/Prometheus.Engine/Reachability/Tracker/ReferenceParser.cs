@@ -92,6 +92,16 @@ namespace Prometheus.Engine.Reachability.Tracker
                 .Expression.As<MemberAccessExpressionSyntax>()
                 .Name.Identifier.Text;
 
+            if (expressionIdentifier == "ToList")
+            {
+                node = node
+                    .Expression.As<MemberAccessExpressionSyntax>()
+                    .Expression.As<InvocationExpressionSyntax>();
+                expressionIdentifier = node
+                    .Expression.As<MemberAccessExpressionSyntax>()
+                    .Name.Identifier.Text;
+            }
+
             if (expressionIdentifier != WHERE_TOKEN)
                 throw new NotSupportedException("Only instance.Where() expressions with one call level are allowed");
 
