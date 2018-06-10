@@ -29,7 +29,7 @@ namespace Prometheus.Engine.Reachability.Tracker
 
         private (Reference, IReferenceQuery) InternalParse(SyntaxNode node)
         {
-            if (node is IdentifierNameSyntax)
+            if (node is IdentifierNameSyntax || node is LiteralExpressionSyntax)
                 return (new Reference(node), null);
 
             if (node is ElementAccessExpressionSyntax)
