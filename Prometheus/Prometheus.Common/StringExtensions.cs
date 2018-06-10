@@ -68,6 +68,14 @@ namespace Prometheus.Common
             return input.IndexOf(value, StringComparison.InvariantCultureIgnoreCase) >= 0;
         }
 
+        public static bool ContainsString(this object instance, string value) {
+            return instance.ToString().Contains(value);
+        }
+
+        public static bool ContainsStringInvariant(this object instance, string value) {
+            return instance.ToString().ContainsInvariant(value);
+        }
+
         public static int InvariantIndexOf(this string input, string value) {
             return input.IndexOf(value, StringComparison.InvariantCultureIgnoreCase);
         }

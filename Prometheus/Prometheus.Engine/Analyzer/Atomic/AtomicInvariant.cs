@@ -3,6 +3,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using Prometheus.Common;
 
 namespace Prometheus.Engine.Analyzer.Atomic
 {
@@ -30,25 +31,34 @@ namespace Prometheus.Engine.Analyzer.Atomic
             if(atomicInvariantExpression != null)
                 throw new ArgumentException("Only one expression and only one member can be used per atomic invariant");
 
-            if (!atomicExpression.ToString().Contains(IS_MODIFIED_ATOMIC_MARKER))
+            if (!atomicExpression.ContainsString(IS_MODIFIED_ATOMIC_MARKER))
                 throw new ArgumentException("IsModifiedAtomic marker is not used on any of the specified members");
 
             atomicInvariantExpression = atomicExpression;
-            ParseExpression(atomicExpression);
+            ParseExpression(atomicExpression.Parameters[0], atomicExpression.Body.As<MethodCallExpression>());
 
             return this;
         }
 
-        private void ParseExpression<T>(Expression<Func<T, bool>> atomicExpression)
+        public AtomicInvariant WithExpression(ParameterExpression parameter, MethodCallExpression bodyMethod) {
+            if (atomicInvariantExpression != null)
+                throw new ArgumentException("Only one expression and only one member can be used per atomic invariant");
+
+            if (!bodyMethod.ContainsString(IS_MODIFIED_ATOMIC_MARKER))
+                throw new ArgumentException("IsModifiedAtomic marker is not used on any of the specified members");
+
+            atomicInvariantExpression = Expression.Lambda(bodyMethod, parameter);
+            ParseExpression(parameter, bodyMethod);
+
+            return this;
+        }
+
+        private void ParseExpression(ParameterExpression parameter, MethodCallExpression bodyMethod)
         {
-            var parameter = atomicExpression.Parameters[0];
-
-            var bodyMethodExpression = (MethodCallExpression) atomicExpression.Body;
-
-            if (bodyMethodExpression.Arguments.Count == 1) {
-                ParsePublicMember(parameter.Name, parameter.Type, bodyMethodExpression);
+            if (bodyMethod.Arguments.Count == 1) {
+                ParsePublicMember(parameter.Name, parameter.Type, bodyMethod);
             } else {
-                ParsePrivateMember(parameter.Name, parameter.Type, bodyMethodExpression);
+                ParsePrivateMember(parameter.Name, parameter.Type, bodyMethod);
             }
         }
 
@@ -84,7 +94,7 @@ namespace Prometheus.Engine.Analyzer.Atomic
 
             if (member.Contains("."))
                 throw new ArgumentException(
-                    "Specified invariant contains nested arguments; only one level member reference is allowed");
+                    "Specified invariant contains nested references; only one level member reference is allowed");
 
             if (parameterName!=parameter)
                 throw new ArgumentException(
