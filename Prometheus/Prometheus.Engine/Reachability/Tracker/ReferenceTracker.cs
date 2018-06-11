@@ -66,7 +66,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
         /// </summary>
         public List<ConditionalAssignment> GetAssignments(SyntaxToken identifier, Stack<ReferenceContext> referenceContexts = null)
         {
-            if (!threadSchedule.GetThreadPath(solution, identifier.GetLocation()).Invocations.Any())
+            if (!threadSchedule.ContainsLocation(solution, identifier.GetLocation()))
                 return new List<ConditionalAssignment>();
 
             //TODO: this does not take into account previous assignments to parameters: "a=b; ...; a=c; d=a;" => d != b so that case needs to be prunned
@@ -87,7 +87,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
             //The assignment is not from a method parameter, so we search for the assignment inside
             var result = parameterIndex < 0
                 ? GetMethodAssignments(identifier)
-                : GetMethodCallAssignments(method, parameterIndex, referenceContexts);
+                : GetReferenceMethodCallAssignments(method, parameterIndex, referenceContexts);
             // Exclude all except reference names; method calls "a = GetReference(c, d)" are not supported at the moment TODO: double check here
             //TODO: currently we support only one level method call assigment: "a = instance.Get(..);"
             result = result
@@ -104,17 +104,14 @@ namespace Prometheus.Engine.Reachability.Tracker {
         /// <summary>
         /// Gets the assignments made from various calls to the given method along the binding parameter.
         /// </summary>
-        private List<ConditionalAssignment> GetMethodCallAssignments(MethodDeclarationSyntax method, int parameterIndex, Stack<ReferenceContext> referenceContexts = null)
+        private List<ConditionalAssignment> GetReferenceMethodCallAssignments(MethodDeclarationSyntax method, int parameterIndex, Stack<ReferenceContext> referenceContexts = null)
         {
             //TODO: this does not take into account if a parameter was assigned to another value before being assigned again
-            var methodCallAssignments = solution
+            var invocations = solution
                 .FindReferenceLocations(method)
-                .Where(x =>
-                {
-                    var threadPath = threadSchedule.GetThreadPath(solution, x.Location);
-                    return threadPath != null && threadPath.Invocations.Any();
-                })
-                .Select(x => x.GetNode<InvocationExpressionSyntax>())
+                .Where(x => threadSchedule.ContainsLocation(solution, x.Location))
+                .Select(x => x.GetNode<InvocationExpressionSyntax>());
+            var methodCallAssignments = invocations
                 .Where(x => referenceContexts == null || referenceContexts.Count==0 || x == referenceContexts.Peek().CallContext?.InvocationExpression)
                 .SelectMany(x => GetConditionalAssignments(x, x.ArgumentList.Arguments[parameterIndex]))
                 .Select(x => {
@@ -172,11 +169,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 .Parameters
                 .IndexOf(x => x.Identifier.Text == parameterIdentifier);
             var constructorAssignments = FindObjectCreations(classDeclaration)
-                .Where(x =>
-                {
-                    var threadPath = threadSchedule.GetThreadPath(solution, x.GetLocation());
-                    return threadPath != null && threadPath.Invocations.Any();
-                })
+                .Where(x => threadSchedule.ContainsLocation(solution, x.GetLocation()))
                 .Where(x =>
                 {
                     if (referenceContexts == null || referenceContexts.Count==0)
@@ -239,9 +232,19 @@ namespace Prometheus.Engine.Reachability.Tracker {
         private List<ConditionalAssignment> GetConditionalAssignments(SyntaxNode bindingNode, SyntaxNode argument) {
 
             if (argument is InvocationExpressionSyntax)
-                return ProcessMethodInvocationAssigment(bindingNode, argument.As<InvocationExpressionSyntax>());
+            {
+                var invocationExpression = argument.As<InvocationExpressionSyntax>();
 
-            if(argument is ObjectCreationExpressionSyntax)
+                if(invocationExpression.Expression is MemberAccessExpressionSyntax)
+                    return ProcessReferenceMethodCallAssigments(bindingNode, invocationExpression);
+
+                if(invocationExpression.Expression is IdentifierNameSyntax)
+                    return ProcessLocalMethodCallAssigments(bindingNode, invocationExpression);
+
+                throw new NotSupportedException($"InvocationExpression {invocationExpression} is not supported");
+            }
+
+            if (argument is ObjectCreationExpressionSyntax)
                 return new List<ConditionalAssignment>();
 
             var (rightReference, query) = referenceParser.Parse(argument);
@@ -271,67 +274,139 @@ namespace Prometheus.Engine.Reachability.Tracker {
             return new List<ConditionalAssignment>{ conditionalAssignment };
         }
 
-        private List<ConditionalAssignment> ProcessMethodInvocationAssigment(SyntaxNode bindingNode, InvocationExpressionSyntax invocationExpression) {
+        /// <summary>
+        /// Gets the assignments made from various calls to the given method along the binding parameter.
+        /// This handles reference based methods like "instance = Method(...)" where "Method" is instance or static method.
+        /// </summary>
+        private List<ConditionalAssignment> ProcessLocalMethodCallAssigments(SyntaxNode bindingNode, InvocationExpressionSyntax invocationExpression) {
+            var methodName = invocationExpression.Expression.As<IdentifierNameSyntax>().Identifier.Text;
+            var conditions = ExtractIfElseConditions(invocationExpression);
+            var classDeclaration = invocationExpression.GetContainingClass();
+            var parametersCount = invocationExpression.ArgumentList.Arguments.Count;
+
+            //TODO: this only checks the name and the param count and picks the first method
+            var method = classDeclaration
+                .DescendantNodes<MethodDeclarationSyntax>(x => x.Identifier.Text == methodName &&
+                                                               x.ParameterList.Parameters.Count == parametersCount)
+                .First();
+            var argumentsTable = new Dictionary<ParameterSyntax, ArgumentSyntax>();
+
+            for (int i = 0; i < method.ParameterList.Parameters.Count; i++) {
+                argumentsTable[method.ParameterList.Parameters[i]] = invocationExpression.ArgumentList.Arguments[i];
+            }
+
+            var returnExpressions = method
+                .DescendantNodes<ReturnStatementSyntax>()
+                .Where(x => x.Expression.Kind() !=
+                            SyntaxKind.ObjectCreationExpression) //TODO: are we interested in "return new X()"?
+                .Select(x => {
+                    var (returnReference, query) = referenceParser.Parse(x.Expression);
+
+                    var callContext = new CallContext {
+                        ArgumentsTable = argumentsTable,
+                        InvocationExpression = invocationExpression
+                    };
+                    returnReference.ReferenceContexts.Push(new ReferenceContext(callContext, query));
+
+                    return new ConditionalAssignment {
+                        RightReference = returnReference,
+                        Conditions = conditions,
+                        LeftReference = new Reference(bindingNode)
+                    };
+                })
+                .ToList();
+
+            return returnExpressions;
+        }
+
+        /// <summary>
+        /// Processes assignments such as "instance = reference.Method(...)" or "instance = collection"
+        /// </summary>
+        /// <param name="bindingNode"></param>
+        /// <param name="invocationExpression"></param>
+        /// <returns></returns>
+        private List<ConditionalAssignment> ProcessReferenceMethodCallAssigments(SyntaxNode bindingNode, InvocationExpressionSyntax invocationExpression) {
             var memberAccess = invocationExpression.Expression.As<MemberAccessExpressionSyntax>();
             var instanceExpression = memberAccess.Expression.As<IdentifierNameSyntax>();
             var methodName = memberAccess.Name.Identifier.Text;
-            //We only take into consideration the calling method conditions
-            var conditions = ExtractIfElseConditions(invocationExpression);
 
             //TODO: This fails for "instance = Get(...)";
-            if (referenceParser.IsBuildInMethod(methodName))
+            if (referenceParser.IsBuiltInMethod(methodName))
+                return ProcessLinqMethodAssignments(bindingNode, invocationExpression, instanceExpression);
+
+            return ProcessRegularReferenceMethodCallAssigments(bindingNode, invocationExpression, instanceExpression);
+        }
+
+        /// <summary>
+        /// Processes Linq based methods: First(), FirstOrDefault(), Where().
+        /// </summary>
+        private List<ConditionalAssignment> ProcessLinqMethodAssignments(SyntaxNode bindingNode,
+            InvocationExpressionSyntax invocationExpression,
+            IdentifierNameSyntax instanceExpression)
+        {
+            //We only take into consideration the calling method conditions
+            var conditions = ExtractIfElseConditions(invocationExpression);
+            var (reference, query) = referenceParser.Parse(invocationExpression);
+            var callContext = new CallContext
             {
-                var (reference, query)  = referenceParser.Parse(invocationExpression);
-                var callContext = new CallContext {
-                    InstanceReference = instanceExpression
-                };
-                reference.ReferenceContexts.Push(new ReferenceContext(callContext, query));
+                InstanceReference = instanceExpression
+            };
+            reference.ReferenceContexts.Push(new ReferenceContext(callContext, query));
 
-                var assignment = new ConditionalAssignment {
-                    RightReference = reference,
-                    Conditions = conditions,
-                    LeftReference = new Reference(bindingNode)
-                };
+            var assignment = new ConditionalAssignment
+            {
+                RightReference = reference,
+                Conditions = conditions,
+                LeftReference = new Reference(bindingNode)
+            };
 
-                return new List<ConditionalAssignment> { assignment };
-            }
+            return new List<ConditionalAssignment> {assignment};
+        }
+
+        /// <summary>
+        /// Processes regular method invocations "instance = reference.Get(...)".
+        /// </summary>
+        private List<ConditionalAssignment> ProcessRegularReferenceMethodCallAssigments(SyntaxNode bindingNode,
+            InvocationExpressionSyntax invocationExpression,
+            IdentifierNameSyntax instanceExpression) {
+            var memberAccess = invocationExpression.Expression.As<MemberAccessExpressionSyntax>();
+            var methodName = memberAccess.Name.Identifier.Text;
+            var conditions = ExtractIfElseConditions(invocationExpression);
 
             //TODO: handle when code is outside of the current solution (3rd party code)
             var type = typeService.GetType(instanceExpression);
             var classDeclaration = typeService.GetClassDeclaration(type);
             var parametersCount = invocationExpression.ArgumentList.Arguments.Count;
 
-            if (classDeclaration==null)
+            if (classDeclaration == null)
                 throw new NotSupportedException($"Type {type} is was not found in solution");
 
             //TODO: this only checks the name and the param count and picks the first method
             var method = classDeclaration
-                .DescendantNodes<MethodDeclarationSyntax>(x => x.Identifier.Text == methodName && x.ParameterList.Parameters.Count==parametersCount)
+                .DescendantNodes<MethodDeclarationSyntax>(x => x.Identifier.Text == methodName &&
+                                                               x.ParameterList.Parameters.Count == parametersCount)
                 .First();
             var argumentsTable = new Dictionary<ParameterSyntax, ArgumentSyntax>();
 
-            for (int i = 0; i < method.ParameterList.Parameters.Count; i++)
-            {
+            for (int i = 0; i < method.ParameterList.Parameters.Count; i++) {
                 argumentsTable[method.ParameterList.Parameters[i]] = invocationExpression.ArgumentList.Arguments[i];
             }
 
             var returnExpressions = method
                 .DescendantNodes<ReturnStatementSyntax>()
-                .Where(x => x.Expression.Kind()!=SyntaxKind.ObjectCreationExpression) //TODO: are we interested in "return new X()"?
-                .Select(x =>
-                {
+                .Where(x => x.Expression.Kind() !=
+                            SyntaxKind.ObjectCreationExpression) //TODO: are we interested in "return new X()"?
+                .Select(x => {
                     var (returnReference, query) = referenceParser.Parse(x.Expression);
 
-                    var callContext = new CallContext
-                    {
+                    var callContext = new CallContext {
                         InstanceReference = instanceExpression,
                         ArgumentsTable = argumentsTable,
                         InvocationExpression = invocationExpression
                     };
                     returnReference.ReferenceContexts.Push(new ReferenceContext(callContext, query));
 
-                    return new ConditionalAssignment
-                    {
+                    return new ConditionalAssignment {
                         RightReference = returnReference,
                         Conditions = conditions,
                         LeftReference = new Reference(bindingNode)

@@ -8,6 +8,12 @@ namespace Prometheus.Engine.Thread
     {
         public List<ThreadPath> Paths { get; set; }
 
+        public bool ContainsLocation(Solution solution, Location location)
+        {
+            var threadPath = GetThreadPath(solution, location);
+            return threadPath != null && threadPath.Invocations.Any();
+        }
+
         public InvocationPath GetThreadPath(Solution solution, Location location)
         {
             foreach (ThreadPath threadPath in Paths)

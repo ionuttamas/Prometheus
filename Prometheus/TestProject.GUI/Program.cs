@@ -29,7 +29,7 @@ namespace TestProject.GUI {
             var transferService = new TransferService();
             customerRepository = new CustomerRepository(customers);
 
-            transferService1 = new TransferService1(customerRepository);
+            transferService1 = new TransferService1(customerRepository, customers);
             transferService1.MethodAssignment_IfTransfer(sharedCustomer, null, 100);
             transferService1.MethodAssignment_WithIndexQuery_1(sharedCustomer, null, 100);
             transferService1.MethodAssignment_WithFirstQuery_1(sharedCustomer, null, 100);
