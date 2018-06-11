@@ -27,6 +27,7 @@ namespace TestProject.Services
             List<Customer> whereCustomers = _customerRepository.GetWhere(from1.Age);
             Customer innerMethodCustomer = GetInternalCustomer(from1, to1, amount);
             Customer innerFirstLinqMethodCustomer = GetInternalCustomer_WithFirstLinq(from1, to1, amount);
+            Customer staticFirstLinqMethodCustomer = CustomerUtil.GetFirstLinq(customers, from1, amount);
             Customer innerNestedReferenceMethodCustomer = GetNestedReferenceCallCustomer(from1, to1, amount);
         }
 

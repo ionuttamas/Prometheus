@@ -235,8 +235,16 @@ namespace Prometheus.Engine.Reachability.Tracker {
             {
                 var invocationExpression = argument.As<InvocationExpressionSyntax>();
 
-                if(invocationExpression.Expression is MemberAccessExpressionSyntax)
-                    return ProcessReferenceMethodCallAssigments(bindingNode, invocationExpression);
+                if (invocationExpression.Expression is MemberAccessExpressionSyntax)
+                {
+                    var className = invocationExpression
+                        .Expression.As<MemberAccessExpressionSyntax>()
+                        .Expression.As<IdentifierNameSyntax>().Identifier.Text;
+
+                    return typeService.GetClassDeclaration(className)==null ?
+                        ProcessReferenceMethodCallAssigments(bindingNode, invocationExpression) :
+                        ProcessStaticMethodCallAssigments(bindingNode, invocationExpression);
+                }
 
                 if(invocationExpression.Expression is IdentifierNameSyntax)
                     return ProcessLocalMethodCallAssigments(bindingNode, invocationExpression);
@@ -276,7 +284,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
 
         /// <summary>
         /// Gets the assignments made from various calls to the given method along the binding parameter.
-        /// This handles reference based methods like "instance = Method(...)" where "Method" is instance or static method.
+        /// This handles reference based methods like "instance = Method(...)" where "Method" is instance or static method of the same class containing the assignment.
         /// </summary>
         private List<ConditionalAssignment> ProcessLocalMethodCallAssigments(SyntaxNode bindingNode, InvocationExpressionSyntax invocationExpression) {
             var methodName = invocationExpression.Expression.As<IdentifierNameSyntax>().Identifier.Text;
@@ -318,6 +326,55 @@ namespace Prometheus.Engine.Reachability.Tracker {
 
             return returnExpressions;
         }
+
+        /// <summary>
+        /// Gets the assignments made from various calls to the given method along the binding parameter.
+        /// This handles reference based methods like "instance = StaticClass.Method(...)" where "Method" is static method.
+        /// </summary>
+        private List<ConditionalAssignment> ProcessStaticMethodCallAssigments(SyntaxNode bindingNode, InvocationExpressionSyntax invocationExpression) {
+            var memberAccess = invocationExpression.Expression.As<MemberAccessExpressionSyntax>();
+            var className = memberAccess.Expression.As<IdentifierNameSyntax>().Identifier.Text;
+            var methodName = memberAccess.Name.Identifier.Text;
+
+            var conditions = ExtractIfElseConditions(invocationExpression);
+            var classDeclaration = typeService.GetClassDeclaration(className);
+            var parametersCount = invocationExpression.ArgumentList.Arguments.Count;
+
+            //TODO: this only checks the name and the param count and picks the first method
+            var method = classDeclaration
+                .DescendantNodes<MethodDeclarationSyntax>(x => x.Identifier.Text == methodName &&
+                                                               x.ParameterList.Parameters.Count == parametersCount)
+                .First();
+            var argumentsTable = new Dictionary<ParameterSyntax, ArgumentSyntax>();
+
+            for (int i = 0; i < method.ParameterList.Parameters.Count; i++) {
+                argumentsTable[method.ParameterList.Parameters[i]] = invocationExpression.ArgumentList.Arguments[i];
+            }
+
+            var returnExpressions = method
+                .DescendantNodes<ReturnStatementSyntax>()
+                .Where(x => x.Expression.Kind() !=
+                            SyntaxKind.ObjectCreationExpression) //TODO: are we interested in "return new X()"?
+                .Select(x => {
+                    var (returnReference, query) = referenceParser.Parse(x.Expression);
+
+                    var callContext = new CallContext {
+                        ArgumentsTable = argumentsTable,
+                        InvocationExpression = invocationExpression
+                    };
+                    returnReference.ReferenceContexts.Push(new ReferenceContext(callContext, query));
+
+                    return new ConditionalAssignment {
+                        RightReference = returnReference,
+                        Conditions = conditions,
+                        LeftReference = new Reference(bindingNode)
+                    };
+                })
+                .ToList();
+
+            return returnExpressions;
+        }
+
 
         /// <summary>
         /// Processes assignments such as "instance = reference.Method(...)" or "instance = collection"

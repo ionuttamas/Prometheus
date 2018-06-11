@@ -117,6 +117,14 @@ namespace Prometheus.Engine.Types
             return classDeclaration;
         }
 
+        public ClassDeclarationSyntax GetClassDeclaration(string className) {
+            //TODO: handle multiple same name classnames in different namespaces
+            ClassDeclarationSyntax classDeclaration = classDeclarations.FirstOrDefault(x => x.Identifier.Text == className);
+
+            return classDeclaration;
+        }
+
+
         public Sort GetSort(Context context, Type type)
         {
             if (type.IsNumeric())

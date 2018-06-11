@@ -86,6 +86,34 @@ namespace Prometheus.Engine.UnitTests
         }
 
         [Test]
+        public void ReferenceTracker_ForNestedStaticMethodCallAssignments_TracksCorrectly() {
+            var project = solution.Projects.First(x => x.Name == "TestProject.Services");
+            var transferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TransferService1));
+            var identifier = transferServiceClass.GetMethodDescendant(nameof(TransferService1.MethodAssignment_IfTransfer)).DescendantTokens<SyntaxToken>(x => x.ToString() == "staticFirstLinqMethodCustomer").First();
+            var assignments = referenceTracker.GetAssignments(identifier);
+
+            Assert.AreEqual(3, assignments.Count);
+
+            Assert.AreEqual(0, assignments[0].Conditions.Count);
+            Assert.AreEqual(null, assignments[0].RightReference.ReferenceContexts.Peek().CallContext.InstanceReference);
+            Assert.AreEqual(3, assignments[0].RightReference.ReferenceContexts.Peek().CallContext.ArgumentsTable.Count);
+            Assert.AreEqual("customers", assignments[0].RightReference.ToString());
+            Assert.AreEqual("x => x.Age > from.Age", assignments[0].RightReference.ReferenceContexts.Peek().Query.ToString());
+
+            Assert.AreEqual(0, assignments[1].Conditions.Count);
+            Assert.AreEqual(null, assignments[0].RightReference.ReferenceContexts.Peek().CallContext.InstanceReference);
+            Assert.AreEqual(3, assignments[1].RightReference.ReferenceContexts.Peek().CallContext.ArgumentsTable.Count);
+            Assert.AreEqual("from", assignments[1].RightReference.ToString());
+            Assert.AreEqual(null, assignments[1].RightReference.ReferenceContexts.Peek().Query);
+
+            Assert.AreEqual(0, assignments[2].Conditions.Count);
+            Assert.AreEqual(null, assignments[2].RightReference.ReferenceContexts.Peek().CallContext.InstanceReference);
+            Assert.AreEqual(3, assignments[2].RightReference.ReferenceContexts.Peek().CallContext.ArgumentsTable.Count);
+            Assert.AreEqual("customers", assignments[2].RightReference.ToString());
+            Assert.AreEqual("x => x.DeliveryAddress == from.DeliveryAddress", assignments[2].RightReference.ReferenceContexts.Peek().Query.ToString());
+        }
+
+        [Test]
         public void ReferenceTracker_ForNestedReferenceMethodCallAssignments_TracksCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var transferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TransferService1));
