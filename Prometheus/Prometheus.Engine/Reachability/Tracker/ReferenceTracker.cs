@@ -375,7 +375,6 @@ namespace Prometheus.Engine.Reachability.Tracker {
             return returnExpressions;
         }
 
-
         /// <summary>
         /// Processes assignments such as "instance = reference.Method(...)" or "instance = collection"
         /// </summary>

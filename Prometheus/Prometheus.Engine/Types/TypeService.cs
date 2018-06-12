@@ -72,17 +72,12 @@ namespace Prometheus.Engine.Types
             if (typeCache.TryGetType(memberExpression, out var cachedType))
                 return cachedType;
 
-            var lambdaExpression = memberExpression.AncestorNodes<SimpleLambdaExpressionSyntax>().FirstOrDefault();
             Type type;
+            var lambdaExpression = memberExpression.AncestorNodes<SimpleLambdaExpressionSyntax>().FirstOrDefault();
 
-            if (lambdaExpression != null)
+            if (lambdaExpression != null && (memberExpression.ToString() == lambdaExpression.Parameter.ToString() || memberExpression.ToString().StartsWith($"{lambdaExpression.Parameter}.")))
             {
-                var invocation = lambdaExpression.AncestorNodes<InvocationExpressionSyntax>().First();
-                var instance = invocation.Expression.As<MemberAccessExpressionSyntax>().Expression
-                    .As<IdentifierNameSyntax>();
-                var genericType = GetGenericArgumentType(instance);
-                type = GetExpressionTypes(genericType, memberExpression.As<MemberAccessExpressionSyntax>()).Last();
-
+                type = GetLambdaExpressionMemberType(memberExpression);
             }
             else
             {
@@ -124,7 +119,6 @@ namespace Prometheus.Engine.Types
             return classDeclaration;
         }
 
-
         public Sort GetSort(Context context, Type type)
         {
             if (type.IsNumeric())
@@ -137,6 +131,19 @@ namespace Prometheus.Engine.Types
                 return context.BoolSort;
 
             throw new ArgumentException($"Type {type} is not supported");
+        }
+
+        private Type GetLambdaExpressionMemberType(ExpressionSyntax memberExpression) {
+            var lambdaExpression = memberExpression.AncestorNodes<SimpleLambdaExpressionSyntax>().FirstOrDefault();
+            var invocation = lambdaExpression.AncestorNodes<InvocationExpressionSyntax>().First();
+            var instance = invocation
+                .Expression.As<MemberAccessExpressionSyntax>()
+                .Expression.As<IdentifierNameSyntax>();
+            //TODO: this will fail in case of non-generic collections such as arrays
+            var genericType = GetGenericArgumentType(instance);
+            Type type = GetExpressionTypes(genericType, memberExpression.As<MemberAccessExpressionSyntax>()).Last();
+
+            return type;
         }
 
         private Type GetGenericArgumentType(IdentifierNameSyntax instance) {
