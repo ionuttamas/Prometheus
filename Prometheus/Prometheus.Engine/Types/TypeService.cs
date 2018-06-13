@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -101,7 +102,7 @@ namespace Prometheus.Engine.Types
             Type result = type ??  GetType(typeName);
             typeCache.AddToCache(syntaxToken, result);
 
-            return type;
+            return result;
         }
 
         public ClassDeclarationSyntax GetClassDeclaration(Type type)
@@ -140,19 +141,40 @@ namespace Prometheus.Engine.Types
                 .Expression.As<MemberAccessExpressionSyntax>()
                 .Expression.As<IdentifierNameSyntax>();
             //TODO: this will fail in case of non-generic collections such as arrays
-            var genericType = GetGenericArgumentType(instance);
-            Type type = GetExpressionTypes(genericType, memberExpression.As<MemberAccessExpressionSyntax>()).Last();
+            var itemType = GetCollectionItemType(instance);
+            Type type = GetExpressionTypes(itemType, memberExpression.As<MemberAccessExpressionSyntax>()).Last();
 
             return type;
         }
 
-        private Type GetGenericArgumentType(IdentifierNameSyntax instance) {
-            var genericType = GetType(instance);
+        private Type GetCollectionItemType(IdentifierNameSyntax instance)
+        {
+            var collectionTypeName = GetTypeName(instance.GetContainingMethod(), instance.ToString(), out var collectionType);
+            Type type;
 
-            if (genericType.GenericTypeArguments.Length != 1)
-                throw new NotSupportedException($"{genericType} contains more that one generic type argument");
+            if (collectionType != null)
+            {
+                return collectionType.GenericTypeArguments.Length > 0 ?
+                    collectionType.GenericTypeArguments[0] :
+                    collectionType.GetElementType();
+            }
 
-            return genericType.GenericTypeArguments[0];
+            switch (collectionTypeName)
+            {
+                case string @string when @string.IsMatch("List<(.*)>", out var name):
+                    type = GetType(name);
+                    break;
+                case string @string when @string.IsMatch("IEnumerable<(.*)>", out var name):
+                    type = GetType(name);
+                    break;
+                case string @string when @string.IsMatch(@"(.*)\[\]", out var name):
+                    type = GetType(name);
+                    break;
+                default:
+                    throw new NotSupportedException("Only IEnumerable<T>, List<T> or T[] collection types are supported");
+            }
+
+            return type;
         }
 
         /// <summary>
@@ -271,7 +293,10 @@ namespace Prometheus.Engine.Types
                 return true;
 
             if (ProcessInstanceMethodAssignment(localDeclaration, out type))
+            {
+                typeName = type.Name;
                 return true;
+            }
 
             if (ProcessStaticMethodAssignment(localDeclaration, out typeName))
                 return true;

@@ -100,6 +100,13 @@ namespace Prometheus.Common
             return false;
         }
 
+        public static bool IsMatch(this string input, string regex, out string matchExpression) {
+            Match match = new Regex(regex, RegexOptions.IgnoreCase).Match(input);
+            matchExpression = match.Success ? match.Groups[1].Value : null;
+
+            return match.Success;
+        }
+
         public static string RemoveDuplicateSpaces(this string input) {
             return DuplicateSpacesRegex.Replace(input, " ").Trim();
         }
