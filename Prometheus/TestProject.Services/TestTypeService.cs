@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using System.Linq;
+
 namespace TestProject.Services
 {
     public class TestCustomerFactory {
@@ -81,6 +84,22 @@ namespace TestProject.Services
 
         public void ExternalVarPropertyAssignment() {
             var localVar = customerFactory.PropertyCustomer;
+        }
+
+        public void GenericListWhereLambdaExpression()
+        {
+            List<Customer> customers = null;
+            var whereCustomers = customers.Where(x => x.DeliveryAddress.City == "");
+        }
+
+        public void GenericIEnumerableWhereLambdaExpression() {
+            IEnumerable<Customer> customers = null;
+            var whereCustomers = customers.Where(x => x.DeliveryAddress.City == "");
+        }
+
+        public void ArrayWhereLambdaExpression() {
+            Customer[] customers = null;
+            var whereCustomers = customers.Where(x => x.DeliveryAddress.City == "");
         }
 
         private Customer InstanceGetCustomer() {

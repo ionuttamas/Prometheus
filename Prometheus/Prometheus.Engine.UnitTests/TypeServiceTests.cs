@@ -160,5 +160,32 @@ namespace Prometheus.Engine.UnitTests
             var type = typeService.GetType(identifier);
             Assert.AreEqual(typeof(Customer), type);
         }
+
+        [Test]
+        public void TypeServices_ForGenericListLambdaExpressions_GetsTypeCorrectly() {
+            var project = solution.Projects.First(x => x.Name == "TestProject.Services");
+            var testTypeServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestTypeService));
+            var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.GenericListWhereLambdaExpression)).Body.DescendantNodes<MemberAccessExpressionSyntax>(x => x.ToString() == "x.DeliveryAddress.City").First();
+            var type = typeService.GetType(identifier);
+            Assert.AreEqual(typeof(string), type);
+        }
+
+        [Test]
+        public void TypeServices_ForGenericIEnumerableLambdaExpressions_GetsTypeCorrectly() {
+            var project = solution.Projects.First(x => x.Name == "TestProject.Services");
+            var testTypeServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestTypeService));
+            var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.GenericIEnumerableWhereLambdaExpression)).Body.DescendantNodes<MemberAccessExpressionSyntax>(x => x.ToString() == "x.DeliveryAddress.City").First();
+            var type = typeService.GetType(identifier);
+            Assert.AreEqual(typeof(string), type);
+        }
+
+        [Test]
+        public void TypeServices_ForArrayLambdaExpressions_GetsTypeCorrectly() {
+            var project = solution.Projects.First(x => x.Name == "TestProject.Services");
+            var testTypeServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestTypeService));
+            var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.ArrayWhereLambdaExpression)).Body.DescendantNodes<MemberAccessExpressionSyntax>(x => x.ToString() == "x.DeliveryAddress.City").First();
+            var type = typeService.GetType(identifier);
+            Assert.AreEqual(typeof(string), type);
+        }
     }
 }

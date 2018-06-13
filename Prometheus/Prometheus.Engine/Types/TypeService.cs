@@ -15,6 +15,7 @@ namespace Prometheus.Engine.Types
     internal class TypeService : ITypeService
     {
         private readonly List<TypeInfo> solutionTypes;
+        private readonly Dictionary<TypeInfo, List<TypeInfo>> interfaceImplementations;
         private readonly List<ClassDeclarationSyntax> classDeclarations;
         private readonly Dictionary<string, Type> primitiveTypes;
         private readonly TypeCache typeCache;
@@ -28,6 +29,10 @@ namespace Prometheus.Engine.Types
                 .Select(x => Assembly.Load(x.AssemblyName))
                 .SelectMany(x => x.DefinedTypes)
                 .ToList();
+            //todo: support abstract classes, virtual methods as well
+            interfaceImplementations = solutionTypes
+                .Where(x => x.IsInterface)
+                .ToDictionary(x => x, x => solutionTypes.Where(t => t.ImplementedInterfaces.Contains(x)).ToList());
             solutionTypes.AddRange(Assembly.GetAssembly(typeof(int)).DefinedTypes);
             classDeclarations = solution.Projects
                 .SelectMany(x => x.GetCompilation().SyntaxTrees)
@@ -105,6 +110,11 @@ namespace Prometheus.Engine.Types
             return result;
         }
 
+        public List<TypeInfo> GetImplementations(Type @interface)
+        {
+            return interfaceImplementations[@interface.GetTypeInfo()];
+        }
+
         public ClassDeclarationSyntax GetClassDeclaration(Type type)
         {
             //TODO: handle multiple same name classnames in different namespaces
@@ -140,7 +150,6 @@ namespace Prometheus.Engine.Types
             var instance = invocation
                 .Expression.As<MemberAccessExpressionSyntax>()
                 .Expression.As<IdentifierNameSyntax>();
-            //TODO: this will fail in case of non-generic collections such as arrays
             var itemType = GetCollectionItemType(instance);
             Type type = GetExpressionTypes(itemType, memberExpression.As<MemberAccessExpressionSyntax>()).Last();
 
