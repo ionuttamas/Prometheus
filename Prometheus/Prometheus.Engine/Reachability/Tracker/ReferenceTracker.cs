@@ -386,7 +386,6 @@ namespace Prometheus.Engine.Reachability.Tracker {
             var instanceExpression = memberAccess.Expression.As<IdentifierNameSyntax>();
             var methodName = memberAccess.Name.Identifier.Text;
 
-            //TODO: This fails for "instance = Get(...)";
             if (referenceParser.IsBuiltInMethod(methodName))
                 return ProcessLinqMethodAssignments(bindingNode, invocationExpression, instanceExpression);
 

@@ -14,6 +14,7 @@ namespace Prometheus.Engine.Types
 {
     internal class TypeService : ITypeService
     {
+        private readonly IPolymorphicService polymorphicService;
         private readonly List<TypeInfo> solutionTypes;
         private readonly Dictionary<TypeInfo, List<TypeInfo>> interfaceImplementations;
         private readonly List<ClassDeclarationSyntax> classDeclarations;
@@ -21,8 +22,9 @@ namespace Prometheus.Engine.Types
         private readonly TypeCache typeCache;
         private const string VAR_TOKEN = "var";
 
-        public TypeService(Solution solution)
+        public TypeService(Solution solution, IPolymorphicService polymorphicService)
         {
+            this.polymorphicService = polymorphicService;
             //todo: needs to get projects referenced assemblies
             solutionTypes = solution
                 .Projects
@@ -193,10 +195,10 @@ namespace Prometheus.Engine.Types
         private List<Type> GetExpressionTypes(MemberAccessExpressionSyntax memberExpression) {
             Queue<string> memberTokens = new Queue<string>(memberExpression.ToString().Split('.'));
             string rootToken = memberTokens.First();
-            string typeName = GetTypeName(memberExpression.GetContainingMethod(), rootToken, out var type);
-            Type rootType = type ?? GetType(typeName);
+            var rootType = GetImplementedType(memberExpression.GetContainingMethod(), rootToken);
+            var expressionTypes = GetExpressionTypes(rootType, memberExpression);
 
-            return GetExpressionTypes(rootType, memberExpression);
+            return expressionTypes;
         }
 
         private List<Type> GetExpressionTypes(Type rootType, MemberAccessExpressionSyntax memberExpression)
@@ -237,10 +239,26 @@ namespace Prometheus.Engine.Types
         /// </summary>
         private Type GetNodeType(IdentifierNameSyntax identifierNameSyntax)
         {
-            Type type;
-            string typeName = GetTypeName(identifierNameSyntax.GetContainingMethod(), identifierNameSyntax.Identifier.Text, out type);
+            return GetImplementedType(identifierNameSyntax.GetContainingMethod(), identifierNameSyntax.Identifier.Text);
+        }
 
-            return type ?? GetType(typeName);
+        private Type GetImplementedType(MethodDeclarationSyntax method, string token)
+        {
+            string typeName = GetTypeName(method, token, out var type);
+            type = type ?? GetType(typeName);
+
+            //TODO: handle abstract classes
+
+            if (!type.IsInterface)
+                return type;
+
+            var typeInfo = type.GetTypeInfo();
+
+            var implementationType = interfaceImplementations[typeInfo].Count==1 ?
+                interfaceImplementations[typeInfo].First() :
+                polymorphicService.GetImplementationType(method, token);
+
+            return implementationType;
         }
 
         #region Type name extraction
@@ -468,5 +486,13 @@ namespace Prometheus.Engine.Types
             Type type = solutionTypes.FirstOrDefault(x => x.Name == typeName);
             return type ?? primitiveTypes[typeName];
         }
+    }
+
+    public interface IPolymorphicService
+    {
+        /// <summary>
+        /// When an identifier has an implementation type known by the application developer, this API provides a way to resolve the polymorphic inference.
+        /// </summary>
+        Type GetImplementationType(MethodDeclarationSyntax method, string token);
     }
 }
