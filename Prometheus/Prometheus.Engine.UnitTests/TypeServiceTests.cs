@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using NUnit.Framework;
 using Prometheus.Common;
 using Prometheus.Engine.Types;
+using Prometheus.Engine.Types.Polymorphy;
 using TestProject.Services;
 
 namespace Prometheus.Engine.UnitTests
@@ -18,7 +19,8 @@ namespace Prometheus.Engine.UnitTests
             var workspace = Microsoft.CodeAnalysis.MSBuild.MSBuildWorkspace.Create();
             workspace.LoadMetadataForReferencedProjects = true;
             solution = workspace.OpenSolutionAsync(@"C:\Users\tamas\Documents\Github\Prometheus\Prometheus\Prometheus.sln").Result;
-            typeService = new TypeService(solution);
+            IPolymorphicResolver polymorphicService = new PolymorphicResolver();
+            typeService = new TypeService(solution, polymorphicService);
         }
 
         [TearDown]

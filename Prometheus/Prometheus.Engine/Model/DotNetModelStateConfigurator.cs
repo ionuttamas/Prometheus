@@ -5,7 +5,7 @@ using Prometheus.Engine.Verifier;
 
 namespace Prometheus.Engine.Model
 {
-    public class NetModelStateConfigurator : IModelStateConfigurator
+    public class DotNetModelStateConfigurator : IModelStateConfigurator
     {
         public ModelStateConfiguration GetConfiguration()
         {

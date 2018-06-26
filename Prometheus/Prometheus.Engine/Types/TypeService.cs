@@ -14,7 +14,7 @@ namespace Prometheus.Engine.Types
 {
     internal class TypeService : ITypeService
     {
-        private readonly IPolymorphicService polymorphicService;
+        private readonly IPolymorphicResolver polymorphicService;
         private readonly List<TypeInfo> solutionTypes;
         private readonly Dictionary<TypeInfo, List<TypeInfo>> interfaceImplementations;
         private readonly List<ClassDeclarationSyntax> classDeclarations;
@@ -22,7 +22,7 @@ namespace Prometheus.Engine.Types
         private readonly TypeCache typeCache;
         private const string VAR_TOKEN = "var";
 
-        public TypeService(Solution solution, IPolymorphicService polymorphicService)
+        public TypeService(Solution solution, IPolymorphicResolver polymorphicService)
         {
             this.polymorphicService = polymorphicService;
             //todo: needs to get projects referenced assemblies
@@ -42,6 +42,7 @@ namespace Prometheus.Engine.Types
                 .SelectMany(x => x.DescendantNodes<ClassDeclarationSyntax>())
                 .ToList();
             typeCache = new TypeCache();
+            polymorphicService.Configure(GetType);
             primitiveTypes = new Dictionary<string, Type>
             {
                 {"byte", typeof(byte)},
@@ -248,7 +249,6 @@ namespace Prometheus.Engine.Types
             type = type ?? GetType(typeName);
 
             //TODO: handle abstract classes
-
             if (!type.IsInterface)
                 return type;
 
@@ -486,13 +486,5 @@ namespace Prometheus.Engine.Types
             Type type = solutionTypes.FirstOrDefault(x => x.Name == typeName);
             return type ?? primitiveTypes[typeName];
         }
-    }
-
-    public interface IPolymorphicService
-    {
-        /// <summary>
-        /// When an identifier has an implementation type known by the application developer, this API provides a way to resolve the polymorphic inference.
-        /// </summary>
-        Type GetImplementationType(MethodDeclarationSyntax method, string token);
     }
 }

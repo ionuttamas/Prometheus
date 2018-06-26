@@ -8,6 +8,7 @@ using Prometheus.Engine.Reachability.Tracker;
 using Prometheus.Engine.ReachabilityProver.Model;
 using Prometheus.Engine.Thread;
 using Prometheus.Engine.Types;
+using Prometheus.Engine.Types.Polymorphy;
 
 namespace Prometheus.Engine.UnitTests
 {
@@ -22,7 +23,8 @@ namespace Prometheus.Engine.UnitTests
             workspace.LoadMetadataForReferencedProjects = true;
             solution = workspace.OpenSolutionAsync(@"C:\Users\tamas\Documents\Github\Prometheus\Prometheus\Prometheus.sln").Result;
             ThreadSchedule threadSchedule = new ThreadAnalyzer(solution).GetThreadSchedule(solution.Projects.First(x => x.Name == "TestProject.GUI"));
-            ITypeService typeService = new TypeService(solution);
+            IPolymorphicResolver polymorphicService = new PolymorphicResolver();
+            ITypeService typeService = new TypeService(solution, polymorphicService);
             IConditionProver conditionProver = new Z3ConditionProver(typeService);
             IQueryMatcher queryMatcher = new Z3QueryMatcher(typeService);
             IReferenceParser referenceParser = new ReferenceParser();

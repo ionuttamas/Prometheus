@@ -6,6 +6,7 @@ using Prometheus.Engine.ExpressionMatcher;
 using Prometheus.Engine.Reachability.Tracker;
 using Prometheus.Engine.Thread;
 using Prometheus.Engine.Types;
+using Prometheus.Engine.Types.Polymorphy;
 using TestProject.Services;
 
 namespace Prometheus.Engine.UnitTests
@@ -21,7 +22,8 @@ namespace Prometheus.Engine.UnitTests
             var workspace = Microsoft.CodeAnalysis.MSBuild.MSBuildWorkspace.Create();
             workspace.LoadMetadataForReferencedProjects = true;
             solution = workspace.OpenSolutionAsync(@"C:\Users\tamas\Documents\Github\Prometheus\Prometheus\Prometheus.sln").Result;
-            var typeService = new TypeService(solution);
+            IPolymorphicResolver polymorphicService = new PolymorphicResolver();
+            var typeService = new TypeService(solution, polymorphicService);
             IReferenceParser referenceParser = new ReferenceParser();
             ThreadSchedule threadSchedule = new ThreadAnalyzer(solution).GetThreadSchedule(solution.Projects.First(x => x.Name == "TestProject.GUI"));
             referenceTracker = new ReferenceTracker(solution, threadSchedule, typeService, referenceParser);
