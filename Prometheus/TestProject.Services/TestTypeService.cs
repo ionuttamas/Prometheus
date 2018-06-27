@@ -18,6 +18,7 @@ namespace TestProject.Services
 
     public class TestTypeService
     {
+        private List<IField> fields;
         private Customer customerField;
         public Customer CustomerProperty { get; set; }
         private TestCustomerFactory customerFactory;
@@ -109,6 +110,35 @@ namespace TestProject.Services
         private static Customer StaticGetCustomer()
         {
             return null;
+        }
+
+        public IField GetPolymorphicTypeDeclaration() {
+            IField field = fields.First(x=>x is AskField);
+
+            return field;
+        }
+
+        public IField GetPolymorphicTypeParameter(IField currentPriceField) {
+            return null;
+        }
+    }
+
+    public interface IField
+    {
+        decimal Compute(decimal delta);
+    }
+
+    public class CurrentPriceField : IField
+    {
+        public decimal Compute(decimal delta)
+        {
+            return delta;
+        }
+    }
+
+    public class AskField : IField {
+        public decimal Compute(decimal delta) {
+            return delta;
         }
     }
 }

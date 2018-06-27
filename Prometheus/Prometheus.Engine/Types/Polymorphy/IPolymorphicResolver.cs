@@ -9,16 +9,10 @@ namespace Prometheus.Engine.Types
     public interface IPolymorphicResolver
     {
         /// <summary>
-        /// Configures a delegate for SyntaxToken type resolver.
-        /// </summary>
-        /// <param name="typeResolver"></param>
-        void Configure(Func<SyntaxToken, Type> typeResolver);
-
-        /// <summary>
         /// When an identifier has an implementation type known by the application developer, this API provides a way to resolve the polymorphic inference.
         /// </summary>
         /// <exception cref="AmbiguousMatchException">If multiple tokens exists in the type method with the same name</exception>
-        Type GetImplementationType(MethodDeclarationSyntax method, string token);
+        Type GetImplementatedType(MethodDeclarationSyntax method, string token);
 
         /// <summary>
         /// When an identifier has an implementation type known by the application developer, this API provides a way to resolve the polymorphic inference.

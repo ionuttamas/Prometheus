@@ -20,6 +20,8 @@ namespace Prometheus.Engine.UnitTests
             workspace.LoadMetadataForReferencedProjects = true;
             solution = workspace.OpenSolutionAsync(@"C:\Users\tamas\Documents\Github\Prometheus\Prometheus\Prometheus.sln").Result;
             IPolymorphicResolver polymorphicService = new PolymorphicResolver();
+            polymorphicService.Register(typeof(TestTypeService), "GetPolymorphicTypeDeclaration", "field", typeof(AskField));
+            polymorphicService.Register(typeof(TestTypeService), "GetPolymorphicTypeParameter", "currentPriceField", typeof(CurrentPriceField));
             typeService = new TypeService(solution, polymorphicService);
         }
 
@@ -188,6 +190,24 @@ namespace Prometheus.Engine.UnitTests
             var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.ArrayWhereLambdaExpression)).Body.DescendantNodes<MemberAccessExpressionSyntax>(x => x.ToString() == "x.DeliveryAddress.City").First();
             var type = typeService.GetType(identifier);
             Assert.AreEqual(typeof(string), type);
+        }
+
+        [Test]
+        public void TypeServices_ForPolymorphicDeclarationType_GetsTypeCorrectly() {
+            var project = solution.Projects.First(x => x.Name == "TestProject.Services");
+            var testTypeServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestTypeService));
+            var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.GetPolymorphicTypeDeclaration)).Body.DescendantTokens<SyntaxToken>(x => x.ToString() == "field").First();
+            var type = typeService.GetType(identifier);
+            Assert.AreEqual(typeof(AskField), type);
+        }
+
+        [Test]
+        public void TypeServices_ForPolymorphicParameterType_GetsTypeCorrectly() {
+            var project = solution.Projects.First(x => x.Name == "TestProject.Services");
+            var testTypeServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestTypeService));
+            var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.GetPolymorphicTypeParameter)).DescendantTokens<SyntaxToken>(x => x.ToString() == "currentPriceField").First();
+            var type = typeService.GetType(identifier);
+            Assert.AreEqual(typeof(CurrentPriceField), type);
         }
     }
 }

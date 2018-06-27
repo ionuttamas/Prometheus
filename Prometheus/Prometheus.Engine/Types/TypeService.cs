@@ -42,7 +42,6 @@ namespace Prometheus.Engine.Types
                 .SelectMany(x => x.DescendantNodes<ClassDeclarationSyntax>())
                 .ToList();
             typeCache = new TypeCache();
-            polymorphicService.Configure(GetType);
             primitiveTypes = new Dictionary<string, Type>
             {
                 {"byte", typeof(byte)},
@@ -93,7 +92,7 @@ namespace Prometheus.Engine.Types
                 var expressionKind = memberExpression.Kind();
                 type = expressionKind == SyntaxKind.SimpleMemberAccessExpression
                     ? GetExpressionTypes(memberExpression.As<MemberAccessExpressionSyntax>()).Last()
-                    : GetNodeType(memberExpression.As<IdentifierNameSyntax>());
+                    : GetImplementedType(memberExpression.GetContainingMethod(), memberExpression.As<IdentifierNameSyntax>().Identifier.Text);
             }
 
             typeCache.AddToCache(memberExpression, type);
@@ -106,16 +105,11 @@ namespace Prometheus.Engine.Types
             if (typeCache.TryGetType(syntaxToken, out var cachedType))
                 return cachedType;
 
-            string typeName = GetTypeName(syntaxToken.GetLocation().GetContainingMethod(), syntaxToken.Text, out Type type);
-            Type result = type ??  GetType(typeName);
+            MethodDeclarationSyntax containingMethod = syntaxToken.GetLocation().GetContainingMethod();
+            Type result = GetImplementedType(containingMethod, syntaxToken.Text);
             typeCache.AddToCache(syntaxToken, result);
 
             return result;
-        }
-
-        public List<TypeInfo> GetImplementations(Type @interface)
-        {
-            return interfaceImplementations[@interface.GetTypeInfo()];
         }
 
         public ClassDeclarationSyntax GetClassDeclaration(Type type)
@@ -235,14 +229,6 @@ namespace Prometheus.Engine.Types
             return types;
         }
 
-        /// <summary>
-        /// Gets the type for a given identifier.
-        /// </summary>
-        private Type GetNodeType(IdentifierNameSyntax identifierNameSyntax)
-        {
-            return GetImplementedType(identifierNameSyntax.GetContainingMethod(), identifierNameSyntax.Identifier.Text);
-        }
-
         private Type GetImplementedType(MethodDeclarationSyntax method, string token)
         {
             string typeName = GetTypeName(method, token, out var type);
@@ -256,7 +242,7 @@ namespace Prometheus.Engine.Types
 
             var implementationType = interfaceImplementations[typeInfo].Count==1 ?
                 interfaceImplementations[typeInfo].First() :
-                polymorphicService.GetImplementationType(method, token);
+                polymorphicService.GetImplementatedType(method, token);
 
             return implementationType;
         }

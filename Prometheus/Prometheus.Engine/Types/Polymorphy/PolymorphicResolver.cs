@@ -12,7 +12,6 @@ namespace Prometheus.Engine.Types.Polymorphy
     {
         private readonly Dictionary<MethodInfo, Dictionary<string, Type>> methodInfoTable;
         private readonly Dictionary<Type, Dictionary<string, Dictionary<string, Type>>> typeMethodTable;
-        private Func<SyntaxToken, Type> typeResolver;
 
         public PolymorphicResolver()
         {
@@ -20,18 +19,18 @@ namespace Prometheus.Engine.Types.Polymorphy
             typeMethodTable = new Dictionary<Type, Dictionary<string, Dictionary<string, Type>>>();
         }
 
-        public Type GetImplementationType(MethodDeclarationSyntax method, string token) {
+        public Type GetImplementatedType(MethodDeclarationSyntax method, string token) {
             var classDeclaration = method.GetContainingClass();
             var methodName = method.Identifier.Text;
 
-            var tokenTypeEntry = methodInfoTable.FirstOrDefault(x => x.Key.DeclaringType.Name == classDeclaration.Identifier.Text &&
+            var tokenTypeEntry = methodInfoTable.FirstOrDefault(x => x.Key.Name == classDeclaration.Identifier.Text &&
                                                 x.Key.Name == methodName &&
                                                 AreEquivalent(x.Key, method));
 
             if (!tokenTypeEntry.IsNull())
                 return tokenTypeEntry.Value[token];
 
-            var typeEntry = typeMethodTable.FirstOrDefault(x => x.Key.DeclaringType.Name == classDeclaration.Identifier.Text);
+            var typeEntry = typeMethodTable.FirstOrDefault(x => x.Key.Name == classDeclaration.Identifier.Text);
 
             if (!typeEntry.IsNull())
             {
@@ -43,11 +42,6 @@ namespace Prometheus.Engine.Types.Polymorphy
             }
 
             throw new ArgumentException($"Could not find any type for method {methodName} and token {token}");
-        }
-
-        public void Configure(Func<SyntaxToken, Type> typeResolver)
-        {
-            this.typeResolver = typeResolver;
         }
 
         public void Register(MethodInfo method, string token, Type tokenType)
@@ -86,9 +80,9 @@ namespace Prometheus.Engine.Types.Polymorphy
 
             for (int i = 0; i < methodDeclarationParams.Count; i++)
             {
-                var type = typeResolver(methodDeclarationParams[i].Identifier);
+                var declarationType = methodDeclarationParams[i].Type.ToString();
 
-                if (type != methodInfoParams[i].ParameterType)
+                if (declarationType != methodInfoParams[i].ParameterType.Name)
                     return false;
             }
 

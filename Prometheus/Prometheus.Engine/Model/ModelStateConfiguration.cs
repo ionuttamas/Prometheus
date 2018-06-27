@@ -71,6 +71,7 @@ namespace Prometheus.Engine.Model
         #endregion
 
         #region Polymorphic utils
+
         public ModelStateConfiguration WithPolymorphicService(IPolymorphicResolver polymorphicService) {
             if (this.polymorphicService != null)
                 throw new NotSupportedException("A polymorphic service can be specified only once");
@@ -93,12 +94,6 @@ namespace Prometheus.Engine.Model
             return this;
         }
 
-        public ModelStateConfiguration WithTypeResolver(Func<SyntaxToken, Type> typeResolver) {
-            polymorphicService = polymorphicService ?? new PolymorphicResolver();
-            polymorphicService.Configure(typeResolver);
-
-            return this;
-        }
         #endregion
 
         private MethodInfo GetMethodInfo<T>(Expression<Func<T, bool>> expression) {
