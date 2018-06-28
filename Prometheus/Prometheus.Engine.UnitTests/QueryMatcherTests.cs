@@ -23,7 +23,7 @@ namespace Prometheus.Engine.UnitTests
             workspace.LoadMetadataForReferencedProjects = true;
             solution = workspace.OpenSolutionAsync(@"C:\Users\tamas\Documents\Github\Prometheus\Prometheus\Prometheus.sln").Result;
             IPolymorphicResolver polymorphicService = new PolymorphicResolver();
-            var typeService = new TypeService(solution, polymorphicService);
+            var typeService = new TypeService(solution, polymorphicService, "TestProject.GUI", "TestProject.Services", "TestProject.Common");
             IReferenceParser referenceParser = new ReferenceParser();
             ThreadSchedule threadSchedule = new ThreadAnalyzer(solution).GetThreadSchedule(solution.Projects.First(x => x.Name == "TestProject.GUI"));
             referenceTracker = new ReferenceTracker(solution, threadSchedule, typeService, referenceParser);

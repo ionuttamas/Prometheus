@@ -22,7 +22,7 @@ namespace Prometheus.Engine.UnitTests
             IPolymorphicResolver polymorphicService = new PolymorphicResolver();
             polymorphicService.Register(typeof(TestTypeService), "GetPolymorphicTypeDeclaration", "field", typeof(AskField));
             polymorphicService.Register(typeof(TestTypeService), "GetPolymorphicTypeParameter", "currentPriceField", typeof(CurrentPriceField));
-            typeService = new TypeService(solution, polymorphicService);
+            typeService = new TypeService(solution, polymorphicService, "TestProject.GUI", "TestProject.Services", "TestProject.Common");
         }
 
         [TearDown]

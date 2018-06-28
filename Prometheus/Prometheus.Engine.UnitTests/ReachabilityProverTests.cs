@@ -24,7 +24,7 @@ namespace Prometheus.Engine.UnitTests
             solution = workspace.OpenSolutionAsync(@"C:\Users\tamas\Documents\Github\Prometheus\Prometheus\Prometheus.sln").Result;
             ThreadSchedule threadSchedule = new ThreadAnalyzer(solution).GetThreadSchedule(solution.Projects.First(x => x.Name == "TestProject.GUI"));
             IPolymorphicResolver polymorphicService = new PolymorphicResolver();
-            ITypeService typeService = new TypeService(solution, polymorphicService);
+            ITypeService typeService = new TypeService(solution, polymorphicService, "TestProject.GUI", "TestProject.Services", "TestProject.Common");
             IConditionProver conditionProver = new Z3ConditionProver(typeService);
             IQueryMatcher queryMatcher = new Z3QueryMatcher(typeService);
             IReferenceParser referenceParser = new ReferenceParser();

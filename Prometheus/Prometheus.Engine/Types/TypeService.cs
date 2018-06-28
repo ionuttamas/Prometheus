@@ -19,18 +19,21 @@ namespace Prometheus.Engine.Types
         private readonly Dictionary<TypeInfo, List<TypeInfo>> interfaceImplementations;
         private readonly List<ClassDeclarationSyntax> classDeclarations;
         private readonly Dictionary<string, Type> primitiveTypes;
+        private readonly Dictionary<Type, EnumSort> enumSorts;
         private readonly TypeCache typeCache;
         private const string VAR_TOKEN = "var";
 
-        public TypeService(Solution solution, IPolymorphicResolver polymorphicService)
+        public TypeService(Solution solution, IPolymorphicResolver polymorphicService, params string[] projects)
         {
             this.polymorphicService = polymorphicService;
             //todo: needs to get projects referenced assemblies
             solutionTypes = solution
                 .Projects
+                .Where(x => projects==null || projects.Contains(x.Name))
                 .Select(x => Assembly.Load(x.AssemblyName))
                 .SelectMany(x => x.DefinedTypes)
                 .ToList();
+            enumSorts = new Dictionary<Type, EnumSort>();
             //todo: support abstract classes, virtual methods as well
             interfaceImplementations = solutionTypes
                 .Where(x => x.IsInterface)
@@ -130,13 +133,28 @@ namespace Prometheus.Engine.Types
         public Sort GetSort(Context context, Type type)
         {
             if (type.IsNumeric())
-                return context.RealSort; // there are issues comparing int to real
+                return context.RealSort; // TODO: there are issues comparing int to real
 
             if (type.IsString())
                 return context.StringSort;
 
             if (type.IsBoolean())
                 return context.BoolSort;
+
+            if (type.IsEnum)
+            {
+                if(enumSorts.ContainsKey(type))
+                    return enumSorts[type];
+
+                var enumValues = type
+                    .GetMembers(BindingFlags.Public | BindingFlags.Static)
+                    .Select(x=>x.Name)
+                    .ToArray();
+                var enumSort = context.MkEnumSort(type.Name, enumValues);
+                enumSorts.Add(type, enumSort);
+
+                return enumSort;
+            }
 
             throw new ArgumentException($"Type {type} is not supported");
         }

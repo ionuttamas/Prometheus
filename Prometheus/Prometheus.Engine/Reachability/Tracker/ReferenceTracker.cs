@@ -520,9 +520,6 @@ namespace Prometheus.Engine.Reachability.Tracker {
         {
             var nodeSpan = node.GetLocation().SourceSpan;
             var methodDeclaration = node.GetContainingMethod();
-            var previousReturnConditionsx = methodDeclaration
-                .DescendantNodes<ReturnStatementSyntax>()
-                .Where(x => x.GetLocation().SourceSpan.End < nodeSpan.Start).ToList();
             var previousReturnConditions = methodDeclaration
                 .DescendantNodes<ReturnStatementSyntax>()
                 .Where(x => x.GetLocation().SourceSpan.End < nodeSpan.Start)
