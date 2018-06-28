@@ -54,11 +54,8 @@ namespace Prometheus.Engine.Reachability.Prover
 
         private bool InternalHaveCommonReference(ConditionalAssignment first, ConditionalAssignment second, out Reference commonReference)
         {
-            commonReference = null;
-
-            if (reachabilityCache.Contains(first.LeftReference, second.LeftReference))
+            if (reachabilityCache.TryGet(first.LeftReference, second.LeftReference, out commonReference))
             {
-                commonReference = reachabilityCache.GetFromCache(first.LeftReference, second.LeftReference);
                 return commonReference != null && conditionProver.IsSatisfiable(first, second);
             }
 

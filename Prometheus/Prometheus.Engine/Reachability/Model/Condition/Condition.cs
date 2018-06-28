@@ -1,15 +1,23 @@
-﻿using Microsoft.CodeAnalysis.CSharp.Syntax;
+﻿using System.Collections.Generic;
+using System.Linq;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Prometheus.Engine.ReachabilityProver.Model
 {
     public class Condition
     {
-        public IfStatementSyntax IfStatement { get; private set; }
-        public bool IsNegated { get; private set; }
+        public ExpressionSyntax TestExpression { get; }
+        public bool IsNegated { get; set; }
+        public HashSet<Condition> Conditions { get; }
 
-        public Condition(IfStatementSyntax ifStatement, bool isNegated)
+        public Condition(ExpressionSyntax testExpression, bool isNegated)
         {
-            IfStatement = ifStatement;
+            TestExpression = testExpression;
+            IsNegated = isNegated;
+        }
+
+        public Condition(IEnumerable<Condition> conditions, bool isNegated) {
+            Conditions = new HashSet<Condition>(conditions);
             IsNegated = isNegated;
         }
 
@@ -20,17 +28,17 @@ namespace Prometheus.Engine.ReachabilityProver.Model
 
             Condition condition = (Condition) instance;
 
-            return IfStatement==condition.IfStatement && IsNegated==condition.IsNegated;
+            return TestExpression==condition.TestExpression && IsNegated==condition.IsNegated;
         }
 
         public override int GetHashCode()
         {
-            return IfStatement.GetHashCode();
+            return TestExpression!=null? TestExpression.GetHashCode():Conditions.GetHashCode();
         }
 
         public override string ToString()
         {
-            return IfStatement.Condition.ToString();
+            return $"{(IsNegated? "NOT ( " : string.Empty)}{TestExpression?.ToString() ?? string.Join(" AND ", Conditions)}{(IsNegated ? " )" : string.Empty)}";
         }
     }
 }

@@ -70,7 +70,7 @@ namespace Prometheus.Engine.Types.Polymorphy
             typeMethodTable[classType][method].Add(token, tokenType);
         }
 
-        private bool AreEquivalent(MethodInfo methodInfo, MethodDeclarationSyntax methodDeclaration)
+        private static bool AreEquivalent(MethodInfo methodInfo, MethodDeclarationSyntax methodDeclaration)
         {
             var methodInfoParams = methodInfo.GetParameters();
             var methodDeclarationParams = methodDeclaration.ParameterList.Parameters;

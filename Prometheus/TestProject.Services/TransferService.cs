@@ -9,6 +9,8 @@
 
         public void SimpleIfTransfer(Customer from, Customer to, decimal amount) {
             Customer customer;
+            var simpleImplicitCustomer = SimpleImplicitReturn(from, to, amount);
+            var complexImplicitCustomer = ComplexImplicitReturn(from, to, amount);
 
             if (from.Type == CustomerType.Premium)
             {
@@ -168,6 +170,40 @@
                     to.AccountBalance += amount;
                 }
             }
+        }
+
+        private Customer SimpleImplicitReturn(Customer from, Customer to, decimal amount) {
+            if (amount < -10) {
+                if (!from.IsActive && from.AccountBalance == 20) {
+                    return null;
+                } else if (from.Type == CustomerType.Gold && from.AccountBalance ==30) {
+                    return new Customer();
+                }
+            }
+
+            return to;
+        }
+
+        private Customer ComplexImplicitReturn(Customer from, Customer to, decimal amount) {
+            if (amount > 0) {
+                if (from.Type == CustomerType.Premium) {
+                    return new Customer();
+                } else if (from.Type == CustomerType.Gold) {
+                    return from;
+                } else {
+                    return new Customer();
+                }
+            }
+
+            if (amount < -10) {
+                if (!from.IsActive && from.AccountBalance == 20) {
+                    return null;
+                } else if (from.Type == CustomerType.Gold && from.AccountBalance == 30) {
+                    return new Customer();
+                }
+            }
+
+            return to;
         }
     }
 }

@@ -52,7 +52,7 @@ namespace Prometheus.Engine.ConditionProver
             processedMembers = new Dictionary<string, NodeType>();
 
             foreach (var assignmentCondition in assignment.Conditions) {
-                var boolExpr = ParseExpression(assignmentCondition.IfStatement.Condition, out var membersTable);
+                var boolExpr = ParseExpression(assignmentCondition.TestExpression, out var membersTable);
                 processedMembers.Merge(membersTable);
 
                 conditions.Add(assignmentCondition.IsNegated ? context.MkNot(boolExpr) : boolExpr);
@@ -212,8 +212,8 @@ namespace Prometheus.Engine.ConditionProver
                 assignment.Conditions.Select(
                     x =>
                         x.IsNegated
-                            ? context.MkNot(ParseExpression(x.IfStatement.Condition, cachedMembers))
-                            : ParseExpression(x.IfStatement.Condition, cachedMembers)).ToArray();
+                            ? context.MkNot(ParseExpression(x.TestExpression, cachedMembers))
+                            : ParseExpression(x.TestExpression, cachedMembers)).ToArray();
             BoolExpr expression = context.MkAnd(conditions);
 
             return expression;

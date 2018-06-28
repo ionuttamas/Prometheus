@@ -6,6 +6,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Prometheus.Common;
 using Prometheus.Engine.ConditionProver;
+using Prometheus.Engine.Reachability.Prover;
 using Prometheus.Engine.ReachabilityProver.Model;
 using Prometheus.Engine.Thread;
 using Prometheus.Engine.Types;
@@ -18,6 +19,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
         private readonly ThreadSchedule threadSchedule;
         private readonly IReferenceParser referenceParser;
         private HaveCommonReference reachabilityDelegate;
+        private readonly ConditionCache conditionCache;
 
         public ReferenceTracker(Solution solution,
                                 ThreadSchedule threadSchedule,
@@ -28,6 +30,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
             this.threadSchedule = threadSchedule;
             this.typeService = typeService;
             this.referenceParser = referenceParser;
+            conditionCache = new ConditionCache();
         }
 
         public void Configure(HaveCommonReference @delegate) {
@@ -74,20 +77,33 @@ namespace Prometheus.Engine.Reachability.Tracker {
             var method = identifier.GetLocation().GetContainingMethod();
             var classDeclaration = method.FirstAncestorOrSelf<ClassDeclarationSyntax>();
             var matchingField = classDeclaration.FirstDescendantNode<FieldDeclarationSyntax>(x => x.Declaration.Variables.Any(v => v.Identifier.Text == identifierName));
+            var conditions = ExtractConditions(identifier.Parent);
 
             if (matchingField != null && matchingField.Modifiers.All(x=>x.Kind()!=SyntaxKind.StaticKeyword))
             {
-                return GetConstructorAssignments(identifier, classDeclaration, referenceContexts)
+                var constructorAssigments = GetConstructorAssignments(identifier, classDeclaration, referenceContexts)
                     .Where(x => x.RightReference.Node == null || x.RightReference.Node.Kind() == SyntaxKind.IdentifierName)
                     .ToList();
+                constructorAssigments.ForEach(x => x.Conditions.UnionWith(conditions));
+
+                //TODO: append if/else conditions of the identifier location
+                return constructorAssigments;
             }
 
             var parameterIndex = method.ParameterList.Parameters.IndexOf(x => x.Identifier.Text == identifierName);
+            List<ConditionalAssignment> result;
 
             //The assignment is not from a method parameter, so we search for the assignment inside
-            var result = parameterIndex < 0
-                ? GetMethodAssignments(identifier)
-                : GetReferenceMethodCallAssignments(method, parameterIndex, referenceContexts);
+            if (parameterIndex < 0)
+            {
+                result = GetInMethodAssignments(identifier);
+            }
+            else
+            {
+                result = GetReferenceMethodCallAssignments(method, parameterIndex, referenceContexts);
+                result.ForEach(x => x.Conditions.UnionWith(conditions));
+            }
+
             // Exclude all except reference names; method calls "a = GetReference(c, d)" are not supported at the moment TODO: double check here
             //TODO: currently we support only one level method call assigment: "a = instance.Get(..);"
             result = result
@@ -208,7 +224,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
         /// <summary>
         /// Returns the list of assignments made for that identifier within the method in which the identifier is used.
         /// </summary>
-        private List<ConditionalAssignment> GetMethodAssignments(SyntaxToken identifier)
+        private List<ConditionalAssignment> GetInMethodAssignments(SyntaxToken identifier)
         {
             var method = identifier.GetLocation().GetContainingMethod();
             var identifierName = identifier.ToString();
@@ -241,7 +257,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                         .Expression.As<MemberAccessExpressionSyntax>()
                         .Expression.As<IdentifierNameSyntax>().Identifier.Text;
 
-                    return typeService.GetClassDeclaration(className)==null ?
+                    return typeService.GetClassDeclaration(className) == null ?
                         ProcessReferenceMethodCallAssigments(bindingNode, invocationExpression) :
                         ProcessStaticMethodCallAssigments(bindingNode, invocationExpression);
                 }
@@ -276,7 +292,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 conditionalAssignment.RightReference.Node = matchingField.Declaration.Variables[0];
             }
 
-            var ifElseConditions = ExtractIfElseConditions(currentNode);
+            var ifElseConditions = ExtractConditions(currentNode);
             conditionalAssignment.Conditions.UnionWith(ifElseConditions);
 
             return new List<ConditionalAssignment>{ conditionalAssignment };
@@ -288,7 +304,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
         /// </summary>
         private List<ConditionalAssignment> ProcessLocalMethodCallAssigments(SyntaxNode bindingNode, InvocationExpressionSyntax invocationExpression) {
             var methodName = invocationExpression.Expression.As<IdentifierNameSyntax>().Identifier.Text;
-            var conditions = ExtractIfElseConditions(invocationExpression);
+            var conditions = ExtractConditions(invocationExpression);
             var classDeclaration = invocationExpression.GetContainingClass();
             var parametersCount = invocationExpression.ArgumentList.Arguments.Count;
 
@@ -305,8 +321,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
 
             var returnExpressions = method
                 .DescendantNodes<ReturnStatementSyntax>()
-                .Where(x => x.Expression.Kind() !=
-                            SyntaxKind.ObjectCreationExpression) //TODO: are we interested in "return new X()"?
+                .Where(x => x.Expression.Kind() != SyntaxKind.ObjectCreationExpression) //TODO: are we interested in "return new X()"?
                 .Select(x => {
                     var (returnReference, query) = referenceParser.Parse(x.Expression);
 
@@ -335,8 +350,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
             var memberAccess = invocationExpression.Expression.As<MemberAccessExpressionSyntax>();
             var className = memberAccess.Expression.As<IdentifierNameSyntax>().Identifier.Text;
             var methodName = memberAccess.Name.Identifier.Text;
-
-            var conditions = ExtractIfElseConditions(invocationExpression);
+            var conditions = ExtractConditions(invocationExpression);
             var classDeclaration = typeService.GetClassDeclaration(className);
             var parametersCount = invocationExpression.ArgumentList.Arguments.Count;
 
@@ -353,8 +367,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
 
             var returnExpressions = method
                 .DescendantNodes<ReturnStatementSyntax>()
-                .Where(x => x.Expression.Kind() !=
-                            SyntaxKind.ObjectCreationExpression) //TODO: are we interested in "return new X()"?
+                .Where(x => x.Expression.Kind() != SyntaxKind.ObjectCreationExpression) //TODO: are we interested in "return new X()"?
                 .Select(x => {
                     var (returnReference, query) = referenceParser.Parse(x.Expression);
 
@@ -400,7 +413,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
             IdentifierNameSyntax instanceExpression)
         {
             //We only take into consideration the calling method conditions
-            var conditions = ExtractIfElseConditions(invocationExpression);
+            var conditions = ExtractConditions(invocationExpression);
             var (reference, query) = referenceParser.Parse(invocationExpression);
             var callContext = new CallContext
             {
@@ -426,7 +439,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
             IdentifierNameSyntax instanceExpression) {
             var memberAccess = invocationExpression.Expression.As<MemberAccessExpressionSyntax>();
             var methodName = memberAccess.Name.Identifier.Text;
-            var conditions = ExtractIfElseConditions(invocationExpression);
+            var conditions = ExtractConditions(invocationExpression);
 
             //TODO: handle when code is outside of the current solution (3rd party code)
             var type = typeService.GetType(instanceExpression);
@@ -449,8 +462,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
 
             var returnExpressions = method
                 .DescendantNodes<ReturnStatementSyntax>()
-                .Where(x => x.Expression.Kind() !=
-                            SyntaxKind.ObjectCreationExpression) //TODO: are we interested in "return new X()"?
+                .Where(x => x.Expression.Kind() != SyntaxKind.ObjectCreationExpression) //TODO: are we interested in "return new X()"?
                 .Select(x => {
                     var (returnReference, query) = referenceParser.Parse(x.Expression);
 
@@ -472,9 +484,82 @@ namespace Prometheus.Engine.Reachability.Tracker {
             return returnExpressions;
         }
 
+        private HashSet<Condition> ExtractConditions(SyntaxNode node)
+        {
+            if (conditionCache.TryGet(node, out var conditions))
+                return conditions;
+
+            var exitConditions = ExtractNegatedExitConditions(node);
+            conditions = ExtractIfElseConditions(node);
+            conditions.UnionWith(exitConditions);
+            conditionCache.AddToCache(node, conditions);
+
+            return conditions;
+        }
+
+        /// <summary>
+        /// In the case of return types, for instance for "return person" statement to be reached,
+        /// the previous 2 conditions need to be negated: NOT (person.Age == 20) AND NOT (person.Age == 30).
+        /// </summary>
+        /// <code>
+        ///  public Person DecrementAge(Person person)
+        ///  {
+        ///      if(person.Age == 20)
+        ///      {
+        ///          return new Person(20);
+        ///      }
+        ///      else if(person.Age == 30)
+        ///      {
+        ///          return new Person(30);
+        ///      }
+        ///
+        ///      return person;
+        ///  }
+        /// </code>
+        private HashSet<Condition> ExtractNegatedExitConditions(SyntaxNode node)
+        {
+            var nodeSpan = node.GetLocation().SourceSpan;
+            var methodDeclaration = node.GetContainingMethod();
+            var previousReturnConditionsx = methodDeclaration
+                .DescendantNodes<ReturnStatementSyntax>()
+                .Where(x => x.GetLocation().SourceSpan.End < nodeSpan.Start).ToList();
+            var previousReturnConditions = methodDeclaration
+                .DescendantNodes<ReturnStatementSyntax>()
+                .Where(x => x.GetLocation().SourceSpan.End < nodeSpan.Start)
+                .Select(ExtractIfElseConditions)
+                .Where(x=>x.Any())
+                .Select(x=> new Condition(x, true))
+                .ToList();
+            var exitConditions = previousReturnConditions.Any() ? new HashSet<Condition>(previousReturnConditions) : new HashSet<Condition>();
+
+            return exitConditions;
+        }
+
+        /// <summary>
+        /// In the case of return types, for instance for "return new Person(30)" statement to be reached,
+        /// the following conditions need to be satisfied: (person.AccountBalance == 100) AND NOT `(person.Age == 20) AND (person.Age == 30).
+        /// </summary>
+        /// <code>
+        ///  public Person DecrementAge(Person person)
+        ///  {
+        ///      if(person.AccountBalance == 100)
+        ///      {
+        ///         if(person.Age == 20)
+        ///         {
+        ///             return new Person(20);
+        ///         }
+        ///         else if(person.Age == 30)
+        ///         {
+        ///             return new Person(30);
+        ///         }
+        ///      }
+        ///
+        ///      return person;
+        ///  }
+        /// </code>
         private HashSet<Condition> ExtractIfElseConditions(SyntaxNode node)
         {
-            var conditions = new HashSet<Condition>();
+            HashSet<Condition> conditions = new HashSet<Condition>();
             var elseClause = node.FirstAncestor<ElseClauseSyntax>();
             var ifClause = node.FirstAncestor<IfStatementSyntax>();
 
@@ -503,7 +588,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
             if (ifClause == null)
                 return conditions;
 
-            conditions.Add(new Condition(ifClause, false));
+            conditions.Add(new Condition(ifClause.Condition, false));
             var elseClause = ifClause.Parent as ElseClauseSyntax;
 
             while (elseClause != null) {
@@ -512,7 +597,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 if (ifStatement == null)
                     break;
 
-                conditions.Add(new Condition(ifStatement, true));
+                conditions.Add(new Condition(ifStatement.Condition, true));
                 lastNode = ifStatement;
                 elseClause = ifStatement.Parent as ElseClauseSyntax;
             }
@@ -532,7 +617,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 if (ifStatement == null)
                     break;
 
-                conditions.Add(new Condition(ifStatement, true));
+                conditions.Add(new Condition(ifStatement.Condition, true));
                 lastNode = ifStatement;
                 elseClause = ifStatement.Parent as ElseClauseSyntax;
             }

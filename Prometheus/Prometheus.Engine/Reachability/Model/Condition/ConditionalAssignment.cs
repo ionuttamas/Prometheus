@@ -20,7 +20,7 @@ namespace Prometheus.Engine.ReachabilityProver.Model
 
         public void AddCondition(IfStatementSyntax ifStatement, bool isNegated)
         {
-            Conditions.Add(new Condition(ifStatement, isNegated));
+            Conditions.Add(new Condition(ifStatement.Condition, isNegated));
         }
 
         public ConditionalAssignment Clone()
