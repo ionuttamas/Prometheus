@@ -33,7 +33,9 @@ namespace Prometheus.Engine.Types
                 .Select(x => Assembly.Load(x.AssemblyName))
                 .SelectMany(x => x.DefinedTypes)
                 .ToList();
-            enumSorts = new Dictionary<Type, EnumSort>();
+            enumSorts = solutionTypes
+                .Where(x => x.IsEnum)
+                .ToDictionary(x=>x.AsType(), x=>default(EnumSort));
             //todo: support abstract classes, virtual methods as well
             interfaceImplementations = solutionTypes
                 .Where(x => x.IsInterface)
@@ -132,7 +134,7 @@ namespace Prometheus.Engine.Types
 
         public Sort GetSort(Context context, Type type)
         {
-            if (type.IsNumeric())
+            if (type.IsNumeric() && !type.IsEnum)
                 return context.RealSort; // TODO: there are issues comparing int to real
 
             if (type.IsString())
@@ -143,7 +145,7 @@ namespace Prometheus.Engine.Types
 
             if (type.IsEnum)
             {
-                if(enumSorts.ContainsKey(type))
+                if(enumSorts[type]!=null)
                     return enumSorts[type];
 
                 var enumValues = type
@@ -151,7 +153,7 @@ namespace Prometheus.Engine.Types
                     .Select(x=>x.Name)
                     .ToArray();
                 var enumSort = context.MkEnumSort(type.Name, enumValues);
-                enumSorts.Add(type, enumSort);
+                enumSorts[type] = enumSort;
 
                 return enumSort;
             }
@@ -223,6 +225,9 @@ namespace Prometheus.Engine.Types
             Type currentType = rootType;
             types.Add(currentType);
 
+            if (currentType.IsEnum)
+                return types;
+
             while (memberTokens.Count > 0) {
                 var member = currentType.GetMember(memberTokens.Dequeue(),
                     BindingFlags.Public |
@@ -249,6 +254,11 @@ namespace Prometheus.Engine.Types
 
         private Type GetImplementedType(MethodDeclarationSyntax method, string token)
         {
+            var enumType = enumSorts.FirstOrDefault(x => x.Key.Name == token);
+
+            if (!enumType.IsNull())
+                return enumType.Key;
+
             string typeName = GetTypeName(method, token, out var type);
             type = type ?? GetType(typeName);
 

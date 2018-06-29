@@ -183,7 +183,9 @@ namespace Prometheus.Engine.ConditionProver
         private Expr ParseVariableExpression(ExpressionSyntax memberExpression, Type type, Dictionary<string, NodeType> processedMembers) {
             string memberName = memberExpression.ToString();
             Sort sort = typeService.GetSort(context, type);
-            Expr constExpr = context.MkConst(memberName, sort);
+            Expr constExpr = type.IsEnum && memberName.StartsWith($"{type.Name}.")?
+                context.MkConst(memberExpression.As<MemberAccessExpressionSyntax>().Name.ToString(), sort):
+                context.MkConst(memberName, sort);
 
             processedMembers[memberName] = new NodeType {
                 Expression = constExpr,

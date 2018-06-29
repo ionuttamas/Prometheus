@@ -23,6 +23,10 @@ namespace TestProject.Services
             if (from.AccountBalance > 0) {
                 var refCustomer = customer;
             }
+
+            if (from.Type == CustomerType.Premium) {
+                var enumCustomer2 = from;
+            }
         }
 
         public void MethodAssignment_WithIndexQuery_2(Customer from2, Customer to2, decimal amount) {

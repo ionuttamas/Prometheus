@@ -21,6 +21,10 @@ namespace TestProject.Services
                 Customer refCustomer = customer;
             }
 
+            if (from1.Type == CustomerType.Premium) {
+                var enumCustomer1 = from1;
+            }
+
             Customer firstIndexedCustomer = _customerRepository.GetFirstIndexed();
             Customer keyIndexedCustomer = _customerRepository.GetKeyIndexed();
             Customer firstCustomer = _customerRepository.GetFirst(from1.AccountBalance);
@@ -45,6 +49,18 @@ namespace TestProject.Services
         public void MethodAssignment_WithWhereQuery_1(Customer from1, Customer to1, decimal amount) {
             var customers = _customerRepository.GetWhere(to1.Age);
             var whereCustomers1 = customers.Where(x => (x.Age == from1.Age || x.AccountBalance == from1.AccountBalance) && x.DeliveryAddress.City == to1.DeliveryAddress.City);
+        }
+
+        public void EnumAssignment1(Customer from, Customer to, decimal amount) {
+            if (from.Type == CustomerType.Premium) {
+                var customer = from;
+            }
+        }
+
+        public void EnumAssignment(Customer from, Customer to, decimal amount) {
+            if (from.Type == CustomerType.Gold) {
+                var customer = from;
+            }
         }
 
         private Customer GetInternalCustomer(Customer innerFrom, Customer innerTo, decimal amount) {
