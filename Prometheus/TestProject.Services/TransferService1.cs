@@ -22,8 +22,14 @@ namespace TestProject.Services
             }
 
             if (from1.Type == CustomerType.Premium) {
-                var enumCustomer1 = from1;
+                var enumCustomer1 = to1;
             }
+
+            if (from1.Type == CustomerType.Premium)
+            {
+                from1 = to1;
+            }
+            var selfReferentialCustomer1 = from1;
 
             Customer firstIndexedCustomer = _customerRepository.GetFirstIndexed();
             Customer keyIndexedCustomer = _customerRepository.GetKeyIndexed();

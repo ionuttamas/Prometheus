@@ -25,8 +25,14 @@ namespace TestProject.Services
             }
 
             if (from.Type == CustomerType.Premium) {
-                var enumCustomer2 = from;
+                var enumCustomer2 = to;
             }
+
+            if (from.Type == CustomerType.Premium)
+            {
+                from = to;
+            }
+            var selfReferentialCustomer2 = from;
         }
 
         public void MethodAssignment_WithIndexQuery_2(Customer from2, Customer to2, decimal amount) {

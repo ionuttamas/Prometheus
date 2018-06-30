@@ -560,6 +560,14 @@ namespace Prometheus.Engine.Reachability.Tracker {
             var elseClause = node.FirstAncestor<ElseClauseSyntax>();
             var ifClause = node.FirstAncestor<IfStatementSyntax>();
 
+            //If the node is within the condition of an IfStatement,
+            //we exclude the condition and continue with the ancestors
+            if (ifClause!=null && ifClause.Condition.Contains(node))
+            {
+                node = ifClause;
+                ifClause = ifClause.FirstAncestor<IfStatementSyntax>();
+            }
+
             while (node != null) {
                 if (ifClause != null && !ifClause.Contains(elseClause)) {
                     conditions.UnionWith(ProcessIfStatement(node, out node));
