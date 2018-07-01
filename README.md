@@ -1,5 +1,7 @@
 # Prometheus
 
+Licensed under **GPLv3**.
+
 **Prometheus** is a framework for static code analysis to detect concurrency bugs that could occur in large scale systems written in C# code base.
 **Prometheus** uses [Roslyn](https://github.com/dotnet/roslyn) compiler API for analyzing C# codebase and [Z3](https://github.com/Z3Prover/z3) prover for reachability satisfiability analysis.
 **Prometheus** framework: 
