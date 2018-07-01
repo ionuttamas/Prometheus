@@ -28,6 +28,10 @@ namespace TestProject.Services
                 var enumCustomer2 = to;
             }
 
+            if (from.Type == CustomerType.Gold) {
+                var unsatEnumCustomer2 = to;
+            }
+
             if (from.Type == CustomerType.Premium)
             {
                 from = to;

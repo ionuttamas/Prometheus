@@ -25,6 +25,10 @@ namespace TestProject.Services
                 var enumCustomer1 = to1;
             }
 
+            if (from1.Type == CustomerType.Premium) {
+                var unsatEnumCustomer1 = to1;
+            }
+
             if (from1.Type == CustomerType.Premium)
             {
                 from1 = to1;

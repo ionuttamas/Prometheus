@@ -184,8 +184,13 @@ namespace Prometheus.Engine.ConditionProver
             string memberName = memberExpression.ToString();
             Sort sort = typeService.GetSort(context, type);
             Expr constExpr = type.IsEnum && memberName.StartsWith($"{type.Name}.")?
-                context.MkConst(memberExpression.As<MemberAccessExpressionSyntax>().Name.ToString(), sort):
+                sort.As<EnumSort>().Consts.First(x => x.FuncDecl.Name.ToString() == memberExpression.As<MemberAccessExpressionSyntax>().Name.ToString()):
                 context.MkConst(memberName, sort);
+
+            if (type.IsEnum && memberName.StartsWith($"{type.Name}."))
+            {
+                var enumX = sort.As<EnumSort>().Consts.First(x => x.FuncDecl.Name.ToString() == memberExpression.As<MemberAccessExpressionSyntax>().Name.ToString());
+            }
 
             processedMembers[memberName] = new NodeType {
                 Expression = constExpr,
@@ -325,6 +330,9 @@ namespace Prometheus.Engine.ConditionProver
                         return node.Expression;
                 }
 
+                if (memberType.IsEnum && memberExpression.ToString().StartsWith($"{memberType.Name}."))
+                    continue;
+
                 if (node.Node is MemberAccessExpressionSyntax && memberExpression is MemberAccessExpressionSyntax) {
                     var firstMember = (MemberAccessExpressionSyntax)node.Node;
                     var secondMember = (MemberAccessExpressionSyntax)memberExpression;
@@ -352,8 +360,10 @@ namespace Prometheus.Engine.ConditionProver
             if (cachedMembers.ContainsKey(memberName)) {
                 return cachedMembers[memberName].Expression;
             }
-
-            var constExpr = context.MkConst(memberName, typeService.GetSort(context, type));
+            Sort sort = typeService.GetSort(context, type);
+            Expr constExpr = type.IsEnum && memberName.StartsWith($"{type.Name}.") ?
+                sort.As<EnumSort>().Consts.First(x => x.FuncDecl.Name.ToString() == memberExpression.As<MemberAccessExpressionSyntax>().Name.ToString()):
+                context.MkConst(memberName, sort);
 
             return constExpr;
         }
