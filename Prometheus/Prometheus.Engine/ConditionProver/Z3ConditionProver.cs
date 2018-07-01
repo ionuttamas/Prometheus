@@ -187,11 +187,6 @@ namespace Prometheus.Engine.ConditionProver
                 sort.As<EnumSort>().Consts.First(x => x.FuncDecl.Name.ToString() == memberExpression.As<MemberAccessExpressionSyntax>().Name.ToString()):
                 context.MkConst(memberName, sort);
 
-            if (type.IsEnum && memberName.StartsWith($"{type.Name}."))
-            {
-                var enumX = sort.As<EnumSort>().Consts.First(x => x.FuncDecl.Name.ToString() == memberExpression.As<MemberAccessExpressionSyntax>().Name.ToString());
-            }
-
             processedMembers[memberName] = new NodeType {
                 Expression = constExpr,
                 Node = memberExpression,
@@ -318,21 +313,32 @@ namespace Prometheus.Engine.ConditionProver
                 return ParseUnaryExpression(memberExpression, cachedMembers);
             }
 
+            return ParseCachedVariableExpression(memberExpression, cachedMembers);
+        }
+
+        private Expr ParseUnaryExpression(ExpressionSyntax unaryExpression, Dictionary<string, NodeType> cachedMembers) {
+            var prefixUnaryExpression = (PrefixUnaryExpressionSyntax)unaryExpression;
+            var negatedExpression = ParseExpressionMember(prefixUnaryExpression.Operand, cachedMembers);
+
+            return context.MkUnaryMinus((ArithExpr)negatedExpression);
+        }
+
+        private Expr ParseCachedVariableExpression(ExpressionSyntax memberExpression, Dictionary<string, NodeType> cachedMembers) {
             var memberType = typeService.GetType(memberExpression);
             var memberReference = new Reference(memberExpression);
 
             foreach (NodeType node in cachedMembers.Values.Where(x => x.Type == memberType)) {
-                //TODO: MAJOR
-                //TODO: for now, we only match "amount1" with "amount2" (identifier with identifier) or "[from].AccountBalance" with "[from2].AccountBalance"
-                //TODO: need to extend to "amount" with "[from].AccountBalance" and other combinations
+                if (memberType.IsEnum && memberExpression.ToString().StartsWith($"{memberType.Name}."))
+                    continue;
+
                 if (node.Node is IdentifierNameSyntax && memberExpression is IdentifierNameSyntax) {
                     if (reachabilityDelegate(new Reference(node.Node), memberReference, out Reference _))
                         return node.Expression;
                 }
 
-                if (memberType.IsEnum && memberExpression.ToString().StartsWith($"{memberType.Name}."))
-                    continue;
-
+                //TODO: MAJOR
+                //TODO: for now, we only match "amount1" with "amount2" (identifier with identifier) or "[from].AccountBalance" with "[from2].AccountBalance"
+                //TODO: need to extend to "amount" with "[from].AccountBalance" and other combinations
                 if (node.Node is MemberAccessExpressionSyntax && memberExpression is MemberAccessExpressionSyntax) {
                     var firstMember = (MemberAccessExpressionSyntax)node.Node;
                     var secondMember = (MemberAccessExpressionSyntax)memberExpression;
@@ -344,24 +350,9 @@ namespace Prometheus.Engine.ConditionProver
                 }
             }
 
-            return ParseCachedVariableExpression(memberExpression, memberType, cachedMembers);
-        }
-
-        private Expr ParseUnaryExpression(ExpressionSyntax unaryExpression, Dictionary<string, NodeType> cachedMembers) {
-            var prefixUnaryExpression = (PrefixUnaryExpressionSyntax)unaryExpression;
-            var negatedExpression = ParseExpressionMember(prefixUnaryExpression.Operand, cachedMembers);
-
-            return context.MkUnaryMinus((ArithExpr)negatedExpression);
-        }
-
-        private Expr ParseCachedVariableExpression(ExpressionSyntax memberExpression, Type type, Dictionary<string, NodeType> cachedMembers) {
             string memberName = memberExpression.ToString();
-
-            if (cachedMembers.ContainsKey(memberName)) {
-                return cachedMembers[memberName].Expression;
-            }
-            Sort sort = typeService.GetSort(context, type);
-            Expr constExpr = type.IsEnum && memberName.StartsWith($"{type.Name}.") ?
+            Sort sort = typeService.GetSort(context, memberType);
+            Expr constExpr = memberType.IsEnum && memberName.StartsWith($"{memberType.Name}.") ?
                 sort.As<EnumSort>().Consts.First(x => x.FuncDecl.Name.ToString() == memberExpression.As<MemberAccessExpressionSyntax>().Name.ToString()):
                 context.MkConst(memberName, sort);
 

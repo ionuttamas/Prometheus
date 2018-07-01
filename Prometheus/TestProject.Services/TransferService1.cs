@@ -14,6 +14,12 @@ namespace TestProject.Services
             this.customers = customers;
         }
 
+        public void If_NullCheck_Transfer(Customer from1, Customer to1, decimal amount) {
+            if (from1 != null) {
+                Customer customer = from1;
+            }
+        }
+
         public void MethodAssignment_IfTransfer(Customer from1, Customer to1, decimal amount) {
             var customer = _customerRepository.Compute(from1.Age, to1.Age);
 

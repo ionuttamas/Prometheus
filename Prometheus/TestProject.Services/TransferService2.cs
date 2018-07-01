@@ -11,6 +11,12 @@ namespace TestProject.Services
             this.customerRepository = customerRepository;
         }
 
+        public void If_NullCheck_Transfer(Customer from2, Customer to2, decimal amount) {
+            if (from2 != null) {
+                Customer customer = from2;
+            }
+        }
+
         public void MethodAssignment_SimpleAssign(Customer customer)
         {
             var refCustomer = customer;
