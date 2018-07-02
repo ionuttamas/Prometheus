@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -62,7 +63,6 @@ namespace Prometheus.Engine.Types
                 {"float", typeof(float)},
                 {"double", typeof(double)},
                 {"decimal", typeof(decimal)},
-                {"object", typeof(object)},
                 {"bool", typeof(bool)},
                 {"char", typeof(char)},
                 {"byte?", typeof(byte?)},
@@ -80,7 +80,13 @@ namespace Prometheus.Engine.Types
                 {"char?", typeof(char?)},
                 {"string", typeof(string)}
             };
-            ConstructSorts(solutionTypes.Where(x => x.IsClass && (!x.IsAbstract || !x.IsSealed)));
+            //TODO: allow generics
+            var types = solutionTypes.Where(x =>
+                x.IsClass &&
+                (!x.IsAbstract || !x.IsSealed) &&
+                !x.IsGenericType &&
+                !x.GetTypeInfo().IsDefined(typeof(CompilerGeneratedAttribute), true));
+            ConstructSorts(types);
         }
 
         public Type GetType(ExpressionSyntax memberExpression)
@@ -217,9 +223,9 @@ namespace Prometheus.Engine.Types
                 .GetMembers(BindingFlags.Public | BindingFlags.Instance)
                 .Where(x => x.MemberType == MemberTypes.Field || x.MemberType == MemberTypes.Property)
                 .ToDictionary(x => x.Name, x => ConstructSort(x.GetMemberType()));
+            var nullConstructor = context.MkConstructor("null", "is_null");
             var constructor = context.MkConstructor(type.FullName, $"is_{type.FullName}", memberSorts.Keys.ToArray(), memberSorts.Values.ToArray());
-            var sort = context.MkDatatypeSort(type.Name, new[] { constructor });
-
+            var sort = context.MkDatatypeSort(type.Name, new[] { nullConstructor, constructor });
             return sort;
         }
         #endregion
@@ -578,9 +584,9 @@ namespace Prometheus.Engine.Types
         }
 
         private Sort GetArraySort(Sort elementSort) {
-            var setSort = context.MkArraySort(elementSort, context.IntSort);
+            var arraySort = context.MkArraySort(context.IntSort, elementSort);
 
-            return setSort;
+            return arraySort;
         }
     }
 }

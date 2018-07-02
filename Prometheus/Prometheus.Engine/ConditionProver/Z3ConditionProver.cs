@@ -94,8 +94,26 @@ namespace Prometheus.Engine.ConditionProver
 
         private BoolExpr ParseBinaryExpression(BinaryExpressionSyntax binaryExpression, out Dictionary<string, NodeType> processedMembers) {
             SyntaxKind expressionKind = binaryExpression.Kind();
-            Expr left = ParseExpressionMember(binaryExpression.Left, out var leftProcessedMembers);
-            Expr right = ParseExpressionMember(binaryExpression.Right, out var rightProcessedMembers);
+            var leftProcessedMembers = new Dictionary<string, NodeType>();
+            var rightProcessedMembers = new Dictionary<string, NodeType>();
+            Expr left;
+            Expr right;
+
+            if (binaryExpression.Left.Kind() == SyntaxKind.NullLiteralExpression)
+            {
+                left = GetNullExpression(typeService.GetType(binaryExpression.Right));
+                right = ParseExpressionMember(binaryExpression.Right, out rightProcessedMembers);
+            }
+            else if (binaryExpression.Right.Kind() == SyntaxKind.NullLiteralExpression)
+            {
+                right = GetNullExpression(typeService.GetType(binaryExpression.Left));
+                left = ParseExpressionMember(binaryExpression.Left, out leftProcessedMembers);
+            }
+            else
+            {
+                left = ParseExpressionMember(binaryExpression.Left, out leftProcessedMembers);
+                right = ParseExpressionMember(binaryExpression.Right, out rightProcessedMembers);
+            }
 
             processedMembers = new Dictionary<string, NodeType>();
             processedMembers.Merge(leftProcessedMembers);
@@ -139,20 +157,16 @@ namespace Prometheus.Engine.ConditionProver
 
         private Expr ParseExpressionMember(ExpressionSyntax memberExpression, out Dictionary<string, NodeType> processedMembers) {
             var expressionKind = memberExpression.Kind();
+            processedMembers = new Dictionary<string, NodeType>();
 
-            if (memberExpression is BinaryExpressionSyntax) {
+            if (memberExpression is BinaryExpressionSyntax)
                 return ParseBinaryExpression((BinaryExpressionSyntax)memberExpression, out processedMembers);
-            }
 
-            if (expressionKind == SyntaxKind.NumericLiteralExpression) {
-                processedMembers = new Dictionary<string, NodeType>();
+            if (expressionKind == SyntaxKind.NumericLiteralExpression)
                 return ParseNumericLiteral(memberExpression.ToString());
-            }
 
-            if (expressionKind == SyntaxKind.StringLiteralExpression) {
-                processedMembers = new Dictionary<string, NodeType>();
+            if (expressionKind == SyntaxKind.StringLiteralExpression)
                 return ParseStringLiteral(memberExpression.ToString());
-            }
 
             if (expressionKind != SyntaxKind.SimpleMemberAccessExpression && expressionKind != SyntaxKind.IdentifierName) {
                 return expressionKind == SyntaxKind.UnaryMinusExpression
@@ -160,12 +174,10 @@ namespace Prometheus.Engine.ConditionProver
                     : ParseExpression(memberExpression, out processedMembers);
             }
 
-            if (expressionKind == SyntaxKind.UnaryMinusExpression) {
+            if (expressionKind == SyntaxKind.UnaryMinusExpression)
                 return ParseUnaryExpression(memberExpression, out processedMembers);
-            }
 
             var memberType = typeService.GetType(memberExpression);
-            processedMembers = new Dictionary<string, NodeType>();
 
             //TODO: check nested reference chains from different chains: "customer.Address.ShipInfo" & "order.ShipInfo" to be the same
             //TODO: check agains same reference chains: "from.Address.ShipInfo" & "to.Address.ShipInfo"
@@ -251,8 +263,19 @@ namespace Prometheus.Engine.ConditionProver
 
         private BoolExpr ParseBinaryExpression(BinaryExpressionSyntax binaryExpression, Dictionary<string, NodeType> cachedMembers) {
             SyntaxKind expressionKind = binaryExpression.Kind();
-            Expr left = ParseExpressionMember(binaryExpression.Left, cachedMembers);
-            Expr right = ParseExpressionMember(binaryExpression.Right, cachedMembers);
+            Expr left;
+            Expr right;
+
+            if (binaryExpression.Left.Kind() == SyntaxKind.NullLiteralExpression) {
+                left = GetNullExpression(typeService.GetType(binaryExpression.Right));
+                right = ParseExpressionMember(binaryExpression.Right, cachedMembers);
+            } else if (binaryExpression.Right.Kind() == SyntaxKind.NullLiteralExpression) {
+                right = GetNullExpression(typeService.GetType(binaryExpression.Left));
+                left = ParseExpressionMember(binaryExpression.Left, cachedMembers);
+            } else {
+                left = ParseExpressionMember(binaryExpression.Left, cachedMembers);
+                right = ParseExpressionMember(binaryExpression.Right, cachedMembers);
+            }
 
             switch (expressionKind) {
                 case SyntaxKind.LogicalAndExpression:
@@ -267,12 +290,10 @@ namespace Prometheus.Engine.ConditionProver
                     return context.MkLt((ArithExpr)left, (ArithExpr)right);
                 case SyntaxKind.LessThanOrEqualExpression:
                     return context.MkLe((ArithExpr)left, (ArithExpr)right);
-
-                //TODO: Fix this: since this is only for numeric values
                 case SyntaxKind.EqualsExpression:
                     return context.MkEq(left, right);
                 case SyntaxKind.NotEqualsExpression:
-                    return context.MkNot(context.MkEq((ArithExpr)left, (ArithExpr)right));
+                    return context.MkNot(context.MkEq(left, right));
                 default:
                     throw new NotImplementedException();
             }
@@ -291,17 +312,14 @@ namespace Prometheus.Engine.ConditionProver
         private Expr ParseExpressionMember(ExpressionSyntax memberExpression, Dictionary<string, NodeType> cachedMembers) {
             var expressionKind = memberExpression.Kind();
 
-            if (memberExpression is BinaryExpressionSyntax) {
+            if (memberExpression is BinaryExpressionSyntax)
                 return ParseBinaryExpression((BinaryExpressionSyntax)memberExpression, cachedMembers);
-            }
 
-            if (expressionKind == SyntaxKind.NumericLiteralExpression) {
+            if (expressionKind == SyntaxKind.NumericLiteralExpression)
                 return ParseNumericLiteral(memberExpression.ToString());
-            }
 
-            if (expressionKind == SyntaxKind.StringLiteralExpression) {
+            if (expressionKind == SyntaxKind.StringLiteralExpression)
                 return ParseStringLiteral(memberExpression.ToString());
-            }
 
             if (expressionKind != SyntaxKind.SimpleMemberAccessExpression && expressionKind != SyntaxKind.IdentifierName) {
                 return expressionKind == SyntaxKind.UnaryMinusExpression
@@ -309,9 +327,8 @@ namespace Prometheus.Engine.ConditionProver
                     : ParseExpression(memberExpression, cachedMembers);
             }
 
-            if (expressionKind == SyntaxKind.UnaryMinusExpression) {
+            if (expressionKind == SyntaxKind.UnaryMinusExpression)
                 return ParseUnaryExpression(memberExpression, cachedMembers);
-            }
 
             return ParseCachedVariableExpression(memberExpression, cachedMembers);
         }
@@ -360,6 +377,14 @@ namespace Prometheus.Engine.ConditionProver
         }
 
         #endregion
+
+        private Expr GetNullExpression(Type type) {
+            var sort = typeService.GetSort(type);
+            var nullConstructor = sort.As<DatatypeSort>().Constructors.First(x => x.Name.ToString() == "null");
+            var nullExpr = context.MkConst(nullConstructor);
+
+            return nullExpr;
+        }
 
         private class NodeType {
             public SyntaxNode Node { get; set; }
