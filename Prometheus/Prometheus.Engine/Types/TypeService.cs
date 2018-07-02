@@ -20,12 +20,15 @@ namespace Prometheus.Engine.Types
         private readonly List<ClassDeclarationSyntax> classDeclarations;
         private readonly Dictionary<string, Type> primitiveTypes;
         private readonly Dictionary<Type, EnumSort> enumSorts;
+        private readonly Dictionary<Type, Sort> typeSorts;
         private readonly TypeCache typeCache;
+        private readonly Context context;
         private const string VAR_TOKEN = "var";
 
-        public TypeService(Solution solution, IPolymorphicResolver polymorphicService, params string[] projects)
+        public TypeService(Solution solution, Context context, IPolymorphicResolver polymorphicService, params string[] projects)
         {
             this.polymorphicService = polymorphicService;
+            this.context = context;
             //todo: needs to get projects referenced assemblies
             solutionTypes = solution
                 .Projects
@@ -33,14 +36,13 @@ namespace Prometheus.Engine.Types
                 .Select(x => Assembly.Load(x.AssemblyName))
                 .SelectMany(x => x.DefinedTypes)
                 .ToList();
+            typeSorts = new Dictionary<Type, Sort>();
             enumSorts = solutionTypes
                 .Where(x => x.IsEnum)
-                .ToDictionary(x=>x.AsType(), x=>default(EnumSort));
-            //todo: support abstract classes, virtual methods as well
+                .ToDictionary(x=>x.AsType(), x => default(EnumSort));
             interfaceImplementations = solutionTypes
                 .Where(x => x.IsInterface)
                 .ToDictionary(x => x, x => solutionTypes.Where(t => t.ImplementedInterfaces.Contains(x)).ToList());
-            solutionTypes.AddRange(Assembly.GetAssembly(typeof(int)).DefinedTypes);
             classDeclarations = solution.Projects
                 .SelectMany(x => x.GetCompilation().SyntaxTrees)
                 .Select(x => x.GetRoot())
@@ -78,6 +80,7 @@ namespace Prometheus.Engine.Types
                 {"char?", typeof(char?)},
                 {"string", typeof(string)}
             };
+            ConstructSorts(solutionTypes.Where(x => x.IsClass));
         }
 
         public Type GetType(ExpressionSyntax memberExpression)
@@ -132,8 +135,54 @@ namespace Prometheus.Engine.Types
             return classDeclaration;
         }
 
-        public Sort GetSort(Context context, Type type)
+        public Sort GetSort(Type type)
         {
+            return typeSorts[type];
+        }
+
+        #region Sort construction
+        private void ConstructSorts(IEnumerable<Type> types) {
+            foreach (var primitiveType in primitiveTypes.Values)
+            {
+                typeSorts[primitiveType]= ConstructSort(primitiveType);
+            }
+
+            foreach (var referenceType in types) {
+                typeSorts[referenceType] = ConstructSort(referenceType);
+            }
+        }
+
+        private Sort ConstructSort(Type type) {
+            Sort sort = null;
+
+            if (typeSorts.ContainsKey(type))
+                return typeSorts[type];
+
+            if (type.IsSimple() || type.IsEnum) {
+                sort = ConstructSimpleSort(type);
+            }
+            else if (type.IsClass) {
+                sort = ConstructReferenceSort(type);
+            }
+
+            if (sort != null) {
+                typeSorts[type] = sort;
+                return sort;
+            }
+
+            throw new ArgumentException($"Type {type} is not supported");
+        }
+
+        private Sort ConstructSimpleSort(Type type) {
+            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>))
+            {
+                var underlyingSort = ConstructSimpleSort(Nullable.GetUnderlyingType(type));
+                var constructor = context.MkConstructor(type.FullName, $"is_{type.FullName}", new []{"HasValue", "Value" }, new[] { context.BoolSort, underlyingSort });
+                var sort = context.MkDatatypeSort(type.FullName, new[] { constructor });
+
+                return sort;
+            }
+
             if (type.IsNumeric() && !type.IsEnum)
                 return context.RealSort; // TODO: there are issues comparing int to real
 
@@ -143,14 +192,16 @@ namespace Prometheus.Engine.Types
             if (type.IsBoolean())
                 return context.BoolSort;
 
-            if (type.IsEnum)
-            {
-                if(enumSorts[type]!=null)
+            if (type == typeof(char))
+                return context.IntSort;
+
+            if (type.IsEnum) {
+                if (enumSorts[type] != null)
                     return enumSorts[type];
 
                 var enumValues = type
                     .GetMembers(BindingFlags.Public | BindingFlags.Static)
-                    .Select(x=>x.Name)
+                    .Select(x => x.Name)
                     .ToArray();
                 var enumSort = context.MkEnumSort(type.Name, enumValues);
                 enumSorts[type] = enumSort;
@@ -158,8 +209,20 @@ namespace Prometheus.Engine.Types
                 return enumSort;
             }
 
-            throw new ArgumentException($"Type {type} is not supported");
+            throw new ArgumentException($"Primitive type {type} is not supported");
         }
+
+        private Sort ConstructReferenceSort(Type type) {
+            var memberSorts = type
+                .GetMembers(BindingFlags.Public | BindingFlags.Instance)
+                .Where(x => x.MemberType == MemberTypes.Field || x.MemberType == MemberTypes.Property)
+                .ToDictionary(x => x.Name, x => ConstructSort(x.GetMemberType()));
+            var constructor = context.MkConstructor(type.FullName, $"is_{type.FullName}", memberSorts.Keys.ToArray(), memberSorts.Values.ToArray());
+            var sort = context.MkDatatypeSort(type.Name, new[] { constructor });
+
+            return sort;
+        }
+        #endregion
 
         private Type GetLambdaExpressionMemberType(ExpressionSyntax memberExpression) {
             var lambdaExpression = memberExpression.AncestorNodes<SimpleLambdaExpressionSyntax>().FirstOrDefault();

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Z3;
@@ -12,6 +11,6 @@ namespace Prometheus.Engine.Types
         Type GetType(SyntaxToken syntaxToken);
         ClassDeclarationSyntax GetClassDeclaration(string className);
         ClassDeclarationSyntax GetClassDeclaration(Type type);
-        Sort GetSort(Context context, Type type);
+        Sort GetSort(Type type);
     }
 }

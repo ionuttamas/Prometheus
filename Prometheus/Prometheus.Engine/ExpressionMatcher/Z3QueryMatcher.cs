@@ -17,10 +17,10 @@ namespace Prometheus.Engine.ExpressionMatcher
         private readonly ITypeService typeService;
         private readonly Context context;
 
-        public Z3QueryMatcher(ITypeService typeService)
+        public Z3QueryMatcher(ITypeService typeService, Context context)
         {
             this.typeService = typeService;
-            context = new Context();
+            this.context = context;
         }
 
         public void Dispose() {
@@ -154,7 +154,7 @@ namespace Prometheus.Engine.ExpressionMatcher
                 case SyntaxKind.SimpleMemberAccessExpression:
                 case SyntaxKind.IdentifierName:
                     processedMembers = new Dictionary<string, NodeType>();
-                    var expression = context.MkConst(expressionSyntax.ToString(), typeService.GetSort(context, typeService.GetType(expressionSyntax)));
+                    var expression = context.MkConst(expressionSyntax.ToString(), typeService.GetSort(typeService.GetType(expressionSyntax)));
                     return (expression, new List<Expr> { expression });
                 case SyntaxKind.ParenthesizedExpression:
                     return ParseExpression(expressionSyntax.As<ParenthesizedExpressionSyntax>().Expression, out processedMembers);
@@ -300,7 +300,7 @@ namespace Prometheus.Engine.ExpressionMatcher
 
         private Expr ParseVariableExpression(ExpressionSyntax memberExpression, Type type, Dictionary<string, NodeType> processedMembers) {
             string memberName = memberExpression.ToString();
-            Sort sort = typeService.GetSort(context, type);
+            Sort sort = typeService.GetSort(type);
             Expr constExpr = context.MkConst(memberName, sort);
 
             processedMembers[memberName] = new NodeType {
@@ -334,7 +334,7 @@ namespace Prometheus.Engine.ExpressionMatcher
                 case SyntaxKind.SimpleMemberAccessExpression:
                     //TODO: why is this bool only
                     var memberType = typeService.GetType(expression.OriginalExpression);
-                    var sort = typeService.GetSort(context, memberType);
+                    var sort = typeService.GetSort(memberType);
                     var memberExpression = context.MkConst(expression.RewrittenExpression.ToString(), sort);
                     return (memberExpression, new List<Expr> {memberExpression});
                 case SyntaxKind.ParenthesizedExpression:
@@ -482,7 +482,7 @@ namespace Prometheus.Engine.ExpressionMatcher
                 return cachedMembers[memberName].Expression;
             }
 
-            var constExpr = context.MkConst(memberName, typeService.GetSort(context, type));
+            var constExpr = context.MkConst(memberName, typeService.GetSort(type));
 
             return constExpr;
         }

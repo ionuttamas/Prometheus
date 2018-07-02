@@ -14,9 +14,9 @@ namespace TestProject.Services
             this.customers = customers;
         }
 
-        public void If_NullCheck_Transfer(Customer from1, Customer to1, decimal amount) {
+        public void If_NullCheck(Customer from1) {
             if (from1 != null) {
-                Customer customer = from1;
+                Customer customer1 = from1;
             }
         }
 

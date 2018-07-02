@@ -1,6 +1,7 @@
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.Z3;
 using NUnit.Framework;
 using Prometheus.Common;
 using Prometheus.Engine.Types;
@@ -20,9 +21,10 @@ namespace Prometheus.Engine.UnitTests
             workspace.LoadMetadataForReferencedProjects = true;
             solution = workspace.OpenSolutionAsync(@"C:\Users\tamas\Documents\Github\Prometheus\Prometheus\Prometheus.sln").Result;
             IPolymorphicResolver polymorphicService = new PolymorphicResolver();
+            var context = new Context();
             polymorphicService.Register(typeof(TestTypeService), "GetPolymorphicTypeDeclaration", "field", typeof(AskField));
             polymorphicService.Register(typeof(TestTypeService), "GetPolymorphicTypeParameter", "currentPriceField", typeof(CurrentPriceField));
-            typeService = new TypeService(solution, polymorphicService, "TestProject.GUI", "TestProject.Services", "TestProject.Common");
+            typeService = new TypeService(solution, context, polymorphicService, "TestProject.GUI", "TestProject.Services", "TestProject.Common");
         }
 
         [TearDown]

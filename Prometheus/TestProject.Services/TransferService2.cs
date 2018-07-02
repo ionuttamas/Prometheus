@@ -11,9 +11,15 @@ namespace TestProject.Services
             this.customerRepository = customerRepository;
         }
 
-        public void If_NullCheck_Transfer(Customer from2, Customer to2, decimal amount) {
+        public void If_NullCheck_Satisfiable(Customer from2) {
             if (from2 != null) {
-                Customer customer = from2;
+                Customer customer2 = from2;
+            }
+        }
+
+        public void If_NullCheck_Unsatisfiable(Customer from2, Customer to2) {
+            if (from2 == null) {
+                Customer customer2 = to2;
             }
         }
 

@@ -72,7 +72,7 @@ namespace Prometheus.Engine.Analyzer.Atomic
                 if (memberAccessNode?.Expression is IdentifierNameSyntax)
                 {
                     var methodName = ((IdentifierNameSyntax) memberAccessNode.Name).Identifier.Text; //TODO: check method signature, not only its name
-                    var changesState = ModelStateConfiguration.ChangesState(member.GetUnderlyingType(), methodName);
+                    var changesState = ModelStateConfiguration.ChangesState(member.GetMemberType(), methodName);
 
                     if (!changesState)
                         continue;
@@ -114,7 +114,7 @@ namespace Prometheus.Engine.Analyzer.Atomic
                 //TODO: instance reference tracking and equivalence checking
                 if (memberAccessNode !=null) {
                     var methodName = ((IdentifierNameSyntax)memberAccessNode.Name).Identifier.Text; //TODO: check method signature, not only its name
-                    var changesState = ModelStateConfiguration.ChangesState(member.GetUnderlyingType(), methodName);
+                    var changesState = ModelStateConfiguration.ChangesState(member.GetMemberType(), methodName);
 
                     if (!changesState)
                         continue;

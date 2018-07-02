@@ -1,5 +1,6 @@
 using System.Linq;
 using Microsoft.CodeAnalysis;
+using Microsoft.Z3;
 using NUnit.Framework;
 using Prometheus.Common;
 using Prometheus.Engine.ExpressionMatcher;
@@ -22,12 +23,13 @@ namespace Prometheus.Engine.UnitTests
             var workspace = Microsoft.CodeAnalysis.MSBuild.MSBuildWorkspace.Create();
             workspace.LoadMetadataForReferencedProjects = true;
             solution = workspace.OpenSolutionAsync(@"C:\Users\tamas\Documents\Github\Prometheus\Prometheus\Prometheus.sln").Result;
-            IPolymorphicResolver polymorphicService = new PolymorphicResolver();
-            var typeService = new TypeService(solution, polymorphicService, "TestProject.GUI", "TestProject.Services", "TestProject.Common");
-            IReferenceParser referenceParser = new ReferenceParser();
-            ThreadSchedule threadSchedule = new ThreadAnalyzer(solution).GetThreadSchedule(solution.Projects.First(x => x.Name == "TestProject.GUI"));
+            var polymorphicService = new PolymorphicResolver();
+            var context = new Context();
+            var typeService = new TypeService(solution, context, polymorphicService, "TestProject.GUI", "TestProject.Services", "TestProject.Common");
+            var referenceParser = new ReferenceParser();
+            var threadSchedule = new ThreadAnalyzer(solution).GetThreadSchedule(solution.Projects.First(x => x.Name == "TestProject.GUI"));
             referenceTracker = new ReferenceTracker(solution, threadSchedule, typeService, referenceParser);
-            queryMatcher = new Z3QueryMatcher(typeService);
+            queryMatcher = new Z3QueryMatcher(typeService, context);
         }
 
         [TearDown]

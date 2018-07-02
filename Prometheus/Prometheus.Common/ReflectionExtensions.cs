@@ -8,22 +8,8 @@ namespace Prometheus.Common
 {
     public static class ReflectionExtensions
     {
-        public static Type GetMemberType(this MemberInfo memberInfo)
+        public static Type GetMemberType(this MemberInfo member)
         {
-            if (memberInfo is PropertyInfo)
-            {
-                return memberInfo.As<PropertyInfo>().PropertyType;
-            }
-
-            if (memberInfo is FieldInfo)
-            {
-                return memberInfo.As<FieldInfo>().FieldType;
-            }
-
-            throw new InvalidCastException("Only FieldInfo and PropertyInfo are supported");
-        }
-
-        public static Type GetUnderlyingType(this MemberInfo member) {
             switch (member.MemberType) {
                 case MemberTypes.Event:
                     return ((EventInfo)member).EventHandlerType;
@@ -36,7 +22,7 @@ namespace Prometheus.Common
                 default:
                     throw new ArgumentException
                     (
-                     "Input MemberInfo must be if type EventInfo, FieldInfo, MethodInfo, or PropertyInfo"
+                        "Argument must be if type EventInfo, FieldInfo, MethodInfo, or PropertyInfo"
                     );
             }
         }

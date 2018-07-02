@@ -17,10 +17,10 @@ namespace Prometheus.Engine.ConditionProver
         private HaveCommonReference reachabilityDelegate;
         private readonly Context context;
 
-        public Z3ConditionProver(ITypeService typeService)
+        public Z3ConditionProver(ITypeService typeService, Context context)
         {
             this.typeService = typeService;
-            context = new Context();
+            this.context = context;
         }
 
         public void Configure(HaveCommonReference @delegate)
@@ -182,7 +182,7 @@ namespace Prometheus.Engine.ConditionProver
 
         private Expr ParseVariableExpression(ExpressionSyntax memberExpression, Type type, Dictionary<string, NodeType> processedMembers) {
             string memberName = memberExpression.ToString();
-            Sort sort = typeService.GetSort(context, type);
+            Sort sort = typeService.GetSort(type);
             Expr constExpr = type.IsEnum && memberName.StartsWith($"{type.Name}.")?
                 sort.As<EnumSort>().Consts.First(x => x.FuncDecl.Name.ToString() == memberExpression.As<MemberAccessExpressionSyntax>().Name.ToString()):
                 context.MkConst(memberName, sort);
@@ -351,7 +351,7 @@ namespace Prometheus.Engine.ConditionProver
             }
 
             string memberName = memberExpression.ToString();
-            Sort sort = typeService.GetSort(context, memberType);
+            Sort sort = typeService.GetSort(memberType);
             Expr constExpr = memberType.IsEnum && memberName.StartsWith($"{memberType.Name}.") ?
                 sort.As<EnumSort>().Consts.First(x => x.FuncDecl.Name.ToString() == memberExpression.As<MemberAccessExpressionSyntax>().Name.ToString()):
                 context.MkConst(memberName, sort);

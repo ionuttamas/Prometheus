@@ -30,6 +30,7 @@ namespace TestProject.GUI {
             customerRepository = new CustomerRepository(customers);
 
             transferService1 = new TransferService1(customerRepository, customers);
+            transferService1.If_NullCheck(sharedCustomer);
             transferService1.MethodAssignment_IfTransfer(sharedCustomer, sharedCustomer, 100);
             transferService1.MethodAssignment_WithIndexQuery_1(sharedCustomer, null, 100);
             transferService1.MethodAssignment_WithFirstQuery_1(sharedCustomer, null, 100);
@@ -75,6 +76,8 @@ namespace TestProject.GUI {
 
             var transferService2 = new TransferService2(customerRepository);
             transferService2.MethodAssignment_SimpleAssign(customers[0]);
+            transferService2.If_NullCheck_Satisfiable(sharedCustomer);
+            transferService2.If_NullCheck_Unsatisfiable(sharedCustomer, sharedCustomer);
             transferService2.MethodAssignment_IfTransfer(sharedCustomer, sharedCustomer, 100);
 
             transferService2.MethodAssignment_WithIndexQuery_2(sharedCustomer, null, 100);
