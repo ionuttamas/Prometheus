@@ -80,7 +80,7 @@ namespace Prometheus.Engine.Types
                 {"char?", typeof(char?)},
                 {"string", typeof(string)}
             };
-            ConstructSorts(solutionTypes.Where(x => x.IsClass));
+            ConstructSorts(solutionTypes.Where(x => x.IsClass && (!x.IsAbstract || !x.IsSealed)));
         }
 
         public Type GetType(ExpressionSyntax memberExpression)
@@ -144,11 +144,11 @@ namespace Prometheus.Engine.Types
         private void ConstructSorts(IEnumerable<Type> types) {
             foreach (var primitiveType in primitiveTypes.Values)
             {
-                typeSorts[primitiveType]= ConstructSort(primitiveType);
+                ConstructSort(primitiveType);
             }
 
             foreach (var referenceType in types) {
-                typeSorts[referenceType] = ConstructSort(referenceType);
+                ConstructSort(referenceType);
             }
         }
 
@@ -562,6 +562,25 @@ namespace Prometheus.Engine.Types
             //todo: there can be multiple classes with the same name
             Type type = solutionTypes.FirstOrDefault(x => x.Name == typeName);
             return type ?? primitiveTypes[typeName];
+        }
+
+        private Sort GetListSort(Sort elementSort)
+        {
+            var listSort = context.MkListSort($"{elementSort.Name}_list", elementSort);
+
+            return listSort;
+        }
+
+        private Sort GetSetSort(Sort elementSort) {
+            var setSort = context.MkSetSort(elementSort);
+
+            return setSort;
+        }
+
+        private Sort GetArraySort(Sort elementSort) {
+            var setSort = context.MkArraySort(elementSort, context.IntSort);
+
+            return setSort;
         }
     }
 }
