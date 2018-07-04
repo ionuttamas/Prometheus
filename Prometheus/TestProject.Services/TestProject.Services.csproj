@@ -9,8 +9,9 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>TestProject.Services</RootNamespace>
     <AssemblyName>TestProject.Services</AssemblyName>
-    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.7</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -56,6 +57,10 @@
     <Compile Include="TransferService2.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\TestProject.3rdParty\TestProject.3rdParty.csproj">
+      <Project>{329aa63a-77b7-4868-abc2-1cfaba09bc9e}</Project>
+      <Name>TestProject.3rdParty</Name>
+    </ProjectReference>
     <ProjectReference Include="..\TestProject.Common\TestProject.Common.csproj">
       <Project>{0B17B989-0D3A-4AE0-A2FE-FEB03490DBF3}</Project>
       <Name>TestProject.Common</Name>

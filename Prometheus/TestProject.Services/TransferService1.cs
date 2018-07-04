@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using TestProject._3rdParty;
 
 namespace TestProject.Services
 {
@@ -7,15 +8,23 @@ namespace TestProject.Services
     {
         private readonly CustomerRepository _customerRepository;
         private readonly List<Customer> customers;
+        private readonly PaymentProvider paymentProvider;
 
         public TransferService1(CustomerRepository customerRepository, List<Customer> customers)
         {
             _customerRepository = customerRepository;
             this.customers = customers;
+            paymentProvider = new PaymentProvider();
         }
 
         public void If_NullCheck(Customer from1) {
             if (from1 != null) {
+                Customer customer1 = from1;
+            }
+        }
+
+        public void If_3rdPartyCheck(Customer from1) {
+            if (from1 != null && BackgroundCheckHelper.ValidateSsn(from1.Ssn, from1.Name)) {
                 Customer customer1 = from1;
             }
         }

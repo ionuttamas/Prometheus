@@ -5,6 +5,7 @@
         public bool IsActive { get; set; }
         public CustomerType Type { get; set; }
         public string Name { get; set; }
+        public string Ssn { get; set; }
         public int Age { get; set; }
         public decimal AccountBalance { get; set; }
         public Address DeliveryAddress { get; set; }
