@@ -23,8 +23,32 @@ namespace TestProject.Services
             }
         }
 
-        public void If_3rdPartyCheck(Customer from1) {
+        public void If_3rdPartyCheck_StaticCall(Customer from1) {
             if (from1 != null && BackgroundCheckHelper.ValidateSsn(from1.Ssn, from1.Name)) {
+                Customer customer1 = from1;
+            }
+        }
+
+        public void If_3rdPartyCheck_StaticAssignment(Customer from1)
+        {
+            var isSsnValid = BackgroundCheckHelper.ValidateSsn(from1.Ssn, from1.Name);
+
+            if (from1 != null && isSsnValid) {
+                Customer customer1 = from1;
+            }
+        }
+
+        public void If_3rdPartyCheck_ReferenceCall(Customer from1, Customer to1, decimal amount) {
+            if (from1 != null && paymentProvider.ValidatePayment(from1.Name, from1.Name, amount)) {
+                Customer customer1 = from1;
+            }
+        }
+
+        public void If_3rdPartyCheck_ReferenceAssignment(Customer from1, Customer to1, decimal amount)
+        {
+            var result = paymentProvider.ProcessPayment(from1.Name, to1.Name, amount);
+
+            if (amount > 0 && result.IsSuccessful) {
                 Customer customer1 = from1;
             }
         }

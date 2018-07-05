@@ -13,6 +13,7 @@ namespace Prometheus.Engine.Model
     public class ModelStateConfiguration
     {
         private readonly Dictionary<Type, List<MethodInfo>> stateChangeMethods;
+        private readonly Dictionary<Type, List<MethodInfo>> pureMethods;
         private readonly Dictionary<MethodInfo, List<MethodInfo>> mutuallyExclusiveMethods;
         private IPolymorphicResolver polymorphicService;
 
@@ -91,6 +92,26 @@ namespace Prometheus.Engine.Model
             polymorphicService = polymorphicService ?? new PolymorphicResolver();
             polymorphicService.Register(classType, method, token, tokenType);
 
+            return this;
+        }
+
+        #endregion
+
+        #region Pure methods
+
+        /// <summary>
+        /// Configuration for 3rd party code that defines if a method is pure or not, that is its output depends only on the input without any side-effects.
+        /// These methods can be used in if/else conditions to check if they are mutually exclusive or not.
+        /// </summary>
+        public ModelStateConfiguration IsPure<T>(Expression<Action<T>> expression)
+        {
+            var type = typeof(T);
+
+            if (!pureMethods.ContainsKey(type)) {
+                pureMethods[type] = new List<MethodInfo>();
+            }
+
+            pureMethods[type].Add(GetMethodInfo(expression));
             return this;
         }
 

@@ -17,6 +17,7 @@ namespace Prometheus.Engine.Types
     {
         private readonly IPolymorphicResolver polymorphicService;
         private readonly List<TypeInfo> solutionTypes;
+        private readonly List<TypeInfo> externalTypes;
         private readonly Dictionary<TypeInfo, List<TypeInfo>> interfaceImplementations;
         private readonly List<ClassDeclarationSyntax> classDeclarations;
         private readonly Dictionary<string, Type> primitiveTypes;
@@ -37,6 +38,8 @@ namespace Prometheus.Engine.Types
                 .Select(x => Assembly.Load(x.AssemblyName))
                 .SelectMany(x => x.DefinedTypes)
                 .ToList();
+            var assembly = solutionTypes[8].Assembly;
+            var projs = solution.Projects;
             typeSorts = new Dictionary<Type, Sort>();
             enumSorts = solutionTypes
                 .Where(x => x.IsEnum)
@@ -124,6 +127,11 @@ namespace Prometheus.Engine.Types
             typeCache.AddToCache(syntaxToken, result);
 
             return result;
+        }
+
+        public bool IsExternal(Type type)
+        {
+            return false;
         }
 
         public ClassDeclarationSyntax GetClassDeclaration(Type type)
@@ -570,6 +578,7 @@ namespace Prometheus.Engine.Types
             return type ?? primitiveTypes[typeName];
         }
 
+        //TODO: this and generics
         private Sort GetListSort(Sort elementSort)
         {
             var listSort = context.MkListSort($"{elementSort.Name}_list", elementSort);

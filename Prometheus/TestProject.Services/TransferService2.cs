@@ -1,10 +1,12 @@
 using System.Linq;
+using TestProject._3rdParty;
 
 namespace TestProject.Services
 {
     public class TransferService2 {
         //TODO: handle interface reference tracking
         private readonly CustomerRepository customerRepository;
+        private readonly PaymentProvider paymentProvider;
 
         public TransferService2(CustomerRepository customerRepository)
         {
@@ -20,6 +22,62 @@ namespace TestProject.Services
         public void If_NullCheck_Unsatisfiable(Customer from2, Customer to2) {
             if (from2 == null) {
                 Customer customer2 = to2;
+            }
+        }
+
+        public void If_3rdPartyCheck_StaticCall(Customer from2) {
+            if (from2 != null && BackgroundCheckHelper.ValidateSsn(from2.Ssn, from2.Name)) {
+                Customer customer2 = from2;
+            }
+        }
+
+        public void If_3rdPartyCheck_Unsat_StaticCall(Customer from2) {
+            if (from2 != null && !BackgroundCheckHelper.ValidateSsn(from2.Ssn, from2.Name)) {
+                Customer customer2 = from2;
+            }
+        }
+
+        public void If_3rdPartyCheck_StaticAssignment(Customer from2) {
+            var isSsnValid = BackgroundCheckHelper.ValidateSsn(from2.Ssn, from2.Name);
+
+            if (from2 != null && isSsnValid) {
+                Customer customer2 = from2;
+            }
+        }
+
+        public void If_3rdPartyCheck_Unsat_StaticAssignment(Customer from2) {
+            var isSsnValid = BackgroundCheckHelper.ValidateSsn(from2.Ssn, from2.Name);
+
+            if (from2 != null && !isSsnValid) {
+                Customer customer2 = from2;
+            }
+        }
+
+        public void If_3rdPartyCheck_ReferenceCall(Customer from2, Customer to2, decimal amount) {
+            if (from2 != null && paymentProvider.ValidatePayment(from2.Name, to2.Name, amount)) {
+                Customer customer2 = from2;
+            }
+        }
+
+        public void If_3rdPartyCheck_Unsat_ReferenceCall(Customer from2, Customer to2, decimal amount) {
+            if (from2 != null && !paymentProvider.ValidatePayment(from2.Name, to2.Name, amount)) {
+                Customer customer2 = from2;
+            }
+        }
+
+        public void If_3rdPartyCheck_ReferenceAssignment(Customer from2, Customer to2, decimal amount) {
+            var result = paymentProvider.ProcessPayment(from2.Name, to2.Name, amount);
+
+            if (amount > 0 && result.IsSuccessful) {
+                Customer customer2 = from2;
+            }
+        }
+
+        public void If_3rdPartyCheck_Unsat_ReferenceAssignment(Customer from2, Customer to2, decimal amount) {
+            var result = paymentProvider.ProcessPayment(from2.Name, to2.Name, amount);
+
+            if (amount > 0 && !result.IsSuccessful) {
+                Customer customer2 = from2;
             }
         }
 
