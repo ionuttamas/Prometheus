@@ -31,15 +31,23 @@ namespace Prometheus.Engine.Types
         {
             this.polymorphicService = polymorphicService;
             this.context = context;
-            //todo: needs to get projects referenced assemblies
-            solutionTypes = solution
+            var solutionAssemblies = solution
                 .Projects
-                .Where(x => projects==null || projects.Contains(x.Name))
+                .Where(x => projects == null || projects.Contains(x.Name))
                 .Select(x => Assembly.Load(x.AssemblyName))
+                .ToList();
+            solutionTypes = solutionAssemblies
                 .SelectMany(x => x.DefinedTypes)
                 .ToList();
-            var assembly = solutionTypes[8].Assembly;
-            var projs = solution.Projects;
+            var externalAssemblies = solutionAssemblies.SelectMany(x => x.GetReferencedAssemblies())
+                .Where(x => projects == null || !projects.Contains(x.Name))
+                .DistinctBy(x=>x.FullName)
+                .Where(x=> !x.Name.StartsWith("System") && !x.Name.Contains("mscorlib"))
+                .Select(x => Assembly.Load(x.FullName))
+                .ToList();
+            externalTypes = externalAssemblies
+                .SelectMany(x => x.DefinedTypes)
+                .ToList();
             typeSorts = new Dictionary<Type, Sort>();
             enumSorts = solutionTypes
                 .Where(x => x.IsEnum)
@@ -131,7 +139,7 @@ namespace Prometheus.Engine.Types
 
         public bool IsExternal(Type type)
         {
-            return false;
+            return externalTypes.Contains(type);
         }
 
         public ClassDeclarationSyntax GetClassDeclaration(Type type)

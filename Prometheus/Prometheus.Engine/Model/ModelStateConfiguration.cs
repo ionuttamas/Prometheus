@@ -115,6 +115,15 @@ namespace Prometheus.Engine.Model
             return this;
         }
 
+        public bool IsPure(Type type, string methodName)
+        {
+            //TODO: there can be multiple methods with same method name
+            if (!pureMethods.ContainsKey(type))
+                return false;
+
+            return pureMethods[type].Any(x => x.Name == methodName);
+        }
+
         #endregion
 
         private MethodInfo GetMethodInfo<T>(Expression<Func<T, bool>> expression) {

@@ -6,6 +6,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Z3;
 using Prometheus.Common;
+using Prometheus.Engine.Model;
 using Prometheus.Engine.ReachabilityProver.Model;
 using Prometheus.Engine.Types;
 
@@ -14,12 +15,14 @@ namespace Prometheus.Engine.ConditionProver
     internal class Z3ConditionProver : IConditionProver
     {
         private readonly ITypeService typeService;
+        private readonly ModelStateConfiguration modelConfig;
         private HaveCommonReference reachabilityDelegate;
         private readonly Context context;
 
-        public Z3ConditionProver(ITypeService typeService, Context context)
+        public Z3ConditionProver(ITypeService typeService, ModelStateConfiguration modelConfig, Context context)
         {
             this.typeService = typeService;
+            this.modelConfig = modelConfig;
             this.context = context;
         }
 
@@ -30,8 +33,8 @@ namespace Prometheus.Engine.ConditionProver
 
         public bool IsSatisfiable(ConditionalAssignment first, ConditionalAssignment second)
         {
-            BoolExpr firstCondition = ParseConditionalAssignment(first, out var processedMembers);
-            BoolExpr secondCondition = ParseConditionalAssignment(second, processedMembers);
+            BoolExpr firstConditions = ParseConditionalAssignment(first, out var processedMembers);
+            BoolExpr secondConditions = ParseConditionalAssignment(second, processedMembers);
 
             Solver solver = context.MkSolver();
             solver.Assert(firstCondition, secondCondition);
