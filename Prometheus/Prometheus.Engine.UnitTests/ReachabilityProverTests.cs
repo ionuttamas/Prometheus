@@ -27,7 +27,7 @@ namespace Prometheus.Engine.UnitTests
             var polymorphicService = new PolymorphicResolver();
             var context = new Context();
             var typeService = new TypeService(solution, context, polymorphicService, "TestProject.GUI", "TestProject.Services", "TestProject.Common");
-            var conditionProver = new Z3ConditionProver(typeService, context);
+            var conditionProver = new Z3ConditionProver(typeService, null, context);
             var queryMatcher = new Z3QueryMatcher(typeService, context);
             var referenceParser = new ReferenceParser();
             var referenceTracker = new ReferenceTracker(solution, threadSchedule, typeService, referenceParser);

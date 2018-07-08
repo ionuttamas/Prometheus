@@ -33,8 +33,8 @@ namespace Prometheus.Engine.ConditionProver
 
         public bool IsSatisfiable(ConditionalAssignment first, ConditionalAssignment second)
         {
-            BoolExpr firstConditions = ParseConditionalAssignment(first, out var processedMembers);
-            BoolExpr secondConditions = ParseConditionalAssignment(second, processedMembers);
+            BoolExpr firstCondition = ParseConditionalAssignment(first, out var processedMembers);
+            BoolExpr secondCondition = ParseConditionalAssignment(second, processedMembers);
 
             Solver solver = context.MkSolver();
             solver.Assert(firstCondition, secondCondition);
@@ -377,6 +377,26 @@ namespace Prometheus.Engine.ConditionProver
                 context.MkConst(memberName, sort);
 
             return constExpr;
+        }
+
+        #endregion
+
+        #region 3rd party code processing
+
+        private bool IsPureMethod(SyntaxNode node, out List<ArgumentSyntax> arguments)
+        {
+            var invocation = node.As<InvocationExpressionSyntax>();
+            arguments = invocation.ArgumentList.Arguments.OfType<ArgumentSyntax>().ToList();
+            var memberAccess = invocation.Expression.As<MemberAccessExpressionSyntax>();
+            var expression = memberAccess
+                .Expression.As<IdentifierNameSyntax>();
+            var method = memberAccess.Name.Identifier.Text;
+
+            if (!typeService.TryGetType(expression.Identifier.Text, out Type type)) {
+                type = typeService.GetType(expression);
+            }
+
+            return modelConfig.IsPure(type, method);
         }
 
         #endregion

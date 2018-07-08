@@ -255,7 +255,8 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 {
                     var className = invocationExpression
                         .Expression.As<MemberAccessExpressionSyntax>()
-                        .Expression.As<IdentifierNameSyntax>().Identifier.Text;
+                        .Expression.As<IdentifierNameSyntax>()
+                        .Identifier.Text;
 
                     return typeService.GetClassDeclaration(className) == null ?
                         ProcessReferenceMethodCallAssigments(bindingNode, invocationExpression) :

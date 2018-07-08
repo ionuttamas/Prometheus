@@ -100,6 +100,19 @@ namespace Prometheus.Engine.Types
             ConstructSorts(types);
         }
 
+        public bool TryGetType(string typeName, out Type type) {
+            //todo: there can be multiple classes with the same name
+            type = solutionTypes.FirstOrDefault(x => x.Name == typeName) ??
+                        (primitiveTypes.ContainsKey(typeName) ?
+                            primitiveTypes[typeName] :
+                            externalTypes.FirstOrDefault(x => x.Name == typeName));
+
+            if (type == null)
+                return false;
+
+            return true;
+        }
+
         public Type GetType(ExpressionSyntax memberExpression)
         {
             if (typeCache.TryGetType(memberExpression, out var cachedType))
@@ -273,13 +286,13 @@ namespace Prometheus.Engine.Types
             switch (collectionTypeName)
             {
                 case string @string when @string.IsMatch("List<(.*)>", out var name):
-                    type = GetType(name);
+                    TryGetType(name, out type);
                     break;
                 case string @string when @string.IsMatch("IEnumerable<(.*)>", out var name):
-                    type = GetType(name);
+                    TryGetType(name, out type);
                     break;
                 case string @string when @string.IsMatch(@"(.*)\[\]", out var name):
-                    type = GetType(name);
+                    TryGetType(name, out type);
                     break;
                 default:
                     throw new NotSupportedException("Only IEnumerable<T>, List<T> or T[] collection types are supported");
@@ -345,7 +358,11 @@ namespace Prometheus.Engine.Types
                 return enumType.Key;
 
             string typeName = GetTypeName(method, token, out var type);
-            type = type ?? GetType(typeName);
+
+            if (type == null && !TryGetType(typeName, out type))
+            {
+                throw new ArgumentException($"No type was found for {typeName}");
+            }
 
             //TODO: handle abstract classes
             if (!type.IsInterface)
@@ -536,7 +553,9 @@ namespace Prometheus.Engine.Types
             if (instanceTypeName == null)
                 return false;
 
-            var instanceType = GetType(instanceTypeName);
+            if (!TryGetType(instanceTypeName, out var instanceType))
+                return false;
+
             var method = instanceType.GetMethod(memberExpression.Name.ToString(),
                 BindingFlags.Public |
                 BindingFlags.Instance);
@@ -579,12 +598,6 @@ namespace Prometheus.Engine.Types
         }
 
         #endregion
-
-        private Type GetType(string typeName) {
-            //todo: there can be multiple classes with the same name
-            Type type = solutionTypes.FirstOrDefault(x => x.Name == typeName);
-            return type ?? primitiveTypes[typeName];
-        }
 
         //TODO: this and generics
         private Sort GetListSort(Sort elementSort)
