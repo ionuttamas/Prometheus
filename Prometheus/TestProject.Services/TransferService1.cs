@@ -25,14 +25,22 @@ namespace TestProject.Services
         }
 
         public void If_3rdPartyCheck_StaticCall(Customer from1) {
-            if (from1 != null && BackgroundCheckHelper.ValidateSsn(from1.Ssn, from1.Name)) {
+            if (from1 != null && BackgroundCheckHelper.ValidateSsnPure(from1.Ssn, from1.Name)) {
                 Customer customer1 = from1;
             }
         }
 
-        public void If_3rdPartyCheck_StaticAssignment(Customer from1)
+        public void If_3rdPartyCheck_PureStaticAssignment(Customer from1)
         {
-            var isSsnValid = BackgroundCheckHelper.ValidateSsn(from1.Ssn, from1.Name);
+            var isSsnValid = BackgroundCheckHelper.ValidateSsnPure(from1.Ssn, from1.Name);
+
+            if (from1 != null && isSsnValid) {
+                Customer customer1 = from1;
+            }
+        }
+
+        public void If_3rdPartyCheck_ImpureStaticAssignment(Customer from1) {
+            var isSsnValid = BackgroundCheckHelper.ValidateSsnImpure(from1.Ssn, from1.Name);
 
             if (from1 != null && isSsnValid) {
                 Customer customer1 = from1;
@@ -67,6 +75,8 @@ namespace TestProject.Services
                 Customer customer1 = from1;
             }
         }
+
+
 
         public void MethodAssignment_IfTransfer(Customer from1, Customer to1, decimal amount) {
             var customer = _customerRepository.Compute(from1.Age, to1.Age);
