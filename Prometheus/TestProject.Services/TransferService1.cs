@@ -10,11 +10,12 @@ namespace TestProject.Services
         private readonly List<Customer> customers;
         private readonly PaymentProvider paymentProvider;
 
-        public TransferService1(CustomerRepository customerRepository, List<Customer> customers)
+        public TransferService1(CustomerRepository customerRepository, List<Customer> customers, PaymentProvider paymentProvider)
         {
             _customerRepository = customerRepository;
             this.customers = customers;
-            paymentProvider = new PaymentProvider();
+            //TODO: this does not work paymentProvider = new PaymentProvider();
+            this.paymentProvider = paymentProvider;
         }
 
         public void If_NullCheck(Customer from1) {

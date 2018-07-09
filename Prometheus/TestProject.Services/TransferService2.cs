@@ -8,9 +8,10 @@ namespace TestProject.Services
         private readonly CustomerRepository customerRepository;
         private readonly PaymentProvider paymentProvider;
 
-        public TransferService2(CustomerRepository customerRepository)
+        public TransferService2(CustomerRepository customerRepository, PaymentProvider paymentProvider)
         {
             this.customerRepository = customerRepository;
+            this.paymentProvider = paymentProvider;
         }
 
         public void If_NullCheck_Satisfiable(Customer from2) {

@@ -151,7 +151,15 @@ namespace Prometheus.Engine.ConditionProver
         private BoolExpr ParsePrefixUnaryExpression(PrefixUnaryExpressionSyntax prefixUnaryExpression, out Dictionary<string, NodeType> processedMembers) {
             if (prefixUnaryExpression.Kind() == SyntaxKind.LogicalNotExpression) {
                 var innerExpression = prefixUnaryExpression.Operand;
-                var parsedExpression = ParseExpression(innerExpression, out processedMembers);
+                IsPureMethod(innerExpression, out var returnType);
+                BoolExpr parsedExpression;
+
+                if (innerExpression.Kind() == SyntaxKind.InvocationExpression && returnType == typeof(bool)) {
+                    parsedExpression = (BoolExpr)ParseInvocationExpression(innerExpression, out processedMembers);
+                } else {
+                    parsedExpression = ParseExpression(innerExpression, out processedMembers);
+                }
+
                 return context.MkNot(parsedExpression);
             }
 
@@ -265,11 +273,7 @@ namespace Prometheus.Engine.ConditionProver
                     return ParsePrefixUnaryExpression((PrefixUnaryExpressionSyntax)expressionSyntax, cachedMembers);
                 case SyntaxKind.SimpleMemberAccessExpression:
                     return context.MkBoolConst(expressionSyntax.ToString());
-            }
 
-            var binaryExpression = (BinaryExpressionSyntax)expressionSyntax;
-
-            switch (expressionKind) {
                 case SyntaxKind.LogicalAndExpression:
                 case SyntaxKind.LogicalOrExpression:
                 case SyntaxKind.GreaterThanExpression:
@@ -278,7 +282,7 @@ namespace Prometheus.Engine.ConditionProver
                 case SyntaxKind.LessThanOrEqualExpression:
                 case SyntaxKind.EqualsExpression:
                 case SyntaxKind.NotEqualsExpression:
-                    return ParseBinaryExpression(binaryExpression, cachedMembers);
+                    return ParseBinaryExpression(expressionSyntax.As<BinaryExpressionSyntax>(), cachedMembers);
                 default:
                     throw new NotImplementedException();
             }
@@ -326,7 +330,18 @@ namespace Prometheus.Engine.ConditionProver
         private BoolExpr ParsePrefixUnaryExpression(PrefixUnaryExpressionSyntax prefixUnaryExpression, Dictionary<string, NodeType> cachedMembers) {
             if (prefixUnaryExpression.Kind() == SyntaxKind.LogicalNotExpression) {
                 var innerExpression = prefixUnaryExpression.Operand;
-                var parsedExpression = ParseExpression(innerExpression, cachedMembers);
+                IsPureMethod(innerExpression, out var returnType);
+                BoolExpr parsedExpression;
+
+                if (innerExpression.Kind() == SyntaxKind.InvocationExpression && returnType == typeof(bool))
+                {
+                    parsedExpression = (BoolExpr) ParseCachedInvocationExpression(innerExpression, cachedMembers);
+                }
+                else
+                {
+                    parsedExpression = ParseExpression(innerExpression, cachedMembers);
+                }
+
                 return context.MkNot(parsedExpression);
             }
 
@@ -385,10 +400,10 @@ namespace Prometheus.Engine.ConditionProver
                 return constExpr;
             }
 
-            var instanceReference = new Reference(invocationExpression.Expression);
+            var instanceReference = new Reference(invocationExpression.Expression.As<MemberAccessExpressionSyntax>().Expression);
             var cachedInvocation = cachedMembers.FirstOrDefault(
                 x => x.Value.Node is InvocationExpressionSyntax &&
-                     reachabilityDelegate(new Reference(x.Value.Node), instanceReference, out var _));
+                     reachabilityDelegate(new Reference(x.Value.Node.As<InvocationExpressionSyntax>().Expression.As<MemberAccessExpressionSyntax>().Expression), instanceReference, out var _));
 
             if (cachedInvocation.IsNull())
                 return context.MkConst(invocationExpression.ToString(), sort);

@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using TestProject.Common;
 using TestProject.Services;
+using TestProject._3rdParty;
 
 namespace TestProject.GUI {
     public class Program
@@ -19,6 +20,7 @@ namespace TestProject.GUI {
         private static CustomerRepository customerRepository;
         private static List<Customer> customers;
         private static TransferService1 transferService1;
+        private static PaymentProvider paymentProvider;
 
         static void Main(string[] args)
         {
@@ -29,9 +31,11 @@ namespace TestProject.GUI {
             var transferService = new TransferService();
             customerRepository = new CustomerRepository(customers);
 
-            transferService1 = new TransferService1(customerRepository, customers);
+            transferService1 = new TransferService1(customerRepository, customers, paymentProvider);
             transferService1.If_NullCheck(sharedCustomer);
             transferService1.If_3rdPartyCheck_StaticCall(sharedCustomer);
+            transferService1.If_3rdPartyCheck_PureReferenceCall(sharedCustomer, sharedCustomer, 100);
+            transferService1.If_3rdPartyCheck_ImpureReferenceCall(sharedCustomer, sharedCustomer, 100);
             transferService1.MethodAssignment_IfTransfer(sharedCustomer, sharedCustomer, 100);
             transferService1.MethodAssignment_WithIndexQuery_1(sharedCustomer, null, 100);
             transferService1.MethodAssignment_WithFirstQuery_1(sharedCustomer, null, 100);
@@ -75,8 +79,11 @@ namespace TestProject.GUI {
             registrationService.Register(sharedCustomer);
             registrationService.SimpleIfRegister(sharedCustomer);
 
-            var transferService2 = new TransferService2(customerRepository);
+            var transferService2 = new TransferService2(customerRepository, paymentProvider);
             transferService2.If_3rdPartyCheck_StaticCall(sharedCustomer);
+            transferService2.If_3rdPartyCheck_PureReferenceCall(sharedCustomer, sharedCustomer, 100);
+            transferService2.If_3rdPartyCheck_ImpureReferenceCall(sharedCustomer, sharedCustomer, 100);
+            transferService2.If_3rdPartyCheck_Neg_ImpureReferenceCall(sharedCustomer, sharedCustomer, 100);
             transferService2.MethodAssignment_SimpleAssign(customers[0]);
             transferService2.If_NullCheck_Satisfiable(sharedCustomer);
             transferService2.If_NullCheck_Unsatisfiable(sharedCustomer, sharedCustomer);
