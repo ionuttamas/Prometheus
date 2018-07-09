@@ -171,6 +171,9 @@ namespace Prometheus.Engine.ConditionProver
             if (expressionKind == SyntaxKind.StringLiteralExpression)
                 return ParseStringLiteral(memberExpression.ToString());
 
+            if (expressionKind == SyntaxKind.InvocationExpression)
+                return ParseInvocationExpression(memberExpression, out processedMembers);
+
             if (expressionKind != SyntaxKind.SimpleMemberAccessExpression && expressionKind != SyntaxKind.IdentifierName) {
                 return expressionKind == SyntaxKind.UnaryMinusExpression
                     ? ParseUnaryExpression(memberExpression, out processedMembers)
@@ -186,6 +189,24 @@ namespace Prometheus.Engine.ConditionProver
             //TODO: check agains same reference chains: "from.Address.ShipInfo" & "to.Address.ShipInfo"
             //Check against the nodes from already parsed the first conditional assignment
             return ParseVariableExpression(memberExpression, memberType, processedMembers);
+        }
+
+        private Expr ParseInvocationExpression(ExpressionSyntax expression, out Dictionary<string, NodeType> processedMembers) {
+            var invocationExpression = (InvocationExpressionSyntax)expression;
+            var isPure = IsPureMethod(invocationExpression, out var returnType);
+            Sort sort = typeService.GetSort(returnType);
+            Expr constExpr = context.MkConst(invocationExpression.ToString(), sort);
+            processedMembers = new Dictionary<string, NodeType>
+            {
+                [invocationExpression.Expression.ToString()] = new NodeType
+                {
+                    Expression = constExpr,
+                    Node = invocationExpression,
+                    Type = returnType
+                }
+            };
+
+            return constExpr;
         }
 
         private Expr ParseUnaryExpression(ExpressionSyntax unaryExpression, out Dictionary<string, NodeType> processedMembers) {
@@ -324,6 +345,9 @@ namespace Prometheus.Engine.ConditionProver
             if (expressionKind == SyntaxKind.StringLiteralExpression)
                 return ParseStringLiteral(memberExpression.ToString());
 
+            if (expressionKind == SyntaxKind.InvocationExpression)
+                return ParseCachedInvocationExpression(memberExpression, cachedMembers);
+
             if (expressionKind != SyntaxKind.SimpleMemberAccessExpression && expressionKind != SyntaxKind.IdentifierName) {
                 return expressionKind == SyntaxKind.UnaryMinusExpression
                     ? ParseUnaryExpression(memberExpression, cachedMembers)
@@ -334,6 +358,97 @@ namespace Prometheus.Engine.ConditionProver
                 return ParseUnaryExpression(memberExpression, cachedMembers);
 
             return ParseCachedVariableExpression(memberExpression, cachedMembers);
+        }
+
+        private Expr ParseCachedInvocationExpression(ExpressionSyntax expression, Dictionary<string, NodeType> cachedMembers) {
+            var invocationExpression = (InvocationExpressionSyntax)expression;
+
+            var className = invocationExpression
+                .Expression.As<MemberAccessExpressionSyntax>()
+                .Expression.As<IdentifierNameSyntax>()
+                .Identifier.Text;
+
+            if (typeService.TryGetType(className, out var _))
+            {
+                return ParseCachedStaticInvocationExpression(cachedMembers, invocationExpression);
+            }
+            else
+            {
+                return ParseCachedReferenceInvocationExpression(cachedMembers, invocationExpression);
+            }
+        }
+
+        private Expr ParseCachedReferenceInvocationExpression(Dictionary<string, NodeType> cachedMembers, InvocationExpressionSyntax invocationExpression)
+        {
+            bool isPure = IsPureMethod(invocationExpression, out var returnType);
+            Sort sort = typeService.GetSort(returnType);
+
+            if (!isPure)
+            {
+                Expr constExpr = context.MkConst(invocationExpression.ToString(), sort);
+                return constExpr;
+            }
+
+            var instanceReference = new Reference(invocationExpression.Expression);
+            var cachedInvocation = cachedMembers.FirstOrDefault(
+                x => x.Value.Node is InvocationExpressionSyntax &&
+                     reachabilityDelegate(new Reference(x.Value.Node), instanceReference, out var _));
+
+            if (cachedInvocation.IsNull())
+                return context.MkConst(invocationExpression.ToString(), sort);
+
+            var cachedArguments = cachedInvocation
+                .Value.Node.As<InvocationExpressionSyntax>()
+                .ArgumentList.Arguments
+                .ToList();
+            var arguments = invocationExpression.ArgumentList.Arguments.ToList();
+
+            if (AreArgumentsEquivalent(cachedArguments, arguments))
+                return cachedInvocation.Value.Expression;
+
+            return context.MkConst(invocationExpression.ToString(), sort);
+        }
+
+        private Expr ParseCachedStaticInvocationExpression(Dictionary<string, NodeType> cachedMembers, InvocationExpressionSyntax invocationExpression)
+        {
+            bool isPure = IsPureMethod(invocationExpression, out var returnType);
+            Sort sort = typeService.GetSort(returnType);
+            var cachedInvocation = cachedMembers.FirstOrDefault(
+                x => x.Value.Node is InvocationExpressionSyntax && x.Key == invocationExpression.Expression.ToString());
+
+            if (!cachedInvocation.IsNull() && isPure)
+            {
+                var cachedArguments = cachedInvocation
+                    .Value.Node.As<InvocationExpressionSyntax>()
+                    .ArgumentList.Arguments
+                    .ToList();
+                var arguments = invocationExpression.ArgumentList.Arguments.ToList();
+
+                if (AreArgumentsEquivalent(cachedArguments, arguments))
+                {
+                    return cachedInvocation.Value.Expression;
+                }
+            }
+
+            Expr constExpr = context.MkConst(invocationExpression.ToString(), sort);
+            return constExpr;
+        }
+
+        private bool AreArgumentsEquivalent(List<ArgumentSyntax> first, List<ArgumentSyntax> second)
+        {
+            if (first.Count != second.Count)
+                return false;
+
+            for (int i = 0; i < first.Count; i++)
+            {
+                var firstReference = new Reference(first[i]);
+                var secondReference = new Reference(second[i]);
+
+                if (!reachabilityDelegate(firstReference, secondReference, out var _))
+                    return false;
+            }
+
+            return true;
         }
 
         private Expr ParseUnaryExpression(ExpressionSyntax unaryExpression, Dictionary<string, NodeType> cachedMembers) {
@@ -383,18 +498,18 @@ namespace Prometheus.Engine.ConditionProver
 
         #region 3rd party code processing
 
-        private bool IsPureMethod(SyntaxNode node, out List<ArgumentSyntax> arguments)
+        private bool IsPureMethod(SyntaxNode node, out Type returnType)
         {
             var invocation = node.As<InvocationExpressionSyntax>();
-            arguments = invocation.ArgumentList.Arguments.OfType<ArgumentSyntax>().ToList();
             var memberAccess = invocation.Expression.As<MemberAccessExpressionSyntax>();
-            var expression = memberAccess
-                .Expression.As<IdentifierNameSyntax>();
+            var expression = memberAccess.Expression.As<IdentifierNameSyntax>();
             var method = memberAccess.Name.Identifier.Text;
 
             if (!typeService.TryGetType(expression.Identifier.Text, out Type type)) {
                 type = typeService.GetType(expression);
             }
+
+            returnType = type.GetMethod(method).ReturnType;
 
             return modelConfig.IsPure(type, method);
         }
