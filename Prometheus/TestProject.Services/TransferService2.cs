@@ -53,28 +53,56 @@ namespace TestProject.Services
             }
         }
 
-        public void If_3rdPartyCheck_ReferenceCall(Customer from2, Customer to2, decimal amount) {
-            if (from2 != null && paymentProvider.ValidatePayment(from2.Name, to2.Name, amount)) {
+        public void If_3rdPartyCheck_PureReferenceCall(Customer from2, Customer to2, decimal amount) {
+            if (from2 != null && paymentProvider.ValidatePaymentPure(from2.Name, to2.Name, amount)) {
                 Customer customer2 = from2;
             }
         }
 
-        public void If_3rdPartyCheck_Unsat_ReferenceCall(Customer from2, Customer to2, decimal amount) {
-            if (from2 != null && !paymentProvider.ValidatePayment(from2.Name, to2.Name, amount)) {
+        public void If_3rdPartyCheck_Unsat_PureReferenceCall(Customer from2, Customer to2, decimal amount) {
+            if (from2 != null && !paymentProvider.ValidatePaymentPure(from2.Name, to2.Name, amount)) {
                 Customer customer2 = from2;
             }
         }
 
-        public void If_3rdPartyCheck_ReferenceAssignment(Customer from2, Customer to2, decimal amount) {
-            var result = paymentProvider.ProcessPayment(from2.Name, to2.Name, amount);
+        public void If_3rdPartyCheck_ImpureReferenceCall(Customer from2, Customer to2, decimal amount) {
+            if (from2 != null && paymentProvider.ValidatePaymentPure(from2.Name, to2.Name, amount)) {
+                Customer customer2 = from2;
+            }
+        }
+
+        public void If_3rdPartyCheck_Neg_ImpureReferenceCall(Customer from2, Customer to2, decimal amount) {
+            if (from2 != null && !paymentProvider.ValidatePaymentPure(from2.Name, to2.Name, amount)) {
+                Customer customer2 = from2;
+            }
+        }
+
+        public void If_3rdPartyCheck_PureMethodReferenceAssignment(Customer from2, Customer to2, decimal amount) {
+            var result = paymentProvider.ProcessPaymentPure(from2.Name, to2.Name, amount);
 
             if (amount > 0 && result.IsSuccessful) {
                 Customer customer2 = from2;
             }
         }
 
-        public void If_3rdPartyCheck_Unsat_ReferenceAssignment(Customer from2, Customer to2, decimal amount) {
-            var result = paymentProvider.ProcessPayment(from2.Name, to2.Name, amount);
+        public void If_3rdPartyCheck_Unsat_PureMethodReferenceAssignment(Customer from2, Customer to2, decimal amount) {
+            var result = paymentProvider.ProcessPaymentPure(from2.Name, to2.Name, amount);
+
+            if (amount > 0 && !result.IsSuccessful) {
+                Customer customer2 = from2;
+            }
+        }
+
+        public void If_3rdPartyCheck_ImpureMethodReferenceAssignment(Customer from2, Customer to2, decimal amount) {
+            var result = paymentProvider.ProcessPaymentImpure(from2.Name, to2.Name, amount);
+
+            if (amount > 0 && result.IsSuccessful) {
+                Customer customer2 = from2;
+            }
+        }
+
+        public void If_3rdPartyCheck_Unsat_ImpureMethodReferenceAssignment(Customer from2, Customer to2, decimal amount) {
+            var result = paymentProvider.ProcessPaymentImpure(from2.Name, to2.Name, amount);
 
             if (amount > 0 && !result.IsSuccessful) {
                 Customer customer2 = from2;

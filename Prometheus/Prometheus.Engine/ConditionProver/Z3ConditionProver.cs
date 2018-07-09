@@ -361,21 +361,17 @@ namespace Prometheus.Engine.ConditionProver
         }
 
         private Expr ParseCachedInvocationExpression(ExpressionSyntax expression, Dictionary<string, NodeType> cachedMembers) {
+            //Currently, we treat 3rd party code as well as solution code methods within "if" test conditions the same
             var invocationExpression = (InvocationExpressionSyntax)expression;
-
             var className = invocationExpression
                 .Expression.As<MemberAccessExpressionSyntax>()
                 .Expression.As<IdentifierNameSyntax>()
                 .Identifier.Text;
+            var expr = typeService.TryGetType(className, out var _) ?
+                ParseCachedStaticInvocationExpression(cachedMembers, invocationExpression) :
+                ParseCachedReferenceInvocationExpression(cachedMembers, invocationExpression);
 
-            if (typeService.TryGetType(className, out var _))
-            {
-                return ParseCachedStaticInvocationExpression(cachedMembers, invocationExpression);
-            }
-            else
-            {
-                return ParseCachedReferenceInvocationExpression(cachedMembers, invocationExpression);
-            }
+            return expr;
         }
 
         private Expr ParseCachedReferenceInvocationExpression(Dictionary<string, NodeType> cachedMembers, InvocationExpressionSyntax invocationExpression)
@@ -511,7 +507,7 @@ namespace Prometheus.Engine.ConditionProver
 
             returnType = type.GetMethod(method).ReturnType;
 
-            return modelConfig.IsPure(type, method);
+            return modelConfig.IsMethodPure(type, method);
         }
 
         #endregion

@@ -21,6 +21,7 @@ namespace Prometheus.Engine.Model
         {
             stateChangeMethods = new Dictionary<Type, List<MethodInfo>>();
             mutuallyExclusiveMethods = new Dictionary<MethodInfo, List<MethodInfo>>();
+            pureMethods = new Dictionary<Type, List<MethodInfo>>();
         }
 
         public static ModelStateConfiguration Empty => new ModelStateConfiguration();
@@ -115,7 +116,20 @@ namespace Prometheus.Engine.Model
             return this;
         }
 
-        public bool IsPure(Type type, string methodName)
+        /// <summary>
+        /// Configuration for 3rd party code that defines if a method is pure or not, that is its output depends only on the input without any side-effects.
+        /// These methods can be used in if/else conditions to check if they are mutually exclusive or not.
+        /// </summary>
+        public ModelStateConfiguration IsPure(Type type, string methodName) {
+            if (!pureMethods.ContainsKey(type)) {
+                pureMethods[type] = new List<MethodInfo>();
+            }
+
+            pureMethods[type].Add(type.GetMethod(methodName));
+            return this;
+        }
+
+        public bool IsMethodPure(Type type, string methodName)
         {
             //TODO: there can be multiple methods with same method name
             if (!pureMethods.ContainsKey(type))

@@ -38,15 +38,29 @@ namespace TestProject.Services
             }
         }
 
-        public void If_3rdPartyCheck_ReferenceCall(Customer from1, Customer to1, decimal amount) {
-            if (from1 != null && paymentProvider.ValidatePayment(from1.Name, from1.Name, amount)) {
+        public void If_3rdPartyCheck_PureReferenceCall(Customer from1, Customer to1, decimal amount) {
+            if (from1 != null && paymentProvider.ValidatePaymentPure(from1.Name, from1.Name, amount)) {
                 Customer customer1 = from1;
             }
         }
 
-        public void If_3rdPartyCheck_ReferenceAssignment(Customer from1, Customer to1, decimal amount)
+        public void If_3rdPartyCheck_ImpureReferenceCall(Customer from1, Customer to1, decimal amount) {
+            if (from1 != null && paymentProvider.ValidatePaymentImpure(from1.Name, from1.Name, amount)) {
+                Customer customer1 = from1;
+            }
+        }
+
+        public void If_3rdPartyCheck_PureMethodReferenceAssignment(Customer from1, Customer to1, decimal amount)
         {
-            var result = paymentProvider.ProcessPayment(from1.Name, to1.Name, amount);
+            var result = paymentProvider.ProcessPaymentPure(from1.Name, to1.Name, amount);
+
+            if (amount > 0 && result.IsSuccessful) {
+                Customer customer1 = from1;
+            }
+        }
+
+        public void If_3rdPartyCheck_ImpureMethodReferenceAssignment(Customer from1, Customer to1, decimal amount) {
+            var result = paymentProvider.ProcessPaymentImpure(from1.Name, to1.Name, amount);
 
             if (amount > 0 && result.IsSuccessful) {
                 Customer customer1 = from1;
