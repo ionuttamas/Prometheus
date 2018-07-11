@@ -8,6 +8,8 @@ namespace Prometheus.Engine.ReachabilityProver.Model
         public Stack<ReferenceContext> ReferenceContexts { get; set; }
         public SyntaxNode Node { get; set; }
         public SyntaxToken Token { get; set; }
+        public bool IsExternal { get; set; }
+        public bool IsPure { get; set; }
 
         public Reference() {
             ReferenceContexts = new Stack<ReferenceContext>();

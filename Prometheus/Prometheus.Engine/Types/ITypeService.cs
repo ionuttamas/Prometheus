@@ -11,6 +11,7 @@ namespace Prometheus.Engine.Types
         Type GetType(ExpressionSyntax expressionSyntax);
         Type GetType(SyntaxToken syntaxToken);
         bool IsExternal(Type type);
+        bool IsPureMethod(SyntaxNode node, out Type returnType);
         ClassDeclarationSyntax GetClassDeclaration(string className);
         ClassDeclarationSyntax GetClassDeclaration(Type type);
         Sort GetSort(Type type);

@@ -15,20 +15,23 @@ namespace Prometheus.Engine.ConditionProver
     internal class Z3ConditionProver : IConditionProver
     {
         private readonly ITypeService typeService;
-        private readonly ModelStateConfiguration modelConfig;
         private HaveCommonReference reachabilityDelegate;
+        private GetConditionalAssignments getAssignmentsDelegate;
         private readonly Context context;
 
-        public Z3ConditionProver(ITypeService typeService, ModelStateConfiguration modelConfig, Context context)
+        public Z3ConditionProver(ITypeService typeService, Context context)
         {
             this.typeService = typeService;
-            this.modelConfig = modelConfig;
             this.context = context;
         }
 
         public void Configure(HaveCommonReference @delegate)
         {
             reachabilityDelegate = @delegate;
+        }
+
+        public void Configure(GetConditionalAssignments @delegate) {
+            getAssignmentsDelegate = @delegate;
         }
 
         public bool IsSatisfiable(ConditionalAssignment first, ConditionalAssignment second)
@@ -151,7 +154,7 @@ namespace Prometheus.Engine.ConditionProver
         private BoolExpr ParsePrefixUnaryExpression(PrefixUnaryExpressionSyntax prefixUnaryExpression, out Dictionary<string, NodeType> processedMembers) {
             if (prefixUnaryExpression.Kind() == SyntaxKind.LogicalNotExpression) {
                 var innerExpression = prefixUnaryExpression.Operand;
-                IsPureMethod(innerExpression, out var returnType);
+                typeService.IsPureMethod(innerExpression, out var returnType);
                 BoolExpr parsedExpression;
 
                 if (innerExpression.Kind() == SyntaxKind.InvocationExpression && returnType == typeof(bool)) {
@@ -201,7 +204,7 @@ namespace Prometheus.Engine.ConditionProver
 
         private Expr ParseInvocationExpression(ExpressionSyntax expression, out Dictionary<string, NodeType> processedMembers) {
             var invocationExpression = (InvocationExpressionSyntax)expression;
-            var isPure = IsPureMethod(invocationExpression, out var returnType);
+            var isPure = typeService.IsPureMethod(invocationExpression, out var returnType);
             Sort sort = typeService.GetSort(returnType);
             Expr constExpr = context.MkConst(invocationExpression.ToString(), sort);
             processedMembers = new Dictionary<string, NodeType>
@@ -230,11 +233,26 @@ namespace Prometheus.Engine.ConditionProver
             Expr constExpr = type.IsEnum && memberName.StartsWith($"{type.Name}.")?
                 sort.As<EnumSort>().Consts.First(x => x.FuncDecl.Name.ToString() == memberExpression.As<MemberAccessExpressionSyntax>().Name.ToString()):
                 context.MkConst(memberName, sort);
+            var rootIdentifier = memberExpression is MemberAccessExpressionSyntax
+                ? memberExpression.As<MemberAccessExpressionSyntax>().GetRootIdentifier()
+                : memberExpression.As<IdentifierNameSyntax>();
+            var rootType = typeService.GetType(rootIdentifier);
+            bool isExternal = false;
+            Reference externalReference = null;
+
+            if (typeService.IsExternal(rootType))
+            {
+                isExternal = true;
+                //todo: currently we only take the first assignments of the rootIdentifier to see if is pure or not, regardless of any conditions
+                externalReference = getAssignmentsDelegate(rootIdentifier.Identifier)[0].RightReference;
+            }
 
             processedMembers[memberName] = new NodeType {
                 Expression = constExpr,
                 Node = memberExpression,
-                Type = type
+                Type = type,
+                IsExternal = isExternal,
+                ExternalReference = externalReference
             };
 
             return constExpr;
@@ -330,7 +348,7 @@ namespace Prometheus.Engine.ConditionProver
         private BoolExpr ParsePrefixUnaryExpression(PrefixUnaryExpressionSyntax prefixUnaryExpression, Dictionary<string, NodeType> cachedMembers) {
             if (prefixUnaryExpression.Kind() == SyntaxKind.LogicalNotExpression) {
                 var innerExpression = prefixUnaryExpression.Operand;
-                IsPureMethod(innerExpression, out var returnType);
+                typeService.IsPureMethod(innerExpression, out var returnType);
                 BoolExpr parsedExpression;
 
                 if (innerExpression.Kind() == SyntaxKind.InvocationExpression && returnType == typeof(bool))
@@ -391,7 +409,7 @@ namespace Prometheus.Engine.ConditionProver
 
         private Expr ParseCachedReferenceInvocationExpression(Dictionary<string, NodeType> cachedMembers, InvocationExpressionSyntax invocationExpression)
         {
-            bool isPure = IsPureMethod(invocationExpression, out var returnType);
+            bool isPure = typeService.IsPureMethod(invocationExpression, out var returnType);
             Sort sort = typeService.GetSort(returnType);
 
             if (!isPure)
@@ -422,7 +440,7 @@ namespace Prometheus.Engine.ConditionProver
 
         private Expr ParseCachedStaticInvocationExpression(Dictionary<string, NodeType> cachedMembers, InvocationExpressionSyntax invocationExpression)
         {
-            bool isPure = IsPureMethod(invocationExpression, out var returnType);
+            bool isPure = typeService.IsPureMethod(invocationExpression, out var returnType);
             Sort sort = typeService.GetSort(returnType);
             var cachedInvocation = cachedMembers.FirstOrDefault(
                 x => x.Value.Node is InvocationExpressionSyntax && x.Key == invocationExpression.Expression.ToString());
@@ -445,23 +463,6 @@ namespace Prometheus.Engine.ConditionProver
             return constExpr;
         }
 
-        private bool AreArgumentsEquivalent(List<ArgumentSyntax> first, List<ArgumentSyntax> second)
-        {
-            if (first.Count != second.Count)
-                return false;
-
-            for (int i = 0; i < first.Count; i++)
-            {
-                var firstReference = new Reference(first[i]);
-                var secondReference = new Reference(second[i]);
-
-                if (!reachabilityDelegate(firstReference, secondReference, out var _))
-                    return false;
-            }
-
-            return true;
-        }
-
         private Expr ParseUnaryExpression(ExpressionSyntax unaryExpression, Dictionary<string, NodeType> cachedMembers) {
             var prefixUnaryExpression = (PrefixUnaryExpressionSyntax)unaryExpression;
             var negatedExpression = ParseExpressionMember(prefixUnaryExpression.Operand, cachedMembers);
@@ -472,8 +473,17 @@ namespace Prometheus.Engine.ConditionProver
         private Expr ParseCachedVariableExpression(ExpressionSyntax memberExpression, Dictionary<string, NodeType> cachedMembers) {
             var memberType = typeService.GetType(memberExpression);
             var memberReference = new Reference(memberExpression);
+            string memberName = memberExpression.ToString();
 
             foreach (NodeType node in cachedMembers.Values.Where(x => x.Type == memberType)) {
+                if (node.IsExternal && node.ExternalReference.IsPure)
+                {
+                    if (MatchCachedExternalPureMethodAssignment(memberExpression, node, out Expr nodeExpression))
+                        return nodeExpression;
+
+                    break;
+                }
+
                 if (memberType.IsEnum && memberExpression.ToString().StartsWith($"{memberType.Name}."))
                     continue;
 
@@ -496,7 +506,6 @@ namespace Prometheus.Engine.ConditionProver
                 }
             }
 
-            string memberName = memberExpression.ToString();
             Sort sort = typeService.GetSort(memberType);
             Expr constExpr = memberType.IsEnum && memberName.StartsWith($"{memberType.Name}.") ?
                 sort.As<EnumSort>().Consts.First(x => x.FuncDecl.Name.ToString() == memberExpression.As<MemberAccessExpressionSyntax>().Name.ToString()):
@@ -505,24 +514,67 @@ namespace Prometheus.Engine.ConditionProver
             return constExpr;
         }
 
-        #endregion
-
-        #region 3rd party code processing
-
-        private bool IsPureMethod(SyntaxNode node, out Type returnType)
+        private bool MatchCachedExternalPureMethodAssignment(ExpressionSyntax memberExpression, NodeType node, out Expr nodeExpression)
         {
-            var invocation = node.As<InvocationExpressionSyntax>();
-            var memberAccess = invocation.Expression.As<MemberAccessExpressionSyntax>();
-            var expression = memberAccess.Expression.As<IdentifierNameSyntax>();
-            var method = memberAccess.Name.Identifier.Text;
+            nodeExpression = null;
+            var rootIdentifier = memberExpression is MemberAccessExpressionSyntax
+                ? memberExpression.As<MemberAccessExpressionSyntax>().GetRootIdentifier()
+                : memberExpression.As<IdentifierNameSyntax>();
+            var invocationReference = getAssignmentsDelegate(rootIdentifier.Identifier)[0].RightReference.Node
+                .As<InvocationExpressionSyntax>();
+            var className = invocationReference
+                .Expression.As<MemberAccessExpressionSyntax>()
+                .Expression.As<IdentifierNameSyntax>()
+                .Identifier.Text;
+            var cachedArguments = node.ExternalReference
+                .Node.As<InvocationExpressionSyntax>()
+                .ArgumentList.Arguments
+                .ToList();
+            var arguments = invocationReference.ArgumentList.Arguments.ToList();
 
-            if (!typeService.TryGetType(expression.Identifier.Text, out Type type)) {
-                type = typeService.GetType(expression);
+            if (typeService.TryGetType(className, out var _))
+            {
+                if (AreArgumentsEquivalent(cachedArguments, arguments))
+                {
+                    {
+                        nodeExpression = node.Expression;
+                        return true;
+                    }
+                }
+            }
+            else
+            {
+                var instanceReference = new Reference(invocationReference.Expression.As<MemberAccessExpressionSyntax>()
+                    .Expression);
+                var cachedReference = new Reference(node.ExternalReference.Node.As<InvocationExpressionSyntax>().Expression
+                    .As<MemberAccessExpressionSyntax>().Expression);
+
+                if (reachabilityDelegate(instanceReference, cachedReference, out var _) &&
+                    AreArgumentsEquivalent(cachedArguments, arguments))
+                {
+                    {
+                        nodeExpression = node.Expression;
+                        return true;
+                    }
+                }
             }
 
-            returnType = type.GetMethod(method).ReturnType;
+            return false;
+        }
 
-            return modelConfig.IsMethodPure(type, method);
+        private bool AreArgumentsEquivalent(List<ArgumentSyntax> first, List<ArgumentSyntax> second) {
+            if (first.Count != second.Count)
+                return false;
+
+            for (int i = 0; i < first.Count; i++) {
+                var firstReference = new Reference(first[i]);
+                var secondReference = new Reference(second[i]);
+
+                if (!reachabilityDelegate(firstReference, secondReference, out var _))
+                    return false;
+            }
+
+            return true;
         }
 
         #endregion
@@ -539,6 +591,8 @@ namespace Prometheus.Engine.ConditionProver
             public SyntaxNode Node { get; set; }
             public Expr Expression { get; set; }
             public Type Type { get; set; }
+            public bool IsExternal { get; set; }
+            public Reference ExternalReference { get; set; }
         }
     }
 }

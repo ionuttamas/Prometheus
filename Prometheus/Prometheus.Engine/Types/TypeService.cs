@@ -9,6 +9,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Z3;
 using Prometheus.Common;
+using Prometheus.Engine.Model;
 using TypeInfo = System.Reflection.TypeInfo;
 
 namespace Prometheus.Engine.Types
@@ -16,6 +17,7 @@ namespace Prometheus.Engine.Types
     internal class TypeService : ITypeService
     {
         private readonly IPolymorphicResolver polymorphicService;
+        private readonly ModelStateConfiguration modelConfig;
         private readonly List<TypeInfo> solutionTypes;
         private readonly List<TypeInfo> externalTypes;
         private readonly Dictionary<TypeInfo, List<TypeInfo>> interfaceImplementations;
@@ -27,9 +29,10 @@ namespace Prometheus.Engine.Types
         private readonly Context context;
         private const string VAR_TOKEN = "var";
 
-        public TypeService(Solution solution, Context context, IPolymorphicResolver polymorphicService, params string[] projects)
+        public TypeService(Solution solution, Context context, IPolymorphicResolver polymorphicService, ModelStateConfiguration modelConfig, params string[] projects)
         {
             this.polymorphicService = polymorphicService;
+            this.modelConfig = modelConfig;
             this.context = context;
             var solutionAssemblies = solution
                 .Projects
@@ -102,10 +105,15 @@ namespace Prometheus.Engine.Types
 
         public bool TryGetType(string typeName, out Type type) {
             //todo: there can be multiple classes with the same name
-            type = solutionTypes.FirstOrDefault(x => x.Name == typeName) ??
-                        (primitiveTypes.ContainsKey(typeName) ?
-                            primitiveTypes[typeName] :
-                            externalTypes.FirstOrDefault(x => x.Name == typeName));
+
+            type = solutionTypes.FirstOrDefault(x => x.Name == typeName);
+
+            if (type == null)
+            {
+                type = primitiveTypes.ContainsKey(typeName) ?
+                    primitiveTypes[typeName] :
+                    externalTypes.FirstOrDefault(x => x.Name == typeName);
+            }
 
             if (type == null)
                 return false;
@@ -153,6 +161,21 @@ namespace Prometheus.Engine.Types
         public bool IsExternal(Type type)
         {
             return externalTypes.Contains(type);
+        }
+
+        public bool IsPureMethod(SyntaxNode node, out Type returnType) {
+            var invocation = node.As<InvocationExpressionSyntax>();
+            var memberAccess = invocation.Expression.As<MemberAccessExpressionSyntax>();
+            var expression = memberAccess.Expression.As<IdentifierNameSyntax>();
+            var method = memberAccess.Name.Identifier.Text;
+
+            if (!TryGetType(expression.Identifier.Text, out Type type)) {
+                type = GetType(expression);
+            }
+
+            returnType = type.GetMethod(method).ReturnType;
+
+            return modelConfig.IsMethodPure(type, method);
         }
 
         public ClassDeclarationSyntax GetClassDeclaration(Type type)

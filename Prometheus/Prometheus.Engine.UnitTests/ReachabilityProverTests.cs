@@ -36,8 +36,8 @@ namespace Prometheus.Engine.UnitTests
             var threadSchedule = new ThreadAnalyzer(solution).GetThreadSchedule(solution.Projects.First(x => x.Name == "TestProject.GUI"));
             var polymorphicService = new PolymorphicResolver();
             var context = new Context();
-            var typeService = new TypeService(solution, context, polymorphicService, "TestProject.GUI", "TestProject.Services", "TestProject.Common");
-            var conditionProver = new Z3ConditionProver(typeService, modelStateConfig, context);
+            var typeService = new TypeService(solution, context, polymorphicService, modelStateConfig, "TestProject.GUI", "TestProject.Services", "TestProject.Common");
+            var conditionProver = new Z3ConditionProver(typeService, context);
             var queryMatcher = new Z3QueryMatcher(typeService, context);
             var referenceParser = new ReferenceParser();
             var referenceTracker = new ReferenceTracker(solution, threadSchedule, typeService, referenceParser);

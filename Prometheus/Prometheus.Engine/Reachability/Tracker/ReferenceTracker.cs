@@ -253,18 +253,11 @@ namespace Prometheus.Engine.Reachability.Tracker {
 
                 if (invocationExpression.Expression is MemberAccessExpressionSyntax)
                 {
-                    var className = invocationExpression
-                        .Expression.As<MemberAccessExpressionSyntax>()
-                        .Expression.As<IdentifierNameSyntax>()
-                        .Identifier.Text;
-
-                    return typeService.GetClassDeclaration(className) == null ?
-                        ProcessReferenceMethodCallAssigments(bindingNode, invocationExpression) :
-                        ProcessStaticMethodCallAssigments(bindingNode, invocationExpression);
+                    return ProcessNonLocalMethodCallAssignments(bindingNode, invocationExpression);
                 }
 
                 if(invocationExpression.Expression is IdentifierNameSyntax)
-                    return ProcessLocalMethodCallAssigments(bindingNode, invocationExpression);
+                    return ProcessLocalMethodCallAssignments(bindingNode, invocationExpression);
 
                 throw new NotSupportedException($"InvocationExpression {invocationExpression} is not supported");
             }
@@ -280,8 +273,8 @@ namespace Prometheus.Engine.Reachability.Tracker {
             }
 
             var conditionalAssignment = new ConditionalAssignment {
-                RightReference = rightReference,
-                LeftReference = new Reference(bindingNode)
+                LeftReference = new Reference(bindingNode),
+                RightReference = rightReference
             };
             SyntaxNode currentNode = bindingNode;
             var classDeclaration = argument.FirstAncestorOrSelf<ClassDeclarationSyntax>();
@@ -300,10 +293,45 @@ namespace Prometheus.Engine.Reachability.Tracker {
         }
 
         /// <summary>
+        /// Process static or reference method calls assignments.
+        /// </summary>
+        private List<ConditionalAssignment> ProcessNonLocalMethodCallAssignments(SyntaxNode bindingNode, InvocationExpressionSyntax invocationExpression)
+        {
+            var className = invocationExpression
+                .Expression.As<MemberAccessExpressionSyntax>()
+                .Expression.As<IdentifierNameSyntax>()
+                .Identifier.Text;
+
+            var isStatic = typeService.TryGetType(className, out var type);
+
+            if (typeService.IsExternal(type))
+            {
+                var rightReference = new Reference(invocationExpression)
+                {
+                    IsExternal = true,
+                    IsPure = typeService.IsPureMethod(invocationExpression, out var _)
+                };
+
+                var conditionalAssignment = new ConditionalAssignment
+                {
+                    LeftReference = new Reference(bindingNode),
+                    RightReference = rightReference,
+                    Conditions = ExtractConditions(bindingNode)
+                };
+
+                return new List<ConditionalAssignment>{conditionalAssignment};
+            }
+
+            return isStatic ?
+                ProcessStaticMethodCallAssignments(bindingNode, invocationExpression) :
+                ProcessReferenceMethodCallAssignments(bindingNode, invocationExpression);
+        }
+
+        /// <summary>
         /// Gets the assignments made from various calls to the given method along the binding parameter.
         /// This handles reference based methods like "instance = Method(...)" where "Method" is instance or static method of the same class containing the assignment.
         /// </summary>
-        private List<ConditionalAssignment> ProcessLocalMethodCallAssigments(SyntaxNode bindingNode, InvocationExpressionSyntax invocationExpression) {
+        private List<ConditionalAssignment> ProcessLocalMethodCallAssignments(SyntaxNode bindingNode, InvocationExpressionSyntax invocationExpression) {
             var methodName = invocationExpression.Expression.As<IdentifierNameSyntax>().Identifier.Text;
             var conditions = ExtractConditions(invocationExpression);
             var classDeclaration = invocationExpression.GetContainingClass();
@@ -347,7 +375,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
         /// Gets the assignments made from various calls to the given method along the binding parameter.
         /// This handles reference based methods like "instance = StaticClass.Method(...)" where "Method" is static method.
         /// </summary>
-        private List<ConditionalAssignment> ProcessStaticMethodCallAssigments(SyntaxNode bindingNode, InvocationExpressionSyntax invocationExpression) {
+        private List<ConditionalAssignment> ProcessStaticMethodCallAssignments(SyntaxNode bindingNode, InvocationExpressionSyntax invocationExpression) {
             var memberAccess = invocationExpression.Expression.As<MemberAccessExpressionSyntax>();
             var className = memberAccess.Expression.As<IdentifierNameSyntax>().Identifier.Text;
             var methodName = memberAccess.Name.Identifier.Text;
@@ -395,7 +423,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
         /// <param name="bindingNode"></param>
         /// <param name="invocationExpression"></param>
         /// <returns></returns>
-        private List<ConditionalAssignment> ProcessReferenceMethodCallAssigments(SyntaxNode bindingNode, InvocationExpressionSyntax invocationExpression) {
+        private List<ConditionalAssignment> ProcessReferenceMethodCallAssignments(SyntaxNode bindingNode, InvocationExpressionSyntax invocationExpression) {
             var memberAccess = invocationExpression.Expression.As<MemberAccessExpressionSyntax>();
             var instanceExpression = memberAccess.Expression.As<IdentifierNameSyntax>();
             var methodName = memberAccess.Name.Identifier.Text;
@@ -403,7 +431,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
             if (referenceParser.IsBuiltInMethod(methodName))
                 return ProcessLinqMethodAssignments(bindingNode, invocationExpression, instanceExpression);
 
-            return ProcessRegularReferenceMethodCallAssigments(bindingNode, invocationExpression, instanceExpression);
+            return ProcessRegularReferenceMethodCallAssignments(bindingNode, invocationExpression, instanceExpression);
         }
 
         /// <summary>
@@ -435,7 +463,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
         /// <summary>
         /// Processes regular method invocations "instance = reference.Get(...)".
         /// </summary>
-        private List<ConditionalAssignment> ProcessRegularReferenceMethodCallAssigments(SyntaxNode bindingNode,
+        private List<ConditionalAssignment> ProcessRegularReferenceMethodCallAssignments(SyntaxNode bindingNode,
             InvocationExpressionSyntax invocationExpression,
             IdentifierNameSyntax instanceExpression) {
             var memberAccess = invocationExpression.Expression.As<MemberAccessExpressionSyntax>();

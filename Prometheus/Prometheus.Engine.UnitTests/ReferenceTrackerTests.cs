@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.Z3;
 using NUnit.Framework;
 using Prometheus.Common;
+using Prometheus.Engine.Model;
 using Prometheus.Engine.Reachability.Tracker;
 using Prometheus.Engine.Thread;
 using Prometheus.Engine.Types;
@@ -25,7 +26,7 @@ namespace Prometheus.Engine.UnitTests
             solution = workspace.OpenSolutionAsync(@"C:\Users\tamas\Documents\Github\Prometheus\Prometheus\Prometheus.sln").Result;
             var polymorphicService = new PolymorphicResolver();
             var context = new Context();
-            var typeService = new TypeService(solution, context, polymorphicService, "TestProject.GUI", "TestProject.Services", "TestProject.Common");
+            var typeService = new TypeService(solution, context, polymorphicService, ModelStateConfiguration.Empty, "TestProject.GUI", "TestProject.Services", "TestProject.Common");
             var threadSchedule = new ThreadAnalyzer(solution).GetThreadSchedule(solution.Projects.First(x => x.Name == "TestProject.GUI"));
             var referenceParser = new ReferenceParser();
             referenceTracker = new ReferenceTracker(solution, threadSchedule, typeService, referenceParser);

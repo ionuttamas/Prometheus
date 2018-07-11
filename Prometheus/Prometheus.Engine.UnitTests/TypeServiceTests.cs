@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Z3;
 using NUnit.Framework;
 using Prometheus.Common;
+using Prometheus.Engine.Model;
 using Prometheus.Engine.Types;
 using Prometheus.Engine.Types.Polymorphy;
 using TestProject.Services;
@@ -24,7 +25,7 @@ namespace Prometheus.Engine.UnitTests
             var context = new Context();
             polymorphicService.Register(typeof(TestTypeService), "GetPolymorphicTypeDeclaration", "field", typeof(AskField));
             polymorphicService.Register(typeof(TestTypeService), "GetPolymorphicTypeParameter", "currentPriceField", typeof(CurrentPriceField));
-            typeService = new TypeService(solution, context, polymorphicService, "TestProject.GUI", "TestProject.Services", "TestProject.Common");
+            typeService = new TypeService(solution, context, polymorphicService, ModelStateConfiguration.Empty, "TestProject.GUI", "TestProject.Services", "TestProject.Common");
         }
 
         [TearDown]
