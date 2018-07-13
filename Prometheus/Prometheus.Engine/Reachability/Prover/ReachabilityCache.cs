@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Microsoft.CodeAnalysis.CSharp;
 using Prometheus.Engine.ReachabilityProver.Model;
 
 namespace Prometheus.Engine.Reachability.Prover
@@ -15,6 +16,12 @@ namespace Prometheus.Engine.Reachability.Prover
 
         public void AddToCache(Reference first, Reference second, Reference commonReference)
         {
+            if(first.Node.Kind()==SyntaxKind.InvocationExpression)
+                return;
+
+            if (second.Node.Kind() == SyntaxKind.InvocationExpression)
+                return;
+
             if (reachabilityCache.ContainsKey(first))
             {
                 reachabilityCache[first][second] = commonReference;

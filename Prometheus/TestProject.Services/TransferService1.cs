@@ -48,7 +48,7 @@ namespace TestProject.Services
         }
 
         public void If_3rdPartyCheck_PureReferenceCall(Customer from1, Customer to1, decimal amount) {
-            if (from1 != null && paymentProvider.ValidatePaymentPure(from1.Name, from1.Name, amount)) {
+            if (from1 != null && paymentProvider.ValidatePaymentPure(from1.Name, to1.Name, amount)) {
                 Customer customer1 = from1;
             }
         }

@@ -152,21 +152,30 @@ namespace Prometheus.Engine.ConditionProver
         }
 
         private BoolExpr ParsePrefixUnaryExpression(PrefixUnaryExpressionSyntax prefixUnaryExpression, out Dictionary<string, NodeType> processedMembers) {
-            if (prefixUnaryExpression.Kind() == SyntaxKind.LogicalNotExpression) {
-                var innerExpression = prefixUnaryExpression.Operand;
-                typeService.IsPureMethod(innerExpression, out var returnType);
-                BoolExpr parsedExpression;
+            if (prefixUnaryExpression.Kind() != SyntaxKind.LogicalNotExpression)
+                throw new NotImplementedException();
 
-                if (innerExpression.Kind() == SyntaxKind.InvocationExpression && returnType == typeof(bool)) {
-                    parsedExpression = (BoolExpr)ParseInvocationExpression(innerExpression, out processedMembers);
-                } else {
-                    parsedExpression = ParseExpression(innerExpression, out processedMembers);
-                }
+            var innerExpression = prefixUnaryExpression.Operand;
+            var innerExpressionKind = innerExpression.Kind();
 
+            if (innerExpressionKind == SyntaxKind.SimpleMemberAccessExpression)
+            {
+                var parsedExpression = ParseExpression(innerExpression, out processedMembers);
                 return context.MkNot(parsedExpression);
             }
 
-            throw new NotImplementedException();
+            if (innerExpressionKind == SyntaxKind.InvocationExpression)
+            {
+                typeService.IsPureMethod(innerExpression.As<InvocationExpressionSyntax>(), out var returnType);
+
+                if (returnType == typeof(bool))
+                {
+                    var parsedExpression = (BoolExpr)ParseInvocationExpression(innerExpression, out processedMembers);
+                    return context.MkNot(parsedExpression);
+                }
+            }
+
+            throw new InvalidOperationException($"PrefixUnaryExpression {prefixUnaryExpression} could not be processed");
         }
 
         private Expr ParseExpressionMember(ExpressionSyntax memberExpression, out Dictionary<string, NodeType> processedMembers) {
@@ -346,24 +355,27 @@ namespace Prometheus.Engine.ConditionProver
         }
 
         private BoolExpr ParsePrefixUnaryExpression(PrefixUnaryExpressionSyntax prefixUnaryExpression, Dictionary<string, NodeType> cachedMembers) {
-            if (prefixUnaryExpression.Kind() == SyntaxKind.LogicalNotExpression) {
-                var innerExpression = prefixUnaryExpression.Operand;
-                typeService.IsPureMethod(innerExpression, out var returnType);
-                BoolExpr parsedExpression;
+            if (prefixUnaryExpression.Kind() != SyntaxKind.LogicalNotExpression)
+                throw new NotImplementedException();
 
-                if (innerExpression.Kind() == SyntaxKind.InvocationExpression && returnType == typeof(bool))
-                {
-                    parsedExpression = (BoolExpr) ParseCachedInvocationExpression(innerExpression, cachedMembers);
-                }
-                else
-                {
-                    parsedExpression = ParseExpression(innerExpression, cachedMembers);
-                }
+            var innerExpression = prefixUnaryExpression.Operand;
+            var innerExpressionKind = innerExpression.Kind();
 
+            if (innerExpressionKind == SyntaxKind.SimpleMemberAccessExpression) {
+                var parsedExpression = ParseExpression(innerExpression, cachedMembers);
                 return context.MkNot(parsedExpression);
             }
 
-            throw new NotImplementedException();
+            if (innerExpressionKind == SyntaxKind.InvocationExpression) {
+                typeService.IsPureMethod(innerExpression.As<InvocationExpressionSyntax>(), out var returnType);
+
+                if (returnType == typeof(bool)) {
+                    var parsedExpression = (BoolExpr)ParseCachedInvocationExpression(innerExpression, cachedMembers);
+                    return context.MkNot(parsedExpression);
+                }
+            }
+
+            throw new InvalidOperationException($"PrefixUnaryExpression {prefixUnaryExpression} could not be processed");
         }
 
         private Expr ParseExpressionMember(ExpressionSyntax memberExpression, Dictionary<string, NodeType> cachedMembers) {
@@ -567,8 +579,9 @@ namespace Prometheus.Engine.ConditionProver
                 return false;
 
             for (int i = 0; i < first.Count; i++) {
-                var firstReference = new Reference(first[i]);
-                var secondReference = new Reference(second[i]);
+                //TODO: if we have here from1.Age and from2.Age => it will compare from1 and from2 only; in the case of from1.Name and from2.Address it will fail to compute the right values
+                var firstReference = new Reference(first[i].Expression.GetRootIdentifier());
+                var secondReference = new Reference(second[i].Expression.GetRootIdentifier());
 
                 if (!reachabilityDelegate(firstReference, secondReference, out var _))
                     return false;

@@ -51,9 +51,15 @@ namespace Prometheus.Common
         /// <summary>
         /// For a member access expression such as "person.Address.Street" returns "person" as root identifier.
         /// </summary>
-        public static IdentifierNameSyntax GetRootIdentifier(this MemberAccessExpressionSyntax memberAccess) {
-            string rootToken = memberAccess.ToString().Split('.').First();
-            var identifier = memberAccess.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == rootToken).First();
+        public static IdentifierNameSyntax GetRootIdentifier(this ExpressionSyntax expression) {
+            if(!(expression is MemberAccessExpressionSyntax) && !(expression is IdentifierNameSyntax))
+                throw new ArgumentException($"Expression {expression} must be MemberAccessExpression or IdentifierNameSyntax");
+
+            if (expression is IdentifierNameSyntax)
+                return expression.As<IdentifierNameSyntax>();
+
+            string rootToken = expression.ToString().Split('.').First();
+            var identifier = expression.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == rootToken).First();
 
             return identifier;
         }

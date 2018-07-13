@@ -82,7 +82,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
             if (matchingField != null && matchingField.Modifiers.All(x=>x.Kind()!=SyntaxKind.StaticKeyword))
             {
                 var constructorAssigments = GetConstructorAssignments(identifier, classDeclaration, referenceContexts)
-                    .Where(x => x.RightReference.Node == null || x.RightReference.Node.Kind() == SyntaxKind.IdentifierName)
+                    .Where(x => x.RightReference.Node == null || IsAssignmentKindAllowed(x.RightReference.Node.Kind()))
                     .ToList();
                 constructorAssigments.ForEach(x => x.Conditions.UnionWith(conditions));
 
@@ -107,14 +107,31 @@ namespace Prometheus.Engine.Reachability.Tracker {
             // Exclude all except reference names; method calls "a = GetReference(c, d)" are not supported at the moment TODO: double check here
             //TODO: currently we support only one level method call assigment: "a = instance.Get(..);"
             result = result
-                .Where(x => x.RightReference.Node == null || (x.RightReference.Node.Kind() == SyntaxKind.InvocationExpression ||
-                                                         x.RightReference.Node.Kind() == SyntaxKind.ElementAccessExpression ||
-                                                         x.RightReference.Node.Kind() == SyntaxKind.IdentifierName ||
-                                                         x.RightReference.Node.Kind() == SyntaxKind.VariableDeclarator ||
-                                                         x.RightReference.Node.Kind() == SyntaxKind.Argument))
+                .Where(x => x.RightReference.Node == null || IsAssignmentKindAllowed(x.RightReference.Node.Kind()))
                 .ToList();
 
             return result;
+        }
+
+        private bool IsAssignmentKindAllowed(SyntaxKind kind)
+        {
+            switch (kind)
+            {
+                case SyntaxKind.InvocationExpression:
+                case SyntaxKind.ElementAccessExpression:
+                case SyntaxKind.IdentifierName:
+                case SyntaxKind.VariableDeclarator:
+                case SyntaxKind.ArgumentList:
+                case SyntaxKind.NumericLiteralExpression:
+                case SyntaxKind.StringLiteralExpression:
+                case SyntaxKind.CharacterLiteralExpression:
+                case SyntaxKind.NullLiteralExpression:
+                case SyntaxKind.TrueLiteralExpression:
+                case SyntaxKind.FalseLiteralExpression:
+                    return true;
+            }
+
+            return false;
         }
 
         /// <summary>

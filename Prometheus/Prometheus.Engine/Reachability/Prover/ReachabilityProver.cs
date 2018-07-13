@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Prometheus.Common;
 using Prometheus.Engine.ConditionProver;
 using Prometheus.Engine.ExpressionMatcher;
 using Prometheus.Engine.Reachability.Tracker;
@@ -114,6 +117,13 @@ namespace Prometheus.Engine.Reachability.Prover
         /// </summary>
         private bool AreEquivalent(Reference first, Reference second)
         {
+            if (first.Node != null && second.Node != null &&
+                first.Node.Kind() == second.Node.Kind() &&
+                first.Node is LiteralExpressionSyntax)
+            {
+                return first.ToString() == second.ToString();
+            }
+
             if (first.ToString() == second.ToString() && first.GetLocation() == second.GetLocation())
                 return true;
 
