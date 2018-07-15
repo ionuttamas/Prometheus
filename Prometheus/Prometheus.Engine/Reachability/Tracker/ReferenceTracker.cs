@@ -90,6 +90,21 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 return constructorAssigments;
             }
 
+            if (identifier.Text == "null")
+            {
+                var reference = new Reference(identifier.Parent);
+
+                return new List<ConditionalAssignment>
+                {
+                    new ConditionalAssignment
+                    {
+                        Conditions = conditions,
+                        LeftReference = reference,
+                        RightReference = reference
+                    }
+                };
+            }
+
             var parameterIndex = method.ParameterList.Parameters.IndexOf(x => x.Identifier.Text == identifierName);
             List<ConditionalAssignment> result;
 

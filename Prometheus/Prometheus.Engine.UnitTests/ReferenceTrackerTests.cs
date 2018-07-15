@@ -125,6 +125,10 @@ namespace Prometheus.Engine.UnitTests
             var identifier = transferServiceClass.GetMethodDescendant(nameof(TransferService1.MethodAssignment_IfTransfer)).DescendantTokens<SyntaxToken>(x => x.ToString() == "innerNestedReferenceMethodCustomer").First();
             var assignments = referenceTracker.GetAssignments(identifier);
 
+            Assert.AreEqual(1, assignments.Count);
+
+            assignments = referenceTracker.GetAssignments(assignments[0].RightReference.Node.GetFirstToken());
+
             Assert.AreEqual(2, assignments.Count);
 
             Assert.AreEqual(0, assignments[0].Conditions.Count);
@@ -137,7 +141,7 @@ namespace Prometheus.Engine.UnitTests
             Assert.AreEqual("_customerRepository", assignments[1].RightReference.ReferenceContexts.Peek().CallContext.InstanceReference.ToString());
             Assert.AreEqual(2, assignments[1].RightReference.ReferenceContexts.Peek().CallContext.ArgumentsTable.Count);
             Assert.AreEqual("customers", assignments[1].RightReference.ToString());
-            Assert.AreEqual("x => x.Age == innerFrom.Age", assignments[1].RightReference.ReferenceContexts.Peek().Query.ToString());
+            Assert.AreEqual("x + y", assignments[1].RightReference.ReferenceContexts.Peek().Query.ToString());
         }
 
         [Test]
@@ -273,29 +277,29 @@ namespace Prometheus.Engine.UnitTests
             var assignments = referenceTracker.GetAssignments(identifier);
 
             Assert.AreEqual(6, assignments.Count);
-            Assert.True(assignments[0].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Premium" && !x.IsNegated));
-            Assert.True(assignments[0].Conditions.Any(x => x.ToString() == "amount > 0" && !x.IsNegated));
+            Assert.True(assignments[0].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Premium"));
+            Assert.True(assignments[0].Conditions.Any(x => x.ToString() == "amount > 0"));
 
-            Assert.True(assignments[1].Conditions.Any(x => x.ToString() == "NOT ( from.Type == CustomerType.Premium )" && x.IsNegated));
-            Assert.True(assignments[1].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Gold" && !x.IsNegated));
+            Assert.True(assignments[1].Conditions.Any(x => x.ToString() == "NOT ( from.Type == CustomerType.Premium )"));
+            Assert.True(assignments[1].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Gold"));
             Assert.True(assignments[1].Conditions.Any(x => x.ToString() == "amount > 0"));
 
-            Assert.True(assignments[2].Conditions.Any(x => x.ToString() == "NOT ( from.Type == CustomerType.Premium )" && x.IsNegated));
-            Assert.True(assignments[2].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Gold" && x.IsNegated));
-            Assert.True(assignments[2].Conditions.Any(x => x.ToString() == "amount > 0" && !x.IsNegated));
+            Assert.True(assignments[2].Conditions.Any(x => x.ToString() == "NOT ( from.Type == CustomerType.Premium )"));
+            Assert.True(assignments[2].Conditions.Any(x => x.ToString() == "NOT ( from.Type == CustomerType.Gold )"));
+            Assert.True(assignments[2].Conditions.Any(x => x.ToString() == "amount > 0"));
 
-            Assert.True(assignments[3].Conditions.Any(x => x.ToString() == "!from.IsActive && from.AccountBalance < 0" && !x.IsNegated));
+            Assert.True(assignments[3].Conditions.Any(x => x.ToString() == "!from.IsActive && from.AccountBalance < 0"));
             Assert.True(assignments[3].Conditions.Any(x => x.ToString() == "amount < 0"));
-            Assert.True(assignments[3].Conditions.Any(x => x.ToString() == "NOT ( amount > 0 )" && x.IsNegated));
+            Assert.True(assignments[3].Conditions.Any(x => x.ToString() == "NOT ( amount > 0 )"));
 
-            Assert.True(assignments[4].Conditions.Any(x => x.ToString() == "NOT ( !from.IsActive && from.AccountBalance < 0 )" && x.IsNegated));
+            Assert.True(assignments[4].Conditions.Any(x => x.ToString() == "NOT ( !from.IsActive && from.AccountBalance < 0 )"));
             Assert.True(assignments[4].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Gold && from.AccountBalance < 0"));
-            Assert.True(assignments[4].Conditions.Any(x => x.ToString() == "amount < 0" && !x.IsNegated));
-            Assert.True(assignments[4].Conditions.Any(x => x.ToString() == "NOT ( amount > 0 )" && x.IsNegated));
+            Assert.True(assignments[4].Conditions.Any(x => x.ToString() == "amount < 0"));
+            Assert.True(assignments[4].Conditions.Any(x => x.ToString() == "NOT ( amount > 0 )"));
 
             Assert.True(assignments[5].Conditions.Any(x => x.ToString() == "!from.IsActive && from.AccountBalance > 0"));
-            Assert.True(assignments[5].Conditions.Any(x => x.ToString() == "NOT ( amount < 0 )" && x.IsNegated));
-            Assert.True(assignments[5].Conditions.Any(x => x.ToString() == "NOT ( amount > 0 )" && x.IsNegated));
+            Assert.True(assignments[5].Conditions.Any(x => x.ToString() == "NOT ( amount < 0 )"));
+            Assert.True(assignments[5].Conditions.Any(x => x.ToString() == "NOT ( amount > 0 )"));
         }
 
         [Test]
@@ -342,12 +346,17 @@ namespace Prometheus.Engine.UnitTests
             var identifier = transferServiceClass.GetMethodDescendant(nameof(TransferService.SimpleIfTransfer)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "simpleImplicitCustomer").First();
             var assignments = referenceTracker.GetAssignments(identifier);
 
-            Assert.AreEqual(1, assignments.Count);
-            var rightReferenceAssignments = referenceTracker.GetAssignments(assignments[0].RightReference.Node.DescendantTokens().First());
+            Assert.AreEqual(2, assignments.Count);
+            var nullReferenceAssignments = referenceTracker.GetAssignments(assignments[0].RightReference.Node.DescendantTokens().First());
+            var toReferenceAssignments = referenceTracker.GetAssignments(assignments[1].RightReference.Node.DescendantTokens().First());
 
-            Assert.AreEqual(2, rightReferenceAssignments[0].Conditions.Count);
-            Assert.True(rightReferenceAssignments[0].Conditions.Any(x => x.ToString() == "NOT ( !from.IsActive && from.AccountBalance == 20 AND amount < -10 )"));
-            Assert.True(rightReferenceAssignments[0].Conditions.Any(x => x.ToString() == "NOT ( from.Type == CustomerType.Gold && from.AccountBalance ==30 AND NOT ( !from.IsActive && from.AccountBalance == 20 ) AND amount < -10 )"));
+            Assert.AreEqual(2, toReferenceAssignments[0].Conditions.Count);
+            Assert.True(nullReferenceAssignments[0].Conditions.Any(x => x.ToString() == "amount < -10"));
+            Assert.True(nullReferenceAssignments[0].Conditions.Any(x => x.ToString() == "!from.IsActive && from.AccountBalance == 20"));
+
+            Assert.AreEqual(2, toReferenceAssignments[0].Conditions.Count);
+            Assert.True(toReferenceAssignments[0].Conditions.Any(x => x.ToString() == "NOT ( !from.IsActive && from.AccountBalance == 20 AND amount < -10 )"));
+            Assert.True(toReferenceAssignments[0].Conditions.Any(x => x.ToString() == "NOT ( from.Type == CustomerType.Gold && from.AccountBalance ==30 AND NOT ( !from.IsActive && from.AccountBalance == 20 ) AND amount < -10 )"));
         }
 
         [Test]
@@ -357,15 +366,23 @@ namespace Prometheus.Engine.UnitTests
             var identifier = transferServiceClass.GetMethodDescendant(nameof(TransferService.SimpleIfTransfer)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "complexImplicitCustomer").First();
             var assignments = referenceTracker.GetAssignments(identifier);
 
-            Assert.AreEqual(2, assignments.Count);
+            Assert.AreEqual(3, assignments.Count);
             var fromRightReferenceAssignments = referenceTracker.GetAssignments(assignments[0].RightReference.Node.DescendantTokens().First());
-            var toRightReferenceAssignments = referenceTracker.GetAssignments(assignments[1].RightReference.Node.DescendantTokens().First());
+            var nullRightReferenceAssignments = referenceTracker.GetAssignments(assignments[1].RightReference.Node.DescendantTokens().First());
+            var toRightReferenceAssignments = referenceTracker.GetAssignments(assignments[2].RightReference.Node.DescendantTokens().First());
 
             Assert.AreEqual(4, fromRightReferenceAssignments[0].Conditions.Count);
             Assert.True(fromRightReferenceAssignments[0].Conditions.Any(x => x.ToString() == "from.Type == CustomerType.Gold"));
             Assert.True(fromRightReferenceAssignments[0].Conditions.Any(x => x.ToString() == "NOT ( from.Type == CustomerType.Premium )"));
             Assert.True(fromRightReferenceAssignments[0].Conditions.Any(x => x.ToString() == "amount > 0"));
             Assert.True(fromRightReferenceAssignments[0].Conditions.Any(x => x.ToString() == "NOT ( from.Type == CustomerType.Premium AND amount > 0 )"));
+
+            Assert.AreEqual(5, nullRightReferenceAssignments[0].Conditions.Count);
+            Assert.True(nullRightReferenceAssignments[0].Conditions.Any(x => x.ToString() == "NOT ( from.Type == CustomerType.Premium AND amount > 0 )"));
+            Assert.True(nullRightReferenceAssignments[0].Conditions.Any(x => x.ToString() == "NOT ( from.Type == CustomerType.Gold AND NOT ( from.Type == CustomerType.Premium ) AND amount > 0 )"));
+            Assert.True(nullRightReferenceAssignments[0].Conditions.Any(x => x.ToString() == "NOT ( NOT ( from.Type == CustomerType.Gold ) AND NOT ( from.Type == CustomerType.Premium ) AND amount > 0 )"));
+            Assert.True(nullRightReferenceAssignments[0].Conditions.Any(x => x.ToString() == "!from.IsActive && from.AccountBalance == 20"));
+            Assert.True(nullRightReferenceAssignments[0].Conditions.Any(x => x.ToString() == "amount < -10"));
 
             Assert.AreEqual(5, toRightReferenceAssignments[0].Conditions.Count);
             Assert.True(toRightReferenceAssignments[0].Conditions.Any(x => x.ToString() == "NOT ( from.Type == CustomerType.Premium AND amount > 0 )"));
