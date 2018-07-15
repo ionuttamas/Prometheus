@@ -89,7 +89,7 @@ namespace TestProject.Services
         }
 
         public void If_3rdPartyCheck_Negated_ImpureReferenceCall(Customer from2, Customer to2, decimal amount) {
-            if (from2 != null && !paymentProvider.ValidatePaymentPure(from2.Name, to2.Name, amount)) {
+            if (from2 != null && !paymentProvider.ValidatePaymentImpure(from2.Name, to2.Name, amount)) {
                 Customer customer2 = from2;
             }
         }

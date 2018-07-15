@@ -307,6 +307,20 @@ namespace Prometheus.Engine.UnitTests
         }
 
         [Test]
+        public void ReachabilityProver_For_With3rdPartyCheck_Negated_Sat_Pure_And_Impure_ReferenceCallConditions_ProvesCorrectly() {
+            var project = solution.Projects.First(x => x.Name == "TestProject.Services");
+            var transferService1Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService1));
+            var transferService2Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService2));
+
+            var firstIdentifier = transferService1Class.GetMethodDescendant(nameof(TestProject.Services.TransferService1.If_3rdPartyCheck_PureReferenceCall)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer1").First();
+            var secondIdentifier = transferService2Class.GetMethodDescendant(nameof(TestProject.Services.TransferService2.If_3rdPartyCheck_Negated_ImpureReferenceCall)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer2").First();
+            var haveCommonValue = reachabilityProver.HaveCommonReference(new Reference(firstIdentifier), new Reference(secondIdentifier), out var commonValue);
+
+            Assert.True(haveCommonValue);
+            Assert.AreEqual("sharedCustomer", commonValue.ToString());
+        }
+
+        [Test]
         public void ReachabilityProver_For_With3rdPartyCheck_Sat_PureStaticAssignmentConditions_ProvesCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var transferService1Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService1));
