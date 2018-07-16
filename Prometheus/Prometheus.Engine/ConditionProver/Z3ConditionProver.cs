@@ -249,11 +249,14 @@ namespace Prometheus.Engine.ConditionProver
             bool isExternal = false;
             Reference externalReference = null;
 
-            if (typeService.IsExternal(rootType))
+            //TODO: https://github.com/ionuttamas/Prometheus/issues/25
+            var firstAssignment = getAssignmentsDelegate(rootIdentifier.Identifier).FirstOrDefault();
+
+            if (firstAssignment != null && firstAssignment.RightReference.IsExternal || typeService.IsExternal(rootType))
             {
                 isExternal = true;
                 //todo: currently we only take the first assignments of the rootIdentifier to see if is pure or not, regardless of any conditions
-                externalReference = getAssignmentsDelegate(rootIdentifier.Identifier)[0].RightReference;
+                externalReference = firstAssignment.RightReference;
             }
 
             processedMembers[memberName] = new NodeType {
@@ -499,7 +502,7 @@ namespace Prometheus.Engine.ConditionProver
                 if (memberType.IsEnum && memberExpression.ToString().StartsWith($"{memberType.Name}."))
                     continue;
 
-                if (node.Node is IdentifierNameSyntax && memberExpression is IdentifierNameSyntax) {
+                if (node.Node is IdentifierNameSyntax && memberExpression is IdentifierNameSyntax && !node.IsExternal) {
                     if (reachabilityDelegate(new Reference(node.Node), memberReference, out Reference _))
                         return node.Expression;
                 }

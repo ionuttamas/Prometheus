@@ -110,6 +110,14 @@ namespace TestProject.Services
             }
         }
 
+        public void If_3rdPartyCheck_Sat_PureMethodReferenceAssignment_DirectCheck(Customer from2, Customer to2, decimal amount) {
+            var isPaymentValid = paymentProvider.ValidatePaymentPure(from2.Name, to2.Name, amount);
+
+            if (amount > 10 && isPaymentValid) {
+                Customer customer2 = from2;
+            }
+        }
+
         public void If_3rdPartyCheck_Unsat_PureMethodReferenceAssignment_DirectCheck(Customer from2, Customer to2, decimal amount) {
             var isPaymentValid = paymentProvider.ValidatePaymentPure(from2.Name, to2.Name, amount);
 
