@@ -26,19 +26,19 @@ namespace TestProject.Services
             }
         }
 
-        public void If_3rdPartyCheck_StaticCall(Customer from2) {
+        public void If_3rdPartyCheck_StaticPureCall(Customer from2) {
             if (from2 != null && BackgroundCheckHelper.ValidateSsnPure(from2.Ssn, from2.Name)) {
                 Customer customer2 = from2;
             }
         }
 
-        public void If_3rdPartyCheck_Unsat_StaticCall(Customer from2) {
+        public void If_3rdPartyCheck_Unsat_StaticPureCall(Customer from2) {
             if (from2 != null && !BackgroundCheckHelper.ValidateSsnPure(from2.Ssn, from2.Name)) {
                 Customer customer2 = from2;
             }
         }
 
-        public void If_3rdPartyCheck_Sat_PureStaticAssignment(Customer from2) {
+        public void If_3rdPartyCheck_Sat_PureStaticAssignment_DirectCheck(Customer from2) {
             var isSsnValid = BackgroundCheckHelper.ValidateSsnPure(from2.Ssn, from2.Name);
 
             if (from2 != null && isSsnValid) {

@@ -10,5 +10,17 @@
         public static bool ValidateSsnImpure(string ssn, string name) {
             return true;
         }
+
+        public static PaymentResult StaticProcessPaymentPure(string from, string to, decimal amount) {
+            return new PaymentResult {
+                Message = "OK"
+            };
+        }
+
+        public static PaymentResult StaticProcessPaymentImpure(string from, string to, decimal amount) {
+            return new PaymentResult {
+                Message = "OK"
+            };
+        }
     }
 }

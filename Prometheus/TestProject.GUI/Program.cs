@@ -33,7 +33,7 @@ namespace TestProject.GUI {
 
             transferService1 = new TransferService1(customerRepository, customers, paymentProvider);
             transferService1.If_NullCheck(sharedCustomer);
-            transferService1.If_3rdPartyCheck_StaticCall(sharedCustomer);
+            transferService1.If_3rdPartyCheck_StaticPureCall(sharedCustomer);
             transferService1.If_3rdPartyCheck_PureStaticAssignment(sharedCustomer);
             transferService1.If_3rdPartyCheck_ImpureStaticAssignment(sharedCustomer);
             transferService1.If_3rdPartyCheck_PureMethodReferenceAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
@@ -86,12 +86,12 @@ namespace TestProject.GUI {
             registrationService.SimpleIfRegister(sharedCustomer);
 
             var transferService2 = new TransferService2(customerRepository, paymentProvider);
-            transferService2.If_3rdPartyCheck_StaticCall(sharedCustomer);
+            transferService2.If_3rdPartyCheck_StaticPureCall(sharedCustomer);
             transferService2.If_3rdPartyCheck_PureReferenceCall(sharedCustomer, sharedCustomer, 100);
             transferService2.If_3rdPartyCheck_ImpureReferenceCall(sharedCustomer, sharedCustomer, 100);
             transferService2.If_3rdPartyCheck_Negated_ImpureReferenceCall(sharedCustomer, sharedCustomer, 100);
-            transferService2.If_3rdPartyCheck_Unsat_StaticCall(sharedCustomer);
-            transferService2.If_3rdPartyCheck_Sat_PureStaticAssignment(sharedCustomer);
+            transferService2.If_3rdPartyCheck_Unsat_StaticPureCall(sharedCustomer);
+            transferService2.If_3rdPartyCheck_Sat_PureStaticAssignment_DirectCheck(sharedCustomer);
             transferService2.If_3rdPartyCheck_ImpureStaticAssignment(sharedCustomer);
             transferService2.If_3rdPartyCheck_Negated_ImpureStaticAssignment(sharedCustomer);
             transferService2.If_3rdPartyCheck_Unsat_StaticAssignment(sharedCustomer);

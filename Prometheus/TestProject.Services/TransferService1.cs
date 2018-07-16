@@ -24,7 +24,7 @@ namespace TestProject.Services
             }
         }
 
-        public void If_3rdPartyCheck_StaticCall(Customer from1) {
+        public void If_3rdPartyCheck_StaticPureCall(Customer from1) {
             if (from1 != null && BackgroundCheckHelper.ValidateSsnPure(from1.Ssn, from1.Name)) {
                 Customer customer1 = from1;
             }
