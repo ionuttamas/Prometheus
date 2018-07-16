@@ -59,7 +59,7 @@ namespace TestProject.Services
             }
         }
 
-        public void If_3rdPartyCheck_PureMethodReferenceAssignment(Customer from1, Customer to1, decimal amount)
+        public void If_3rdPartyCheck_PureMethodReferenceAssignment_MemberCheck(Customer from1, Customer to1, decimal amount)
         {
             var result = paymentProvider.ProcessPaymentPure(from1.Name, to1.Name, amount);
 
@@ -68,7 +68,15 @@ namespace TestProject.Services
             }
         }
 
-        public void If_3rdPartyCheck_ImpureMethodReferenceAssignment(Customer from1, Customer to1, decimal amount) {
+        public void If_3rdPartyCheck_PureMethodReferenceAssignment_DirectCheck(Customer from1, Customer to1, decimal amount) {
+            var isPaymentValid = paymentProvider.ValidatePaymentPure(from1.Name, to1.Name, amount);
+
+            if (amount > 0 && isPaymentValid) {
+                Customer customer1 = from1;
+            }
+        }
+
+        public void If_3rdPartyCheck_ImpureMethodReferenceAssignment_MemberCheck(Customer from1, Customer to1, decimal amount) {
             var result = paymentProvider.ProcessPaymentImpure(from1.Name, to1.Name, amount);
 
             if (amount > 0 && result.IsSuccessful) {
@@ -76,7 +84,13 @@ namespace TestProject.Services
             }
         }
 
+        public void If_3rdPartyCheck_ImpureMethodReferenceAssignment_DirectCheck(Customer from1, Customer to1, decimal amount) {
+            var isPaymentValid = paymentProvider.ValidatePaymentImpure(from1.Name, to1.Name, amount);
 
+            if (amount > 0 && isPaymentValid) {
+                Customer customer1 = from1;
+            }
+        }
 
         public void MethodAssignment_IfTransfer(Customer from1, Customer to1, decimal amount) {
             var customer = _customerRepository.Compute(from1.Age, to1.Age);

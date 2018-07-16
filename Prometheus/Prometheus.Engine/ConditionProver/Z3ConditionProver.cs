@@ -361,8 +361,8 @@ namespace Prometheus.Engine.ConditionProver
             var innerExpression = prefixUnaryExpression.Operand;
             var innerExpressionKind = innerExpression.Kind();
 
-            if (innerExpressionKind == SyntaxKind.SimpleMemberAccessExpression) {
-                var parsedExpression = ParseExpression(innerExpression, cachedMembers);
+            if (innerExpressionKind == SyntaxKind.SimpleMemberAccessExpression || innerExpressionKind == SyntaxKind.IdentifierName) {
+                var parsedExpression = ParseExpressionMember(innerExpression, cachedMembers).As<BoolExpr>();
                 return context.MkNot(parsedExpression);
             }
 

@@ -284,9 +284,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 var invocationExpression = argument.As<InvocationExpressionSyntax>();
 
                 if (invocationExpression.Expression is MemberAccessExpressionSyntax)
-                {
                     return ProcessNonLocalMethodCallAssignments(bindingNode, invocationExpression);
-                }
 
                 if(invocationExpression.Expression is IdentifierNameSyntax)
                     return ProcessLocalMethodCallAssignments(bindingNode, invocationExpression);
@@ -338,20 +336,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
 
             if (typeService.IsExternal(type))
             {
-                var rightReference = new Reference(invocationExpression)
-                {
-                    IsExternal = true,
-                    IsPure = typeService.IsPureMethod(invocationExpression, out var _)
-                };
-
-                var conditionalAssignment = new ConditionalAssignment
-                {
-                    LeftReference = new Reference(bindingNode),
-                    RightReference = rightReference,
-                    Conditions = ExtractConditions(bindingNode)
-                };
-
-                return new List<ConditionalAssignment>{conditionalAssignment};
+                return ProcessExternalConditionalMethodAssignments(bindingNode, invocationExpression);
             }
 
             return isStatic ?
@@ -410,6 +395,11 @@ namespace Prometheus.Engine.Reachability.Tracker {
         private List<ConditionalAssignment> ProcessStaticMethodCallAssignments(SyntaxNode bindingNode, InvocationExpressionSyntax invocationExpression) {
             var memberAccess = invocationExpression.Expression.As<MemberAccessExpressionSyntax>();
             var className = memberAccess.Expression.As<IdentifierNameSyntax>().Identifier.Text;
+            var type = typeService.GetType(memberAccess);
+
+            if (typeService.IsExternal(type))
+                return ProcessExternalConditionalMethodAssignments(bindingNode, invocationExpression);
+
             var methodName = memberAccess.Name.Identifier.Text;
             var conditions = ExtractConditions(invocationExpression);
             var classDeclaration = typeService.GetClassDeclaration(className);
@@ -459,6 +449,10 @@ namespace Prometheus.Engine.Reachability.Tracker {
             var memberAccess = invocationExpression.Expression.As<MemberAccessExpressionSyntax>();
             var instanceExpression = memberAccess.Expression.As<IdentifierNameSyntax>();
             var methodName = memberAccess.Name.Identifier.Text;
+            var type = typeService.GetType(instanceExpression);
+
+            if (typeService.IsExternal(type))
+                return ProcessExternalConditionalMethodAssignments(bindingNode, invocationExpression);
 
             if (referenceParser.IsBuiltInMethod(methodName))
                 return ProcessLinqMethodAssignments(bindingNode, invocationExpression, instanceExpression);
@@ -543,6 +537,21 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 .ToList();
 
             return returnExpressions;
+        }
+
+        private List<ConditionalAssignment> ProcessExternalConditionalMethodAssignments(SyntaxNode bindingNode, InvocationExpressionSyntax invocationExpression) {
+            var rightReference = new Reference(invocationExpression) {
+                IsExternal = true,
+                IsPure = typeService.IsPureMethod(invocationExpression, out var _)
+            };
+
+            var conditionalAssignment = new ConditionalAssignment {
+                LeftReference = new Reference(bindingNode),
+                RightReference = rightReference,
+                Conditions = ExtractConditions(bindingNode)
+            };
+
+            return new List<ConditionalAssignment> { conditionalAssignment };
         }
 
         private HashSet<Condition> ExtractConditions(SyntaxNode node)

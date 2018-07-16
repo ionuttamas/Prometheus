@@ -632,6 +632,7 @@ namespace Prometheus.Engine.Types
             //TODO we only process one level calls like "ClassName.StaticMethod()" not nested calls like "ClassName.[StaticMethod()]...Method()"
             var memberExpression = (MemberAccessExpressionSyntax)invocationExpression.Expression;
             var classType= solutionTypes.FirstOrDefault(x => x.Name == memberExpression.Expression.ToString());
+            classType = classType ?? externalTypes.FirstOrDefault(x => x.Name == memberExpression.Expression.ToString());
 
             if (classType == null)
             {

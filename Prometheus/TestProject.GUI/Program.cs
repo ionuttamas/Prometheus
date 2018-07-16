@@ -36,8 +36,8 @@ namespace TestProject.GUI {
             transferService1.If_3rdPartyCheck_StaticCall(sharedCustomer);
             transferService1.If_3rdPartyCheck_PureStaticAssignment(sharedCustomer);
             transferService1.If_3rdPartyCheck_ImpureStaticAssignment(sharedCustomer);
-            transferService1.If_3rdPartyCheck_PureMethodReferenceAssignment(sharedCustomer, sharedCustomer, 100);
-            transferService1.If_3rdPartyCheck_ImpureMethodReferenceAssignment(sharedCustomer, sharedCustomer, 100);
+            transferService1.If_3rdPartyCheck_PureMethodReferenceAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
+            transferService1.If_3rdPartyCheck_ImpureMethodReferenceAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
             transferService1.If_3rdPartyCheck_PureReferenceCall(sharedCustomer, sharedCustomer, 100);
             transferService1.If_3rdPartyCheck_ImpureReferenceCall(sharedCustomer, sharedCustomer, 100);
             transferService1.MethodAssignment_IfTransfer(sharedCustomer, sharedCustomer, 100);
@@ -94,10 +94,10 @@ namespace TestProject.GUI {
             transferService2.If_3rdPartyCheck_Negated_ImpureStaticAssignment(sharedCustomer);
             transferService2.If_3rdPartyCheck_Unsat_StaticAssignment(sharedCustomer);
             transferService2.If_3rdPartyCheck_Unsat_PureReferenceCall(sharedCustomer, sharedCustomer, 100);
-            transferService2.If_3rdPartyCheck_PureMethodReferenceAssignment(sharedCustomer, sharedCustomer, 100);
-            transferService2.If_3rdPartyCheck_Unsat_PureMethodReferenceAssignment(sharedCustomer, sharedCustomer, 100);
-            transferService2.If_3rdPartyCheck_ImpureMethodReferenceAssignment(sharedCustomer, sharedCustomer, 100);
-            transferService2.If_3rdPartyCheck_Negated_Sat_ImpureMethodReferenceAssignment(sharedCustomer, sharedCustomer, 100);
+            transferService2.If_3rdPartyCheck_PureMethodReferenceAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
+            transferService2.If_3rdPartyCheck_Unsat_PureMethodReferenceAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
+            transferService2.If_3rdPartyCheck_ImpureMethodReferenceAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
+            transferService2.If_3rdPartyCheck_Negated_Sat_ImpureMethodReferenceAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
             transferService2.MethodAssignment_SimpleAssign(customers[0]);
             transferService2.If_NullCheck_Satisfiable(sharedCustomer);
             transferService2.If_NullCheck_Unsatisfiable(sharedCustomer, sharedCustomer);
