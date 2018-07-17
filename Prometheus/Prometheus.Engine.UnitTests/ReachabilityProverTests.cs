@@ -225,6 +225,7 @@ namespace Prometheus.Engine.UnitTests
             Assert.AreEqual("100", commonValue.ToString());
         }
 
+        #region Pure Static Call
         [Test]
         public void ReachabilityProver_For_With3rdPartyCheck_Sat_PureStaticCallConditions_ProvesCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
@@ -251,6 +252,9 @@ namespace Prometheus.Engine.UnitTests
 
             Assert.False(haveCommonValue);
         }
+        #endregion
+
+        #region Pure Reference Call
 
         [Test]
         public void ReachabilityProver_For_With3rdPartyCheck_Sat_PureReferenceCallConditions_ProvesCorrectly() {
@@ -279,6 +283,10 @@ namespace Prometheus.Engine.UnitTests
             Assert.False(haveCommonValue);
         }
 
+        #endregion
+
+        #region Impure Reference Call
+
         [Test]
         public void ReachabilityProver_For_With3rdPartyCheck_Sat_ImpureReferenceCallConditions_ProvesCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
@@ -306,6 +314,8 @@ namespace Prometheus.Engine.UnitTests
             Assert.True(haveCommonValue);
             Assert.AreEqual("sharedCustomer", commonValue.ToString());
         }
+
+        #endregion
 
         [Test]
         public void ReachabilityProver_For_With3rdPartyCheck_Negated_Sat_Pure_And_Impure_ReferenceCallConditions_ProvesCorrectly() {
@@ -350,15 +360,14 @@ namespace Prometheus.Engine.UnitTests
             Assert.False(haveCommonValue);
         }
 
-        //TODO
         [Test]
         public void ReachabilityProver_For_With3rdPartyCheck_Sat_PureStaticAssignment_MemberCheckConditions_ProvesCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var transferService1Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService1));
             var transferService2Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService2));
 
-            var firstIdentifier = transferService1Class.GetMethodDescendant(nameof(TestProject.Services.TransferService1.If_3rdPartyCheck_PureMethodReferenceAssignment_MemberCheck)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer1").First();
-            var secondIdentifier = transferService2Class.GetMethodDescendant(nameof(TestProject.Services.TransferService2.If_3rdPartyCheck_PureMethodReferenceAssignment_MemberCheck)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer2").First();
+            var firstIdentifier = transferService1Class.GetMethodDescendant(nameof(TestProject.Services.TransferService1.If_3rdPartyCheck_PureMethodStaticAssignment_MemberCheck)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer1").First();
+            var secondIdentifier = transferService2Class.GetMethodDescendant(nameof(TestProject.Services.TransferService2.If_3rdPartyCheck_Sat_PureMethodStaticAssignment_MemberCheck)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer2").First();
             var haveCommonValue = reachabilityProver.HaveCommonReference(new Reference(firstIdentifier), new Reference(secondIdentifier), out var commonValue);
 
             Assert.True(haveCommonValue);
@@ -371,8 +380,8 @@ namespace Prometheus.Engine.UnitTests
             var transferService1Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService1));
             var transferService2Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService2));
 
-            var firstIdentifier = transferService1Class.GetMethodDescendant(nameof(TestProject.Services.TransferService1.If_3rdPartyCheck_PureMethodReferenceAssignment_MemberCheck)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer1").First();
-            var secondIdentifier = transferService2Class.GetMethodDescendant(nameof(TestProject.Services.TransferService2.If_3rdPartyCheck_Unsat_PureMethodReferenceAssignment_MemberCheck)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer2").First();
+            var firstIdentifier = transferService1Class.GetMethodDescendant(nameof(TestProject.Services.TransferService1.If_3rdPartyCheck_PureMethodStaticAssignment_MemberCheck)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer1").First();
+            var secondIdentifier = transferService2Class.GetMethodDescendant(nameof(TestProject.Services.TransferService2.If_3rdPartyCheck_Unsat_PureMethodStaticAssignment_MemberCheck)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer2").First();
             var haveCommonValue = reachabilityProver.HaveCommonReference(new Reference(firstIdentifier), new Reference(secondIdentifier), out var _);
 
             Assert.False(haveCommonValue);
@@ -404,20 +413,20 @@ namespace Prometheus.Engine.UnitTests
 
             var firstIdentifier = transferService1Class.GetMethodDescendant(nameof(TestProject.Services.TransferService1.If_3rdPartyCheck_ImpureStaticAssignment)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer1").First();
             var secondIdentifier = transferService2Class.GetMethodDescendant(nameof(TestProject.Services.TransferService2.If_3rdPartyCheck_Negated_ImpureStaticAssignment)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer2").First();
-            var haveCommonValue = reachabilityProver.HaveCommonReference(new Reference(firstIdentifier), new Reference(secondIdentifier), out var _);
+            var haveCommonValue = reachabilityProver.HaveCommonReference(new Reference(firstIdentifier), new Reference(secondIdentifier), out var commonValue);
 
-            Assert.False(haveCommonValue);
+            Assert.True(haveCommonValue);
+            Assert.AreEqual("sharedCustomer", commonValue.ToString());
         }
 
-        //TODO
         [Test]
         public void ReachabilityProver_For_With3rdPartyCheck_Sat_ImpureStaticAssignment_MemberCheckConditions_ProvesCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var transferService1Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService1));
             var transferService2Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService2));
 
-            var firstIdentifier = transferService1Class.GetMethodDescendant(nameof(TestProject.Services.TransferService1.If_3rdPartyCheck_ImpureMethodReferenceAssignment_MemberCheck)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer1").First();
-            var secondIdentifier = transferService2Class.GetMethodDescendant(nameof(TestProject.Services.TransferService2.If_3rdPartyCheck_ImpureMethodReferenceAssignment_MemberCheck)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer2").First();
+            var firstIdentifier = transferService1Class.GetMethodDescendant(nameof(TestProject.Services.TransferService1.If_3rdPartyCheck_ImpureMethodStaticAssignment_MemberCheck)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer1").First();
+            var secondIdentifier = transferService2Class.GetMethodDescendant(nameof(TestProject.Services.TransferService2.If_3rdPartyCheck_ImpureMethodStaticAssignment_MemberCheck)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer2").First();
             var haveCommonValue = reachabilityProver.HaveCommonReference(new Reference(firstIdentifier), new Reference(secondIdentifier), out var commonValue);
 
             Assert.True(haveCommonValue);
@@ -430,12 +439,14 @@ namespace Prometheus.Engine.UnitTests
             var transferService1Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService1));
             var transferService2Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService2));
 
-            var firstIdentifier = transferService1Class.GetMethodDescendant(nameof(TestProject.Services.TransferService1.If_3rdPartyCheck_ImpureMethodReferenceAssignment_MemberCheck)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer1").First();
-            var secondIdentifier = transferService2Class.GetMethodDescendant(nameof(TestProject.Services.TransferService2.If_3rdPartyCheck_Negated_Sat_ImpureMethodReferenceAssignment_MemberCheck)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer2").First();
-            var haveCommonValue = reachabilityProver.HaveCommonReference(new Reference(firstIdentifier), new Reference(secondIdentifier), out var _);
+            var firstIdentifier = transferService1Class.GetMethodDescendant(nameof(TestProject.Services.TransferService1.If_3rdPartyCheck_ImpureMethodStaticAssignment_MemberCheck)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer1").First();
+            var secondIdentifier = transferService2Class.GetMethodDescendant(nameof(TestProject.Services.TransferService2.If_3rdPartyCheck_Negated_Sat_ImpureMethodStaticAssignment_MemberCheck)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer2").First();
+            var haveCommonValue = reachabilityProver.HaveCommonReference(new Reference(firstIdentifier), new Reference(secondIdentifier), out var commonValue);
 
-            Assert.False(haveCommonValue);
+            Assert.True(haveCommonValue);
+            Assert.AreEqual("sharedCustomer", commonValue.ToString());
         }
+
         #endregion
 
         #region Pure Reference Assignment

@@ -102,6 +102,22 @@ namespace TestProject.Services
             }
         }
 
+        public void If_3rdPartyCheck_Sat_PureMethodStaticAssignment_MemberCheck(Customer from2, Customer to2, decimal amount) {
+            var result = BackgroundCheckHelper.StaticProcessPaymentPure(from2.Name, to2.Name, amount);
+
+            if (amount > 0 && result.IsSuccessful) {
+                Customer customer2 = from2;
+            }
+        }
+
+        public void If_3rdPartyCheck_Unsat_PureMethodStaticAssignment_MemberCheck(Customer from2, Customer to2, decimal amount) {
+            var result = BackgroundCheckHelper.StaticProcessPaymentPure(from2.Name, to2.Name, amount);
+
+            if (amount > 0 && !result.IsSuccessful) {
+                Customer customer2 = from2;
+            }
+        }
+
         public void If_3rdPartyCheck_Unsat_PureMethodReferenceAssignment_MemberCheck(Customer from2, Customer to2, decimal amount) {
             var result = paymentProvider.ProcessPaymentPure(from2.Name, to2.Name, amount);
 
@@ -127,9 +143,25 @@ namespace TestProject.Services
         }
 
         public void If_3rdPartyCheck_ImpureMethodReferenceAssignment_MemberCheck(Customer from2, Customer to2, decimal amount) {
-            var isPaymentValid = paymentProvider.ValidatePaymentImpure(from2.Name, to2.Name, amount);
+            var result = paymentProvider.ProcessPaymentImpure(from2.Name, to2.Name, amount);
 
-            if (amount > 0 && isPaymentValid) {
+            if (amount > 0 && result.IsSuccessful) {
+                Customer customer2 = from2;
+            }
+        }
+
+        public void If_3rdPartyCheck_ImpureMethodStaticAssignment_MemberCheck(Customer from2, Customer to2, decimal amount) {
+            var result = BackgroundCheckHelper.StaticProcessPaymentImpure(from2.Name, to2.Name, amount);
+
+            if (amount > 0 && result.IsSuccessful) {
+                Customer customer2 = from2;
+            }
+        }
+
+        public void If_3rdPartyCheck_Negated_Sat_ImpureMethodStaticAssignment_MemberCheck(Customer from2, Customer to2, decimal amount) {
+            var result = BackgroundCheckHelper.StaticProcessPaymentImpure(from2.Name, to2.Name, amount);
+
+            if (amount > 0 && !result.IsSuccessful) {
                 Customer customer2 = from2;
             }
         }

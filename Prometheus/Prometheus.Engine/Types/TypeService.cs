@@ -23,11 +23,13 @@ namespace Prometheus.Engine.Types
         private readonly Dictionary<TypeInfo, List<TypeInfo>> interfaceImplementations;
         private readonly List<ClassDeclarationSyntax> classDeclarations;
         private readonly Dictionary<string, Type> primitiveTypes;
+        private readonly Dictionary<string, Type> coreTypes;
         private readonly Dictionary<Type, EnumSort> enumSorts;
         private readonly Dictionary<Type, Sort> typeSorts;
         private readonly TypeCache typeCache;
         private readonly Context context;
         private const string VAR_TOKEN = "var";
+        private readonly Regex genericRegex = new Regex(@"(.*)<(.*)>");
 
         public TypeService(Solution solution, Context context, IPolymorphicResolver polymorphicService, ModelStateConfiguration modelConfig, params string[] projects)
         {
@@ -51,6 +53,7 @@ namespace Prometheus.Engine.Types
             externalTypes = externalAssemblies
                 .SelectMany(x => x.DefinedTypes)
                 .ToList();
+            coreTypes = typeof(int).Assembly.DefinedTypes.DistinctBy(x=>x.Name).ToDictionary(x => x.Name, x => x.AsType());
             typeSorts = new Dictionary<Type, Sort>();
             enumSorts = solutionTypes
                 .Where(x => x.IsEnum)
@@ -133,13 +136,17 @@ namespace Prometheus.Engine.Types
         public bool TryGetType(string typeName, out Type type) {
             //todo: there can be multiple classes with the same name
 
+            if (genericRegex.IsMatch(typeName))
+                return TryGetGenericType(typeName, out type);
+
             type = solutionTypes.FirstOrDefault(x => x.Name == typeName);
 
             if (type == null)
             {
-                type = primitiveTypes.ContainsKey(typeName) ?
-                    primitiveTypes[typeName] :
-                    externalTypes.FirstOrDefault(x => x.Name == typeName);
+                type = (primitiveTypes.ContainsKey(typeName) ?
+                           primitiveTypes[typeName] :
+                           externalTypes.FirstOrDefault(x => x.Name == typeName)) ??
+                           (coreTypes.ContainsKey(typeName) ? coreTypes[typeName] : null);
             }
 
             if (type == null)
@@ -407,6 +414,12 @@ namespace Prometheus.Engine.Types
             if (!enumType.IsNull())
                 return enumType.Key;
 
+            var classType = solutionTypes.FirstOrDefault(x => x.Name == token);
+            classType = classType ?? externalTypes.FirstOrDefault(x => x.Name == token);
+
+            if (classType != null)
+                return classType;
+
             string typeName = GetTypeName(method, token, out var type);
 
             if (type == null && !TryGetType(typeName, out type))
@@ -425,6 +438,25 @@ namespace Prometheus.Engine.Types
                 polymorphicService.GetImplementatedType(method, token);
 
             return implementationType;
+        }
+
+        private bool TryGetGenericType(string typeName, out Type type)
+        {
+            //TODO: currently handles only one parameter generic types
+            type = null;
+            var match = genericRegex.Match(typeName);
+            string containerTypeName = $"{match.Groups[1].Value}`1";
+            string parameterTypeName = match.Groups[2].Value;
+
+            if(!TryGetType(containerTypeName, out var containerType))
+                throw new ArgumentException($"{containerTypeName} was not found as a generic type");
+
+            if (!TryGetType(parameterTypeName, out var parameterType))
+                throw new ArgumentException($"{parameterTypeName} was not found as a generic type");
+
+            type = containerType.MakeGenericType(parameterType);
+
+            return true;
         }
 
         #region Type name extraction

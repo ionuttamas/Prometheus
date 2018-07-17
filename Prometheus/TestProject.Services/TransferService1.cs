@@ -68,6 +68,14 @@ namespace TestProject.Services
             }
         }
 
+        public void If_3rdPartyCheck_PureMethodStaticAssignment_MemberCheck(Customer from1, Customer to1, decimal amount) {
+            var result = BackgroundCheckHelper.StaticProcessPaymentPure(from1.Name, to1.Name, amount);
+
+            if (amount > 0 && result.IsSuccessful) {
+                Customer customer1 = from1;
+            }
+        }
+
         public void If_3rdPartyCheck_PureMethodReferenceAssignment_DirectCheck(Customer from1, Customer to1, decimal amount) {
             var isPaymentValid = paymentProvider.ValidatePaymentPure(from1.Name, to1.Name, amount);
 
@@ -78,6 +86,14 @@ namespace TestProject.Services
 
         public void If_3rdPartyCheck_ImpureMethodReferenceAssignment_MemberCheck(Customer from1, Customer to1, decimal amount) {
             var result = paymentProvider.ProcessPaymentImpure(from1.Name, to1.Name, amount);
+
+            if (amount > 0 && result.IsSuccessful) {
+                Customer customer1 = from1;
+            }
+        }
+
+        public void If_3rdPartyCheck_ImpureMethodStaticAssignment_MemberCheck(Customer from1, Customer to1, decimal amount) {
+            var result = BackgroundCheckHelper.StaticProcessPaymentImpure(from1.Name, to1.Name, amount);
 
             if (amount > 0 && result.IsSuccessful) {
                 Customer customer1 = from1;
@@ -111,8 +127,8 @@ namespace TestProject.Services
             {
                 from1 = to1;
             }
-            var selfReferentialCustomer1 = from1;
 
+            var selfReferentialCustomer1 = from1;
             Customer firstIndexedCustomer = _customerRepository.GetFirstIndexed();
             Customer keyIndexedCustomer = _customerRepository.GetKeyIndexed();
             Customer firstCustomer = _customerRepository.GetFirst(from1.AccountBalance);
