@@ -36,6 +36,7 @@ namespace TestProject.GUI {
             transferService1.If_3rdPartyCheck_StaticPureCall(sharedCustomer);
             transferService1.If_3rdPartyCheck_PureStaticAssignment(sharedCustomer);
             transferService1.If_3rdPartyCheck_ImpureStaticAssignment(sharedCustomer);
+            transferService1.If_3rdPartyCheck_ImpureMethodStaticAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
             transferService1.If_3rdPartyCheck_PureMethodReferenceAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
             transferService1.If_3rdPartyCheck_PureMethodStaticAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
             transferService1.If_3rdPartyCheck_ImpureMethodReferenceAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
@@ -104,6 +105,8 @@ namespace TestProject.GUI {
             transferService2.If_3rdPartyCheck_ImpureMethodReferenceAssignment_DirectCheck(sharedCustomer, sharedCustomer, 100);
             transferService2.If_3rdPartyCheck_Unsat_PureMethodReferenceAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
             transferService2.If_3rdPartyCheck_ImpureMethodReferenceAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
+            transferService2.If_3rdPartyCheck_Negated_Sat_ImpureMethodStaticAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
+            transferService2.If_3rdPartyCheck_ImpureMethodStaticAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
             transferService2.If_3rdPartyCheck_Negated_Sat_ImpureMethodReferenceAssignment_DirectCheck(sharedCustomer, sharedCustomer, 100);
             transferService2.If_3rdPartyCheck_Negated_Sat_ImpureMethodReferenceAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
             transferService2.MethodAssignment_SimpleAssign(customers[0]);

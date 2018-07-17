@@ -365,6 +365,13 @@ namespace Prometheus.Engine.Types
         private List<Type> GetExpressionTypes(MemberAccessExpressionSyntax memberExpression) {
             Queue<string> memberTokens = new Queue<string>(memberExpression.ToString().Split('.'));
             string rootToken = memberTokens.First();
+
+            var classType = solutionTypes.FirstOrDefault(x => x.Name == rootToken);
+            classType = classType ?? externalTypes.FirstOrDefault(x => x.Name == rootToken);
+
+            if (classType != null)
+                return new List<Type> {classType};
+
             var rootType = GetImplementedType(memberExpression.GetContainingMethod(), rootToken);
             var expressionTypes = GetExpressionTypes(rootType, memberExpression);
 
@@ -413,12 +420,6 @@ namespace Prometheus.Engine.Types
 
             if (!enumType.IsNull())
                 return enumType.Key;
-
-            var classType = solutionTypes.FirstOrDefault(x => x.Name == token);
-            classType = classType ?? externalTypes.FirstOrDefault(x => x.Name == token);
-
-            if (classType != null)
-                return classType;
 
             string typeName = GetTypeName(method, token, out var type);
 
