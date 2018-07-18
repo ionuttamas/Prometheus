@@ -101,9 +101,9 @@ namespace TestProject.Services
         }
 
         public void If_3rdPartyCheck_ImpureMethodReferenceAssignment_DirectCheck(Customer from1, Customer to1, decimal amount) {
-            var isPaymentValidX = paymentProvider.ValidatePaymentImpure(from1.Name, to1.Name, amount);
+            var isPaymentValid = paymentProvider.ValidatePaymentImpure(from1.Name, to1.Name, amount);
 
-            if (amount > 0 && isPaymentValidX) {
+            if (amount > 0 && isPaymentValid) {
                 Customer customer1 = from1;
             }
         }

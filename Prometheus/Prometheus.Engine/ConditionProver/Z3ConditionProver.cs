@@ -238,10 +238,11 @@ namespace Prometheus.Engine.ConditionProver
 
         private Expr ParseVariableExpression(ExpressionSyntax memberExpression, Type type, Dictionary<string, NodeType> processedMembers) {
             string memberName = memberExpression.ToString();
+            string uniqueMemberName = $"{memberName}{memberExpression.GetLocation().SourceSpan}";
             Sort sort = typeService.GetSort(type);
             Expr constExpr = type.IsEnum && memberName.StartsWith($"{type.Name}.")?
                 sort.As<EnumSort>().Consts.First(x => x.FuncDecl.Name.ToString() == memberExpression.As<MemberAccessExpressionSyntax>().Name.ToString()):
-                context.MkConst(memberName, sort);
+                context.MkConst(uniqueMemberName, sort);
             var rootIdentifier = memberExpression is MemberAccessExpressionSyntax
                 ? memberExpression.As<MemberAccessExpressionSyntax>().GetRootIdentifier()
                 : memberExpression.As<IdentifierNameSyntax>();
@@ -489,6 +490,7 @@ namespace Prometheus.Engine.ConditionProver
             var memberType = typeService.GetType(memberExpression);
             var memberReference = new Reference(memberExpression);
             string memberName = memberExpression.ToString();
+            string uniqueMemberName = $"{memberName}{memberExpression.GetLocation().SourceSpan}";
 
             foreach (NodeType node in cachedMembers.Values.Where(x => x.Type == memberType)) {
                 if (node.IsExternal && node.ExternalReference.IsPure)
@@ -524,7 +526,7 @@ namespace Prometheus.Engine.ConditionProver
             Sort sort = typeService.GetSort(memberType);
             Expr constExpr = memberType.IsEnum && memberName.StartsWith($"{memberType.Name}.") ?
                 sort.As<EnumSort>().Consts.First(x => x.FuncDecl.Name.ToString() == memberExpression.As<MemberAccessExpressionSyntax>().Name.ToString()):
-                context.MkConst(memberName, sort);
+                context.MkConst(uniqueMemberName, sort);
 
             return constExpr;
         }
