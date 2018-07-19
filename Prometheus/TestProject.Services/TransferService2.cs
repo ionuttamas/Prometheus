@@ -32,9 +32,27 @@ namespace TestProject.Services
             }
         }
 
+        public void If_3rdPartyCheck_StaticImpureCall(Customer from2) {
+            if (from2 != null && BackgroundCheckHelper.ValidateSsnImpure(from2.Ssn, from2.Name)) {
+                Customer customer2 = from2;
+            }
+        }
+
+        public void If_3rdPartyCheck_Negated_Sat_StaticImpureCall(Customer from2) {
+            if (from2 != null && !BackgroundCheckHelper.ValidateSsnImpure(from2.Ssn, from2.Name)) {
+                Customer customer2 = from2;
+            }
+        }
+
         public void If_3rdPartyCheck_Unsat_StaticPureCall(Customer from2) {
             if (from2 != null && !BackgroundCheckHelper.ValidateSsnPure(from2.Ssn, from2.Name)) {
                 Customer customer2 = from2;
+            }
+        }
+
+        public void If_3rdPartyCheck_Negated_Sat_StaticPureCall_DifferentArgs(Customer from2, Customer to2) {
+            if (from2 != null && !BackgroundCheckHelper.ValidateSsnPure(from2.Ssn, from2.Name)) {
+                Customer customer2 = to2;
             }
         }
 
@@ -46,7 +64,7 @@ namespace TestProject.Services
             }
         }
 
-        public void If_3rdPartyCheck_ImpureStaticAssignment(Customer from1) {
+        public void If_3rdPartyCheck_ImpureStaticAssignment_DirectCheck(Customer from1) {
             var isSsnValid = BackgroundCheckHelper.ValidateSsnImpure(from1.Ssn, from1.Name);
 
             if (from1 != null && isSsnValid) {
@@ -62,7 +80,7 @@ namespace TestProject.Services
             }
         }
 
-        public void If_3rdPartyCheck_Unsat_StaticAssignment(Customer from2) {
+        public void If_3rdPartyCheck_Unsat_StaticAssignment_DirectCheck(Customer from2) {
             var isSsnValid = BackgroundCheckHelper.ValidateSsnPure(from2.Ssn, from2.Name);
 
             if (from2 != null && !isSsnValid) {
@@ -98,6 +116,14 @@ namespace TestProject.Services
             var result = paymentProvider.ProcessPaymentPure(from2.Name, to2.Name, amount);
 
             if (amount > 0 && result.IsSuccessful) {
+                Customer customer2 = from2;
+            }
+        }
+
+        public void If_3rdPartyCheck_Sat_Negated_PureMethodReferenceAssignment_DifferentArgs_MemberCheck(Customer from2, Customer to2, decimal amount) {
+            var result = paymentProvider.ProcessPaymentPure(from2.Name, to2.Name, amount);
+
+            if (amount > 0 && !result.IsSuccessful) {
                 Customer customer2 = from2;
             }
         }

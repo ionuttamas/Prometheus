@@ -20,6 +20,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
         private readonly IReferenceParser referenceParser;
         private HaveCommonReference reachabilityDelegate;
         private readonly ConditionCache conditionCache;
+        private const string NULL_MARKER = "null";
 
         public ReferenceTracker(Solution solution,
                                 ThreadSchedule threadSchedule,
@@ -90,7 +91,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 return constructorAssigments;
             }
 
-            if (identifier.Text == "null")
+            if (identifier.Text == NULL_MARKER)
             {
                 var reference = new Reference(identifier.Parent);
 

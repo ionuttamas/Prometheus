@@ -24,21 +24,6 @@ namespace TestProject.Services
             }
         }
 
-        public void If_3rdPartyCheck_StaticPureCall(Customer from1) {
-            if (from1 != null && BackgroundCheckHelper.ValidateSsnPure(from1.Ssn, from1.Name)) {
-                Customer customer1 = from1;
-            }
-        }
-
-        public void If_3rdPartyCheck_PureStaticAssignment(Customer from1)
-        {
-            var isSsnValid = BackgroundCheckHelper.ValidateSsnPure(from1.Ssn, from1.Name);
-
-            if (from1 != null && isSsnValid) {
-                Customer customer1 = from1;
-            }
-        }
-
         public void If_3rdPartyCheck_ImpureStaticAssignment(Customer from1) {
             var isSsnValid = BackgroundCheckHelper.ValidateSsnImpure(from1.Ssn, from1.Name);
 
@@ -47,14 +32,26 @@ namespace TestProject.Services
             }
         }
 
-        public void If_3rdPartyCheck_PureReferenceCall(Customer from1, Customer to1, decimal amount) {
-            if (from1 != null && paymentProvider.ValidatePaymentPure(from1.Name, to1.Name, amount)) {
+        public void If_3rdPartyCheck_ImpureReferenceCall(Customer from1, Customer to1, decimal amount) {
+            if (from1 != null && paymentProvider.ValidatePaymentImpure(from1.Name, from1.Name, amount)) {
                 Customer customer1 = from1;
             }
         }
 
-        public void If_3rdPartyCheck_ImpureReferenceCall(Customer from1, Customer to1, decimal amount) {
-            if (from1 != null && paymentProvider.ValidatePaymentImpure(from1.Name, from1.Name, amount)) {
+        public void If_3rdPartyCheck_StaticImpureCall(Customer from1) {
+            if (from1 != null && BackgroundCheckHelper.ValidateSsnImpure(from1.Ssn, from1.Name)) {
+                Customer customer1 = from1;
+            }
+        }
+
+        public void If_3rdPartyCheck_StaticPureCall(Customer from1) {
+            if (from1 != null && BackgroundCheckHelper.ValidateSsnPure(from1.Ssn, from1.Name)) {
+                Customer customer1 = from1;
+            }
+        }
+
+        public void If_3rdPartyCheck_PureReferenceCall(Customer from1, Customer to1, decimal amount) {
+            if (from1 != null && paymentProvider.ValidatePaymentPure(from1.Name, to1.Name, amount)) {
                 Customer customer1 = from1;
             }
         }
@@ -72,6 +69,14 @@ namespace TestProject.Services
             var result = BackgroundCheckHelper.StaticProcessPaymentPure(from1.Name, to1.Name, amount);
 
             if (amount > 0 && result.IsSuccessful) {
+                Customer customer1 = from1;
+            }
+        }
+
+        public void If_3rdPartyCheck_PureMethodStaticAssignment_DirectCheck(Customer from1) {
+            var isSsnValid = BackgroundCheckHelper.ValidateSsnPure(from1.Ssn, from1.Name);
+
+            if (from1 != null && isSsnValid) {
                 Customer customer1 = from1;
             }
         }

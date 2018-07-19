@@ -34,7 +34,7 @@ namespace TestProject.GUI {
             transferService1 = new TransferService1(customerRepository, customers, paymentProvider);
             transferService1.If_NullCheck(sharedCustomer);
             transferService1.If_3rdPartyCheck_StaticPureCall(sharedCustomer);
-            transferService1.If_3rdPartyCheck_PureStaticAssignment(sharedCustomer);
+            transferService1.If_3rdPartyCheck_PureMethodStaticAssignment_DirectCheck(sharedCustomer);
             transferService1.If_3rdPartyCheck_ImpureStaticAssignment(sharedCustomer);
             transferService1.If_3rdPartyCheck_ImpureMethodStaticAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
             transferService1.If_3rdPartyCheck_PureMethodReferenceAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
@@ -44,6 +44,7 @@ namespace TestProject.GUI {
             transferService1.If_3rdPartyCheck_ImpureMethodReferenceAssignment_DirectCheck(sharedCustomer, sharedCustomer, 100);
             transferService1.If_3rdPartyCheck_PureReferenceCall(sharedCustomer, sharedCustomer, 100);
             transferService1.If_3rdPartyCheck_ImpureReferenceCall(sharedCustomer, sharedCustomer, 100);
+            transferService1.If_3rdPartyCheck_StaticImpureCall(sharedCustomer);
             transferService1.MethodAssignment_IfTransfer(sharedCustomer, sharedCustomer, 100);
             transferService1.MethodAssignment_WithIndexQuery_1(sharedCustomer, null, 100);
             transferService1.MethodAssignment_WithFirstQuery_1(sharedCustomer, null, 100);
@@ -94,10 +95,12 @@ namespace TestProject.GUI {
             transferService2.If_3rdPartyCheck_Negated_ImpureReferenceCall(sharedCustomer, sharedCustomer, 100);
             transferService2.If_3rdPartyCheck_Unsat_StaticPureCall(sharedCustomer);
             transferService2.If_3rdPartyCheck_Sat_PureStaticAssignment_DirectCheck(sharedCustomer);
-            transferService2.If_3rdPartyCheck_ImpureStaticAssignment(sharedCustomer);
+            transferService2.If_3rdPartyCheck_ImpureStaticAssignment_DirectCheck(sharedCustomer);
             transferService2.If_3rdPartyCheck_Negated_ImpureStaticAssignment(sharedCustomer);
-            transferService2.If_3rdPartyCheck_Unsat_StaticAssignment(sharedCustomer);
+            transferService2.If_3rdPartyCheck_Unsat_StaticAssignment_DirectCheck(sharedCustomer);
             transferService2.If_3rdPartyCheck_Unsat_PureReferenceCall(sharedCustomer, sharedCustomer, 100);
+            transferService2.If_3rdPartyCheck_StaticImpureCall(sharedCustomer);
+            transferService2.If_3rdPartyCheck_Negated_Sat_StaticImpureCall(sharedCustomer);
             transferService2.If_3rdPartyCheck_Sat_PureMethodStaticAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
             transferService2.If_3rdPartyCheck_Unsat_PureMethodStaticAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
             transferService2.If_3rdPartyCheck_PureMethodReferenceAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
@@ -107,8 +110,10 @@ namespace TestProject.GUI {
             transferService2.If_3rdPartyCheck_ImpureMethodReferenceAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
             transferService2.If_3rdPartyCheck_Negated_Sat_ImpureMethodStaticAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
             transferService2.If_3rdPartyCheck_ImpureMethodStaticAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
+            transferService2.If_3rdPartyCheck_Sat_Negated_PureMethodReferenceAssignment_DifferentArgs_MemberCheck(sharedCustomer, sharedCustomer, 34);
             transferService2.If_3rdPartyCheck_Negated_Sat_ImpureMethodReferenceAssignment_DirectCheck(sharedCustomer, sharedCustomer, 100);
             transferService2.If_3rdPartyCheck_Negated_Sat_ImpureMethodReferenceAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
+            transferService2.If_3rdPartyCheck_Negated_Sat_StaticPureCall_DifferentArgs(null, sharedCustomer);
             transferService2.MethodAssignment_SimpleAssign(customers[0]);
             transferService2.If_NullCheck_Satisfiable(sharedCustomer);
             transferService2.If_NullCheck_Unsatisfiable(sharedCustomer, sharedCustomer);

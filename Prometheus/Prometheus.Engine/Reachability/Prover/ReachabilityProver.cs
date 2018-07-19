@@ -17,6 +17,7 @@ namespace Prometheus.Engine.Reachability.Prover
         private readonly IConditionProver conditionProver;
         private readonly IQueryMatcher queryMatcher;
         private readonly ReachabilityCache reachabilityCache;
+        private const string NULL_MARKER = "null";
 
         public ReachabilityProver(ReferenceTracker referenceTracker, IConditionProver conditionProver, IQueryMatcher queryMatcher)
         {
@@ -76,8 +77,12 @@ namespace Prometheus.Engine.Reachability.Prover
                 return true;
             }
 
-            var firstAssignments = referenceTracker.GetAssignments(first.RightReference.Node?.DescendantTokens().First() ?? first.RightReference.Token, first.RightReference.ReferenceContexts);
-            var secondAssignments = referenceTracker.GetAssignments(second.RightReference.Node?.DescendantTokens().First() ?? second.RightReference.Token, second.RightReference.ReferenceContexts);
+            var firstAssignments = first.LeftReference.ToString() == NULL_MARKER ?
+                                    new List<ConditionalAssignment>() :
+                                    referenceTracker.GetAssignments(first.RightReference.Node?.DescendantTokens().First() ?? first.RightReference.Token, first.RightReference.ReferenceContexts);
+            var secondAssignments = second.LeftReference.ToString() == NULL_MARKER ?
+                                    new List<ConditionalAssignment>() :
+                                    referenceTracker.GetAssignments(second.RightReference.Node?.DescendantTokens().First() ?? second.RightReference.Token, second.RightReference.ReferenceContexts);
 
             if (!firstAssignments.Any() && !secondAssignments.Any())
             {
