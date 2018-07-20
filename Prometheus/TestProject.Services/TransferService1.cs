@@ -9,6 +9,8 @@ namespace TestProject.Services
         private readonly CustomerRepository _customerRepository;
         private readonly List<Customer> customers;
         private readonly PaymentProvider paymentProvider;
+        private const int CONST_NUMBER = 100;
+        private const string CONST_STRING = "abc";
 
         public TransferService1(CustomerRepository customerRepository, List<Customer> customers, PaymentProvider paymentProvider)
         {
@@ -16,6 +18,20 @@ namespace TestProject.Services
             this.customers = customers;
             //TODO: this does not work paymentProvider = new PaymentProvider();
             this.paymentProvider = paymentProvider;
+        }
+
+        public void StringConstantTransfer(Customer from1, Customer to1, decimal amount)
+        {
+            if (from1.DeliveryAddress.City == CONST_STRING && to1.DeliveryAddress.City=="xyz")
+            {
+                var customer1 = from1;
+            }
+        }
+
+        public void IntConstantTransfer(Customer from1, Customer to1, decimal amount) {
+            if (from1.Age == CONST_NUMBER && to1.Age == 200) {
+                var customer1 = from1;
+            }
         }
 
         public void If_NullCheck(Customer from1) {

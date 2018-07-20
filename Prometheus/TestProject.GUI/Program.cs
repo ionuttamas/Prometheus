@@ -33,6 +33,8 @@ namespace TestProject.GUI {
 
             transferService1 = new TransferService1(customerRepository, customers, paymentProvider);
             transferService1.If_NullCheck(sharedCustomer);
+            transferService1.StringConstantTransfer(sharedCustomer, sharedCustomer, 100);
+            transferService1.IntConstantTransfer(sharedCustomer, sharedCustomer, 100);
             transferService1.If_3rdPartyCheck_StaticPureCall(sharedCustomer);
             transferService1.If_3rdPartyCheck_PureMethodStaticAssignment_DirectCheck(sharedCustomer);
             transferService1.If_3rdPartyCheck_ImpureStaticAssignment(sharedCustomer);
@@ -89,6 +91,10 @@ namespace TestProject.GUI {
             registrationService.SimpleIfRegister(sharedCustomer);
 
             var transferService2 = new TransferService2(customerRepository, paymentProvider);
+            transferService2.StringConstantTransfer(sharedCustomer, sharedCustomer, 100);
+            transferService2.Unsat_StringConstantTransfer(sharedCustomer, sharedCustomer, 100);
+            transferService2.IntConstantTransfer(sharedCustomer, sharedCustomer, 100);
+            transferService2.Unsat_IntConstantTransfer(sharedCustomer, sharedCustomer, 100);
             transferService2.If_3rdPartyCheck_StaticPureCall(sharedCustomer);
             transferService2.If_3rdPartyCheck_PureReferenceCall(sharedCustomer, sharedCustomer, 100);
             transferService2.If_3rdPartyCheck_ImpureReferenceCall(sharedCustomer, sharedCustomer, 100);

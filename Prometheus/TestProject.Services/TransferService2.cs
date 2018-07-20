@@ -14,6 +14,30 @@ namespace TestProject.Services
             this.paymentProvider = paymentProvider;
         }
 
+        public void StringConstantTransfer(Customer from2, Customer to2, decimal amount) {
+            if (from2.DeliveryAddress.City == "abc" && to2.DeliveryAddress.City == Constants.STRING_CONST_XYZ) {
+                var customer2 = from2;
+            }
+        }
+
+        public void Unsat_StringConstantTransfer(Customer from2, Customer to2, decimal amount) {
+            if (from2.DeliveryAddress.City == "abc" && to2.DeliveryAddress.City == "gef") {
+                var customer2 = from2;
+            }
+        }
+
+        public void IntConstantTransfer(Customer from1, Customer to1, decimal amount) {
+            if (from1.Age == 100 && to1.Age == Constants.INT_CONST_200) {
+                var customer2 = from1;
+            }
+        }
+
+        public void Unsat_IntConstantTransfer(Customer from2, Customer to2, decimal amount) {
+            if (from2.Age == Constants.INT_CONST_100 && to2.Age == Constants.INT_CONST_100) {
+                var customer2 = from2;
+            }
+        }
+
         public void If_NullCheck_Satisfiable(Customer from2) {
             if (from2 != null) {
                 Customer customer2 = from2;

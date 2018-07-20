@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -37,13 +38,21 @@ namespace Prometheus.Engine.ConditionProver
         public bool IsSatisfiable(ConditionalAssignment first, ConditionalAssignment second)
         {
             BoolExpr firstCondition = ParseConditionalAssignment(first, out var processedMembers);
-            BoolExpr secondCondition = ParseConditionalAssignment(second, processedMembers);
-
+            List<BoolExpr> secondConditions = ParseConditionalAssignment(second, processedMembers);
             Solver solver = context.MkSolver();
-            solver.Assert(firstCondition, secondCondition);
-            Status status = solver.Check();
 
-            return status == Status.SATISFIABLE;
+            foreach (BoolExpr secondCondition in secondConditions)
+            {
+                solver.Assert(firstCondition, secondCondition);
+                Status status = solver.Check();
+
+                if (status == Status.SATISFIABLE)
+                    return true;
+
+                solver.Reset();
+            }
+
+            return false;
         }
 
         public void Dispose() {
@@ -189,7 +198,7 @@ namespace Prometheus.Engine.ConditionProver
                 return ParseNumericLiteral(memberExpression.ToString());
 
             if (expressionKind == SyntaxKind.StringLiteralExpression)
-                return ParseStringLiteral(memberExpression.ToString());
+                return ParseStringLiteral(memberExpression.As<LiteralExpressionSyntax>().Token.ValueText);
 
             if (expressionKind == SyntaxKind.InvocationExpression)
                 return ParseInvocationExpression(memberExpression, out processedMembers);
@@ -239,36 +248,35 @@ namespace Prometheus.Engine.ConditionProver
         private Expr ParseVariableExpression(ExpressionSyntax memberExpression, Type type, Dictionary<string, NodeType> processedMembers) {
             string memberName = memberExpression.ToString();
             string uniqueMemberName = $"{memberName}{memberExpression.GetLocation().SourceSpan}";
-            Sort sort = typeService.GetSort(type);
-            Expr constExpr = type.IsEnum && memberName.StartsWith($"{type.Name}.")?
-                sort.As<EnumSort>().Consts.First(x => x.FuncDecl.Name.ToString() == memberExpression.As<MemberAccessExpressionSyntax>().Name.ToString()):
-                context.MkConst(uniqueMemberName, sort);
-            var rootIdentifier = memberExpression is MemberAccessExpressionSyntax
-                ? memberExpression.As<MemberAccessExpressionSyntax>().GetRootIdentifier()
-                : memberExpression.As<IdentifierNameSyntax>();
-            var rootType = typeService.GetType(rootIdentifier);
+            Expr expr;
             bool isExternal = false;
             Reference externalReference = null;
 
-            //TODO: https://github.com/ionuttamas/Prometheus/issues/25
-            var firstAssignment = getAssignmentsDelegate(rootIdentifier.Identifier).FirstOrDefault();
-
-            if (firstAssignment != null && firstAssignment.RightReference.IsExternal || typeService.IsExternal(rootType))
+            if (!TryParseFixedExpression(memberExpression, type, out expr))
             {
-                isExternal = true;
-                //todo: currently we only take the first assignments of the rootIdentifier to see if is pure or not, regardless of any conditions
-                externalReference = firstAssignment.RightReference;
+                Sort sort = typeService.GetSort(type);
+                expr = context.MkConst(uniqueMemberName, sort);
+                var rootIdentifier = memberExpression.GetRootIdentifier();
+                var rootType = typeService.GetType(rootIdentifier);
+                //TODO: https://github.com/ionuttamas/Prometheus/issues/25
+                var firstAssignment = getAssignmentsDelegate(rootIdentifier.Identifier).FirstOrDefault();
+
+                if (firstAssignment != null && firstAssignment.RightReference.IsExternal || typeService.IsExternal(rootType)) {
+                    isExternal = true;
+                    //todo: currently we only take the first assignments of the rootIdentifier to see if is pure or not, regardless of any conditions
+                    externalReference = firstAssignment.RightReference;
+                }
             }
 
             processedMembers[memberName] = new NodeType {
-                Expression = constExpr,
+                Expression = expr,
                 Node = memberExpression,
                 Type = type,
                 IsExternal = isExternal,
                 ExternalReference = externalReference
             };
 
-            return constExpr;
+            return expr;
         }
 
         private Expr ParseNumericLiteral(string numericLiteral) {
@@ -284,26 +292,27 @@ namespace Prometheus.Engine.ConditionProver
 
         #region Cached processing
 
-        private BoolExpr ParseConditionalAssignment(ConditionalAssignment assignment, Dictionary<string, NodeType> cachedMembers) {
-            BoolExpr[] conditions =
-                assignment.Conditions.Select(
-                    x =>
-                        x.IsNegated
-                            ? context.MkNot(ParseExpression(x.TestExpression, cachedMembers))
-                            : ParseExpression(x.TestExpression, cachedMembers)).ToArray();
-            BoolExpr expression = context.MkAnd(conditions);
+        private List<BoolExpr> ParseConditionalAssignment(ConditionalAssignment assignment, Dictionary<string, NodeType> cachedMembers) {
+            var conditions = assignment.Conditions
+                    .Select(x =>
+                            x.IsNegated
+                            ? ParseExpression(x.TestExpression, cachedMembers).Select(expr=>context.MkNot(expr)).ToList()
+                            : ParseExpression(x.TestExpression, cachedMembers))
+                    .ToList();
+            var cartesianProduct = conditions.CartesianProduct();
+            var result = cartesianProduct.Select(x => context.MkAnd(x)).ToList();
 
-            return expression;
+            return result;
         }
 
-        private BoolExpr ParseExpression(ExpressionSyntax expressionSyntax, Dictionary<string, NodeType> cachedMembers) {
+        private List<BoolExpr> ParseExpression(ExpressionSyntax expressionSyntax, Dictionary<string, NodeType> cachedMembers) {
             var expressionKind = expressionSyntax.Kind();
 
             switch (expressionKind) {
                 case SyntaxKind.LogicalNotExpression:
                     return ParsePrefixUnaryExpression((PrefixUnaryExpressionSyntax)expressionSyntax, cachedMembers);
                 case SyntaxKind.SimpleMemberAccessExpression:
-                    return context.MkBoolConst(expressionSyntax.ToString());
+                    return new List<BoolExpr> { context.MkBoolConst(expressionSyntax.ToString()) };
 
                 case SyntaxKind.LogicalAndExpression:
                 case SyntaxKind.LogicalOrExpression:
@@ -320,16 +329,16 @@ namespace Prometheus.Engine.ConditionProver
 
         }
 
-        private BoolExpr ParseBinaryExpression(BinaryExpressionSyntax binaryExpression, Dictionary<string, NodeType> cachedMembers) {
+        private List<BoolExpr> ParseBinaryExpression(BinaryExpressionSyntax binaryExpression, Dictionary<string, NodeType> cachedMembers) {
             SyntaxKind expressionKind = binaryExpression.Kind();
-            Expr left;
-            Expr right;
+            List<Expr> left;
+            List<Expr> right;
 
             if (binaryExpression.Left.Kind() == SyntaxKind.NullLiteralExpression) {
-                left = GetNullExpression(typeService.GetType(binaryExpression.Right));
+                left = new List<Expr> { GetNullExpression(typeService.GetType(binaryExpression.Right)) };
                 right = ParseExpressionMember(binaryExpression.Right, cachedMembers);
             } else if (binaryExpression.Right.Kind() == SyntaxKind.NullLiteralExpression) {
-                right = GetNullExpression(typeService.GetType(binaryExpression.Left));
+                right = new List<Expr> { GetNullExpression(typeService.GetType(binaryExpression.Left)) };
                 left = ParseExpressionMember(binaryExpression.Left, cachedMembers);
             } else {
                 left = ParseExpressionMember(binaryExpression.Left, cachedMembers);
@@ -338,27 +347,42 @@ namespace Prometheus.Engine.ConditionProver
 
             switch (expressionKind) {
                 case SyntaxKind.LogicalAndExpression:
-                    return context.MkAnd((BoolExpr)left, (BoolExpr)right);
+                    return ReconstructBinaryExpressions(left, right, (l, r) => context.MkAnd(l.As<BoolExpr>(), r.As<BoolExpr>()));
                 case SyntaxKind.LogicalOrExpression:
-                    return context.MkOr((BoolExpr)left, (BoolExpr)right);
+                    return ReconstructBinaryExpressions(left, right, (l, r) => context.MkOr(l.As<BoolExpr>(), r.As<BoolExpr>()));
                 case SyntaxKind.GreaterThanExpression:
-                    return context.MkGt((ArithExpr)left, (ArithExpr)right);
+                    return ReconstructBinaryExpressions(left, right, (l, r) => context.MkGt(l.As<ArithExpr>(), r.As<ArithExpr>()));
                 case SyntaxKind.GreaterThanOrEqualExpression:
-                    return context.MkGe((ArithExpr)left, (ArithExpr)right);
+                    return ReconstructBinaryExpressions(left, right, (l, r) => context.MkGe(l.As<ArithExpr>(), r.As<ArithExpr>()));
                 case SyntaxKind.LessThanExpression:
-                    return context.MkLt((ArithExpr)left, (ArithExpr)right);
+                    return ReconstructBinaryExpressions(left, right, (l, r) => context.MkLt(l.As<ArithExpr>(), r.As<ArithExpr>()));
                 case SyntaxKind.LessThanOrEqualExpression:
-                    return context.MkLe((ArithExpr)left, (ArithExpr)right);
+                    return ReconstructBinaryExpressions(left, right, (l, r) => context.MkLe(l.As<ArithExpr>(), r.As<ArithExpr>()));
                 case SyntaxKind.EqualsExpression:
-                    return context.MkEq(left, right);
+                    return ReconstructBinaryExpressions(left, right, (l, r) => context.MkEq(l.As<Expr>(), r.As<Expr>()));
                 case SyntaxKind.NotEqualsExpression:
-                    return context.MkNot(context.MkEq(left, right));
+                    return ReconstructBinaryExpressions(left, right, (l, r) => context.MkNot(context.MkEq(l.As<Expr>(), r.As<Expr>())));
                 default:
                     throw new NotImplementedException();
             }
         }
 
-        private BoolExpr ParsePrefixUnaryExpression(PrefixUnaryExpressionSyntax prefixUnaryExpression, Dictionary<string, NodeType> cachedMembers) {
+        private List<BoolExpr> ReconstructBinaryExpressions(List<Expr> leftExprs, List<Expr> rightExprs, Func<Expr, Expr, BoolExpr> combiner)
+        {
+            var result = new List<BoolExpr>();
+
+            foreach (Expr leftExpr in leftExprs)
+            {
+                foreach (Expr rightExpr in rightExprs)
+                {
+                    result.Add(combiner(leftExpr, rightExpr));
+                }
+            }
+
+            return result;
+        }
+
+        private List<BoolExpr> ParsePrefixUnaryExpression(PrefixUnaryExpressionSyntax prefixUnaryExpression, Dictionary<string, NodeType> cachedMembers) {
             if (prefixUnaryExpression.Kind() != SyntaxKind.LogicalNotExpression)
                 throw new NotImplementedException();
 
@@ -366,33 +390,33 @@ namespace Prometheus.Engine.ConditionProver
             var innerExpressionKind = innerExpression.Kind();
 
             if (innerExpressionKind == SyntaxKind.SimpleMemberAccessExpression || innerExpressionKind == SyntaxKind.IdentifierName) {
-                var parsedExpression = ParseExpressionMember(innerExpression, cachedMembers).As<BoolExpr>();
-                return context.MkNot(parsedExpression);
+                var parsedExpressions = ParseExpressionMember(innerExpression, cachedMembers);
+                return parsedExpressions.Select(x => context.MkNot(x.As<BoolExpr>())).ToList();
             }
 
             if (innerExpressionKind == SyntaxKind.InvocationExpression) {
                 typeService.IsPureMethod(innerExpression.As<InvocationExpressionSyntax>(), out var returnType);
 
                 if (returnType == typeof(bool)) {
-                    var parsedExpression = (BoolExpr)ParseCachedInvocationExpression(innerExpression, cachedMembers);
-                    return context.MkNot(parsedExpression);
+                    var parsedExpressions = ParseCachedInvocationExpression(innerExpression, cachedMembers).Select(x=>context.MkNot(x.As<BoolExpr>())).ToList();
+                    return parsedExpressions;
                 }
             }
 
             throw new InvalidOperationException($"PrefixUnaryExpression {prefixUnaryExpression} could not be processed");
         }
 
-        private Expr ParseExpressionMember(ExpressionSyntax memberExpression, Dictionary<string, NodeType> cachedMembers) {
+        private List<Expr> ParseExpressionMember(ExpressionSyntax memberExpression, Dictionary<string, NodeType> cachedMembers) {
             var expressionKind = memberExpression.Kind();
 
             if (memberExpression is BinaryExpressionSyntax)
-                return ParseBinaryExpression((BinaryExpressionSyntax)memberExpression, cachedMembers);
+                return ParseBinaryExpression((BinaryExpressionSyntax)memberExpression, cachedMembers).OfType<Expr>().ToList();
 
             if (expressionKind == SyntaxKind.NumericLiteralExpression)
-                return ParseNumericLiteral(memberExpression.ToString());
+                return new List<Expr> { ParseNumericLiteral(memberExpression.ToString()) };
 
             if (expressionKind == SyntaxKind.StringLiteralExpression)
-                return ParseStringLiteral(memberExpression.ToString());
+                return new List<Expr> { ParseStringLiteral(memberExpression.As<LiteralExpressionSyntax>().Token.ValueText) };
 
             if (expressionKind == SyntaxKind.InvocationExpression)
                 return ParseCachedInvocationExpression(memberExpression, cachedMembers);
@@ -400,7 +424,7 @@ namespace Prometheus.Engine.ConditionProver
             if (expressionKind != SyntaxKind.SimpleMemberAccessExpression && expressionKind != SyntaxKind.IdentifierName) {
                 return expressionKind == SyntaxKind.UnaryMinusExpression
                     ? ParseUnaryExpression(memberExpression, cachedMembers)
-                    : ParseExpression(memberExpression, cachedMembers);
+                    : ParseExpression(memberExpression, cachedMembers).OfType<Expr>().ToList();
             }
 
             if (expressionKind == SyntaxKind.UnaryMinusExpression)
@@ -409,7 +433,7 @@ namespace Prometheus.Engine.ConditionProver
             return ParseCachedVariableExpression(memberExpression, cachedMembers);
         }
 
-        private Expr ParseCachedInvocationExpression(ExpressionSyntax expression, Dictionary<string, NodeType> cachedMembers) {
+        private List<Expr> ParseCachedInvocationExpression(ExpressionSyntax expression, Dictionary<string, NodeType> cachedMembers) {
             //Currently, we treat 3rd party code as well as solution code methods within "if" test conditions the same
             var invocationExpression = (InvocationExpressionSyntax)expression;
             var className = invocationExpression
@@ -423,7 +447,7 @@ namespace Prometheus.Engine.ConditionProver
             return expr;
         }
 
-        private Expr ParseCachedReferenceInvocationExpression(Dictionary<string, NodeType> cachedMembers, InvocationExpressionSyntax invocationExpression)
+        private List<Expr> ParseCachedReferenceInvocationExpression(Dictionary<string, NodeType> cachedMembers, InvocationExpressionSyntax invocationExpression)
         {
             bool isPure = typeService.IsPureMethod(invocationExpression, out var returnType);
             Sort sort = typeService.GetSort(returnType);
@@ -431,7 +455,7 @@ namespace Prometheus.Engine.ConditionProver
             if (!isPure)
             {
                 Expr constExpr = context.MkConst(invocationExpression.ToString(), sort);
-                return constExpr;
+                return new List<Expr> { constExpr };
             }
 
             var instanceReference = new Reference(invocationExpression.Expression.As<MemberAccessExpressionSyntax>().Expression);
@@ -440,7 +464,7 @@ namespace Prometheus.Engine.ConditionProver
                      reachabilityDelegate(new Reference(x.Value.Node.As<InvocationExpressionSyntax>().Expression.As<MemberAccessExpressionSyntax>().Expression), instanceReference, out var _));
 
             if (cachedInvocation.IsNull())
-                return context.MkConst(invocationExpression.ToString(), sort);
+                return new List<Expr> { context.MkConst(invocationExpression.ToString(), sort)};
 
             var cachedArguments = cachedInvocation
                 .Value.Node.As<InvocationExpressionSyntax>()
@@ -449,12 +473,12 @@ namespace Prometheus.Engine.ConditionProver
             var arguments = invocationExpression.ArgumentList.Arguments.ToList();
 
             if (AreArgumentsEquivalent(cachedArguments, arguments))
-                return cachedInvocation.Value.Expression;
+                return new List<Expr> { cachedInvocation.Value.Expression};
 
-            return context.MkConst(invocationExpression.ToString(), sort);
+            return new List<Expr> { context.MkConst(invocationExpression.ToString(), sort)};
         }
 
-        private Expr ParseCachedStaticInvocationExpression(Dictionary<string, NodeType> cachedMembers, InvocationExpressionSyntax invocationExpression)
+        private List<Expr> ParseCachedStaticInvocationExpression(Dictionary<string, NodeType> cachedMembers, InvocationExpressionSyntax invocationExpression)
         {
             bool isPure = typeService.IsPureMethod(invocationExpression, out var returnType);
             Sort sort = typeService.GetSort(returnType);
@@ -471,64 +495,75 @@ namespace Prometheus.Engine.ConditionProver
 
                 if (AreArgumentsEquivalent(cachedArguments, arguments))
                 {
-                    return cachedInvocation.Value.Expression;
+                    return new List<Expr> { cachedInvocation.Value.Expression };
                 }
             }
 
-            Expr constExpr = context.MkConst(invocationExpression.ToString(), sort);
-            return constExpr;
+            Expr expr = context.MkConst(invocationExpression.ToString(), sort);
+            return new List<Expr> { expr };
         }
 
-        private Expr ParseUnaryExpression(ExpressionSyntax unaryExpression, Dictionary<string, NodeType> cachedMembers) {
+        private List<Expr> ParseUnaryExpression(ExpressionSyntax unaryExpression, Dictionary<string, NodeType> cachedMembers) {
             var prefixUnaryExpression = (PrefixUnaryExpressionSyntax)unaryExpression;
-            var negatedExpression = ParseExpressionMember(prefixUnaryExpression.Operand, cachedMembers);
+            var negatedExpressions = ParseExpressionMember(prefixUnaryExpression.Operand, cachedMembers);
 
-            return context.MkUnaryMinus((ArithExpr)negatedExpression);
+            return negatedExpressions.Select(x => context.MkUnaryMinus((ArithExpr) x).As<Expr>()).ToList();
         }
 
-        private Expr ParseCachedVariableExpression(ExpressionSyntax memberExpression, Dictionary<string, NodeType> cachedMembers) {
+        private List<Expr> ParseCachedVariableExpression(ExpressionSyntax memberExpression, Dictionary<string, NodeType> cachedMembers)
+        {
             var memberType = typeService.GetType(memberExpression);
             var memberReference = new Reference(memberExpression);
             string memberName = memberExpression.ToString();
             string uniqueMemberName = $"{memberName}{memberExpression.GetLocation().SourceSpan}";
+            List<Expr> reachableExprs = new List<Expr>();
 
-            foreach (NodeType node in cachedMembers.Values.Where(x => x.Type == memberType)) {
+            if (TryParseFixedExpression(memberExpression, memberType, out var expr))
+            {
+                return new List<Expr> {expr};
+            }
+
+            foreach (NodeType node in cachedMembers.Values.Where(x => x.Type == memberType))
+            {
                 if (node.IsExternal && node.ExternalReference.IsPure)
                 {
                     if (MatchCachedExternalPureMethodAssignment(memberExpression, node, out Expr nodeExpression))
-                        return nodeExpression;
-
-                    break;
+                    {
+                        reachableExprs.Add(nodeExpression);
+                    }
                 }
-
-                if (memberType.IsEnum && memberExpression.ToString().StartsWith($"{memberType.Name}."))
-                    continue;
-
-                if (node.Node is IdentifierNameSyntax && memberExpression is IdentifierNameSyntax && !node.IsExternal) {
+                else if (node.Node is IdentifierNameSyntax && memberExpression is IdentifierNameSyntax &&
+                         !node.IsExternal)
+                {
                     if (reachabilityDelegate(new Reference(node.Node), memberReference, out Reference _))
-                        return node.Expression;
+                    {
+                        reachableExprs.Add(node.Expression);
+                    }
                 }
-
-                //TODO: MAJOR
-                //TODO: for now, we only match "amount1" with "amount2" (identifier with identifier) or "[from].AccountBalance" with "[from2].AccountBalance"
-                //TODO: need to extend to "amount" with "[from].AccountBalance" and other combinations
-                if (node.Node is MemberAccessExpressionSyntax && memberExpression is MemberAccessExpressionSyntax) {
-                    var firstMember = (MemberAccessExpressionSyntax)node.Node;
-                    var secondMember = (MemberAccessExpressionSyntax)memberExpression;
+                else if (node.Node is MemberAccessExpressionSyntax && memberExpression is MemberAccessExpressionSyntax)
+                {
+                    //TODO: MAJOR
+                    //TODO: for now, we only match "amount1" with "amount2" (identifier with identifier) or "[from].AccountBalance" with "[from2].AccountBalance"
+                    //TODO: need to extend to "amount" with "[from].AccountBalance" and other combinations
+                    var firstMember = (MemberAccessExpressionSyntax) node.Node;
+                    var secondMember = (MemberAccessExpressionSyntax) memberExpression;
                     var firstRootReference = new Reference(firstMember.GetRootIdentifier());
                     var secondRootReference = new Reference(secondMember.GetRootIdentifier());
 
                     if (reachabilityDelegate(firstRootReference, secondRootReference, out Reference _))
-                        return node.Expression;
+                    {
+                        reachableExprs.Add(node.Expression);
+                    }
                 }
             }
 
-            Sort sort = typeService.GetSort(memberType);
-            Expr constExpr = memberType.IsEnum && memberName.StartsWith($"{memberType.Name}.") ?
-                sort.As<EnumSort>().Consts.First(x => x.FuncDecl.Name.ToString() == memberExpression.As<MemberAccessExpressionSyntax>().Name.ToString()):
-                context.MkConst(uniqueMemberName, sort);
+            if (reachableExprs.Any())
+                return reachableExprs;
 
-            return constExpr;
+            Sort sort = typeService.GetSort(memberType);
+            expr = context.MkConst(uniqueMemberName, sort);
+            reachableExprs.Add(expr);
+            return reachableExprs;
         }
 
         private bool MatchCachedExternalPureMethodAssignment(ExpressionSyntax memberExpression, NodeType node, out Expr nodeExpression)
@@ -596,6 +631,64 @@ namespace Prometheus.Engine.ConditionProver
         }
 
         #endregion
+
+        /// <summary>
+        /// Parses enums or constants expressions.
+        /// </summary>
+        private bool TryParseFixedExpression(ExpressionSyntax memberExpression, Type type, out Expr fixedExpr)
+        {
+            string memberName = memberExpression.ToString();
+            fixedExpr = null;
+
+            if (type.IsEnum && memberName.StartsWith($"{type.Name}."))
+            {
+                Sort sort = typeService.GetSort(type);
+                fixedExpr = sort
+                    .As<EnumSort>()
+                    .Consts
+                    .First(x => x.FuncDecl.Name.ToString() == memberExpression.As<MemberAccessExpressionSyntax>().Name.ToString());
+                return true;
+            }
+
+            var containingClassName = memberName.Contains(".")
+                ? memberExpression.As<MemberAccessExpressionSyntax>().Expression.ToString()
+                : memberExpression.GetContainingClass().Identifier.Text;
+            var constantName = memberName.Contains(".")
+                ? memberExpression.As<MemberAccessExpressionSyntax>().Name.Identifier.Text
+                : memberExpression.ToString();
+
+            if (!typeService.TryGetType(containingClassName, out var containingType))
+                return false;
+
+            var constantField = containingType
+                .GetFields(BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public)
+                .FirstOrDefault(x => x.Name == constantName && x.IsLiteral && !x.IsInitOnly);
+
+            if (constantField == null)
+                return false;
+
+            var constantValue = constantField.GetRawConstantValue();
+
+            if (constantField.FieldType.IsNumeric())
+            {
+                fixedExpr = context.MkNumeral((int) constantValue, context.RealSort);
+                return true;
+            }
+
+            if (constantField.FieldType.IsBoolean())
+            {
+                fixedExpr = context.MkBool((bool) constantValue);
+                return true;
+            }
+
+            if (constantField.FieldType.IsString())
+            {
+                fixedExpr = context.MkString((string) constantValue);
+                return true;
+            }
+
+            return false;
+        }
 
         private Expr GetNullExpression(Type type) {
             var sort = typeService.GetSort(type);
