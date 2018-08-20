@@ -10,16 +10,16 @@ namespace Prometheus.Engine.Types.Polymorphy
 {
     public class PolymorphicResolver : IPolymorphicResolver
     {
-        private readonly Dictionary<MethodInfo, Dictionary<string, Type>> methodInfoTable;
-        private readonly Dictionary<Type, Dictionary<string, Dictionary<string, Type>>> typeMethodTable;
+        private readonly Dictionary<MethodInfo, Dictionary<string, List<Type>>> methodInfoTable;
+        private readonly Dictionary<Type, Dictionary<string, Dictionary<string, List<Type>>>> typeMethodTable;
 
         public PolymorphicResolver()
         {
-            methodInfoTable = new Dictionary<MethodInfo, Dictionary<string, Type>>();
-            typeMethodTable = new Dictionary<Type, Dictionary<string, Dictionary<string, Type>>>();
+            methodInfoTable = new Dictionary<MethodInfo, Dictionary<string, List<Type>>>();
+            typeMethodTable = new Dictionary<Type, Dictionary<string, Dictionary<string, List<Type>>>>();
         }
 
-        public Type GetImplementatedType(MethodDeclarationSyntax method, string token) {
+        public bool TryGetImplementationTypes(MethodDeclarationSyntax method, string token, out List<Type> implementationTypes) {
             var classDeclaration = method.GetContainingClass();
             var methodName = method.Identifier.Text;
 
@@ -28,7 +28,10 @@ namespace Prometheus.Engine.Types.Polymorphy
                                                 AreEquivalent(x.Key, method));
 
             if (!tokenTypeEntry.IsNull())
-                return tokenTypeEntry.Value[token];
+            {
+                implementationTypes = tokenTypeEntry.Value[token];
+                return true;
+            }
 
             var typeEntry = typeMethodTable.FirstOrDefault(x => x.Key.Name == classDeclaration.Identifier.Text);
 
@@ -38,36 +41,48 @@ namespace Prometheus.Engine.Types.Polymorphy
                                                     AreEquivalent(typeEntry.Key.GetMethod(methodName), method));
 
                 if (!methodEntry.IsNull())
-                    return methodEntry.Value[token];
+                {
+                    implementationTypes = methodEntry.Value[token];
+                    return true;
+                }
             }
 
-            throw new ArgumentException($"Could not find any type for method {methodName} and token {token}");
+            implementationTypes = null;
+            return false;
         }
 
-        public void Register(MethodInfo method, string token, Type tokenType)
+        public void Register(MethodInfo method, string token, params Type[] implementationTypes)
         {
             if (!methodInfoTable.ContainsKey(method))
             {
-                methodInfoTable[method] = new Dictionary<string, Type>();
+                methodInfoTable[method] = new Dictionary<string, List<Type>>();
             }
 
-            methodInfoTable[method].Add(token, tokenType);
+            if (!methodInfoTable[method].ContainsKey(token)) {
+                methodInfoTable[method][token] = new List<Type>();
+            }
+
+            methodInfoTable[method][token].AddRange(implementationTypes);
         }
 
-        public void Register(Type classType, string method, string token, Type tokenType) {
+        public void Register(Type classType, string method, string token, params Type[] implementationTypes) {
             if (classType.GetMethods().Count(x => x.Name == method) != 1)
                 throw new AmbiguousMatchException($"Type {classType} contains more than one method with name {method}");
 
             if (!typeMethodTable.ContainsKey(classType)) {
-                typeMethodTable[classType] = new Dictionary<string, Dictionary<string, Type>>();
+                typeMethodTable[classType] = new Dictionary<string, Dictionary<string, List<Type>>>();
             }
 
             if (!typeMethodTable[classType].ContainsKey(method))
             {
-                typeMethodTable[classType][method] = new Dictionary<string, Type>();
+                typeMethodTable[classType][method] = new Dictionary<string, List<Type>>();
             }
 
-            typeMethodTable[classType][method].Add(token, tokenType);
+            if (!typeMethodTable[classType][method].ContainsKey(token)) {
+                typeMethodTable[classType][method][token] = new List<Type>();
+            }
+
+            typeMethodTable[classType][method][token].AddRange(implementationTypes);
         }
 
         private static bool AreEquivalent(MethodInfo methodInfo, MethodDeclarationSyntax methodDeclaration)

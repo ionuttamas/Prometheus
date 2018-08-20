@@ -396,7 +396,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
         private List<ConditionalAssignment> ProcessStaticMethodCallAssignments(SyntaxNode bindingNode, InvocationExpressionSyntax invocationExpression) {
             var memberAccess = invocationExpression.Expression.As<MemberAccessExpressionSyntax>();
             var className = memberAccess.Expression.As<IdentifierNameSyntax>().Identifier.Text;
-            var type = typeService.GetType(memberAccess);
+            var type = typeService.GetTypes(memberAccess);
 
             if (typeService.IsExternal(type))
                 return ProcessExternalConditionalMethodAssignments(bindingNode, invocationExpression);
@@ -450,7 +450,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
             var memberAccess = invocationExpression.Expression.As<MemberAccessExpressionSyntax>();
             var instanceExpression = memberAccess.Expression.As<IdentifierNameSyntax>();
             var methodName = memberAccess.Name.Identifier.Text;
-            var type = typeService.GetType(instanceExpression);
+            var type = typeService.GetTypes(instanceExpression);
 
             if (typeService.IsExternal(type))
                 return ProcessExternalConditionalMethodAssignments(bindingNode, invocationExpression);
@@ -498,7 +498,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
             var conditions = ExtractConditions(invocationExpression);
 
             //TODO: handle when code is outside of the current solution (3rd party code)
-            var type = typeService.GetType(instanceExpression);
+            var types = typeService.GetTypes(instanceExpression);
             var classDeclaration = typeService.GetClassDeclaration(type);
             var parametersCount = invocationExpression.ArgumentList.Arguments.Count;
 

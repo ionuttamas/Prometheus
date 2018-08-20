@@ -7,44 +7,32 @@ namespace Prometheus.Engine.Types
 {
     internal class TypeCache
     {
-        private readonly Dictionary<ExpressionSyntax, Type> expressionSyntaxTypeCache;
-        private readonly Dictionary<SyntaxToken, Type> syntaxTokenTypeCache;
-        private readonly Dictionary<MethodDeclarationSyntax, Dictionary<string, string>> tokenTypeNameCache;
+        private readonly Dictionary<ExpressionSyntax, List<Type>> expressionSyntaxTypeCache;
+        private readonly Dictionary<SyntaxToken, List<Type>> syntaxTokenTypeCache;
 
         public TypeCache()
         {
-            expressionSyntaxTypeCache = new Dictionary<ExpressionSyntax, Type>();
-            syntaxTokenTypeCache = new Dictionary<SyntaxToken, Type>();
-            tokenTypeNameCache = new Dictionary<MethodDeclarationSyntax, Dictionary<string, string>>();
+            expressionSyntaxTypeCache = new Dictionary<ExpressionSyntax, List<Type>>();
+            syntaxTokenTypeCache = new Dictionary<SyntaxToken, List<Type>>();
         }
 
-        public void AddToCache(ExpressionSyntax expressionSyntax, Type type)
+        public void AddToCache(ExpressionSyntax expressionSyntax, List<Type> types)
         {
-            expressionSyntaxTypeCache[expressionSyntax] = type;
+            expressionSyntaxTypeCache[expressionSyntax] = types;
         }
 
-        public void AddToCache(SyntaxToken syntaxToken, Type type)
+        public void AddToCache(SyntaxToken syntaxToken, List<Type> types)
         {
-            syntaxTokenTypeCache[syntaxToken] = type;
+            syntaxTokenTypeCache[syntaxToken] = types;
         }
 
-        public bool TryGetType(ExpressionSyntax syntax, out Type type)
+        public bool TryGetType(ExpressionSyntax syntax, out List<Type> types)
         {
-            return expressionSyntaxTypeCache.TryGetValue(syntax, out type);
+            return expressionSyntaxTypeCache.TryGetValue(syntax, out types);
         }
 
-        public bool TryGetType(SyntaxToken syntaxToken, out Type type) {
-            return syntaxTokenTypeCache.TryGetValue(syntaxToken, out type);
-        }
-
-        public bool TryGetTypeName(MethodDeclarationSyntax method, string token, out string typeName)
-        {
-            typeName = null;
-
-            if (method==null || !tokenTypeNameCache.ContainsKey(method))
-                return false;
-
-            return tokenTypeNameCache[method].TryGetValue(token, out typeName);
+        public bool TryGetType(SyntaxToken syntaxToken, out List<Type> types) {
+            return syntaxTokenTypeCache.TryGetValue(syntaxToken, out types);
         }
     }
 }

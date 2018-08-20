@@ -116,12 +116,12 @@ namespace Prometheus.Engine.ConditionProver
 
             if (binaryExpression.Left.Kind() == SyntaxKind.NullLiteralExpression)
             {
-                left = GetNullExpression(typeService.GetType(binaryExpression.Right));
+                left = GetNullExpression(typeService.GetTypes(binaryExpression.Right));
                 right = ParseExpressionMember(binaryExpression.Right, out rightProcessedMembers);
             }
             else if (binaryExpression.Right.Kind() == SyntaxKind.NullLiteralExpression)
             {
-                right = GetNullExpression(typeService.GetType(binaryExpression.Left));
+                right = GetNullExpression(typeService.GetTypes(binaryExpression.Left));
                 left = ParseExpressionMember(binaryExpression.Left, out leftProcessedMembers);
             }
             else
@@ -212,7 +212,7 @@ namespace Prometheus.Engine.ConditionProver
             if (expressionKind == SyntaxKind.UnaryMinusExpression)
                 return ParseUnaryExpression(memberExpression, out processedMembers);
 
-            var memberType = typeService.GetType(memberExpression);
+            var memberType = typeService.GetTypes(memberExpression);
 
             //TODO: check nested reference chains from different chains: "customer.Address.ShipInfo" & "order.ShipInfo" to be the same
             //TODO: check agains same reference chains: "from.Address.ShipInfo" & "to.Address.ShipInfo"
@@ -257,7 +257,7 @@ namespace Prometheus.Engine.ConditionProver
                 Sort sort = typeService.GetSort(type);
                 expr = context.MkConst(uniqueMemberName, sort);
                 var rootIdentifier = memberExpression.GetRootIdentifier();
-                var rootType = typeService.GetType(rootIdentifier);
+                var rootType = typeService.GetTypes(rootIdentifier);
                 //TODO: https://github.com/ionuttamas/Prometheus/issues/25
                 var firstAssignment = getAssignmentsDelegate(rootIdentifier.Identifier).FirstOrDefault();
 
@@ -293,12 +293,13 @@ namespace Prometheus.Engine.ConditionProver
         #region Cached processing
 
         private List<BoolExpr> ParseConditionalAssignment(ConditionalAssignment assignment, Dictionary<string, NodeType> cachedMembers) {
-            var conditions = assignment.Conditions
-                    .Select(x =>
-                            x.IsNegated
-                            ? ParseExpression(x.TestExpression, cachedMembers).Select(expr=>context.MkNot(expr)).ToList()
-                            : ParseExpression(x.TestExpression, cachedMembers))
-                    .ToList();
+            var conditions = assignment
+                .Conditions
+                .Select(x =>
+                        x.IsNegated
+                        ? ParseExpression(x.TestExpression, cachedMembers).Select(expr=>context.MkNot(expr)).ToList()
+                        : ParseExpression(x.TestExpression, cachedMembers))
+                .ToList();
             var cartesianProduct = conditions.CartesianProduct();
             var result = cartesianProduct.Select(x => context.MkAnd(x)).ToList();
 
@@ -335,10 +336,10 @@ namespace Prometheus.Engine.ConditionProver
             List<Expr> right;
 
             if (binaryExpression.Left.Kind() == SyntaxKind.NullLiteralExpression) {
-                left = new List<Expr> { GetNullExpression(typeService.GetType(binaryExpression.Right)) };
+                left = new List<Expr> { GetNullExpression(typeService.GetTypes(binaryExpression.Right)) };
                 right = ParseExpressionMember(binaryExpression.Right, cachedMembers);
             } else if (binaryExpression.Right.Kind() == SyntaxKind.NullLiteralExpression) {
-                right = new List<Expr> { GetNullExpression(typeService.GetType(binaryExpression.Left)) };
+                right = new List<Expr> { GetNullExpression(typeService.GetTypes(binaryExpression.Left)) };
                 left = ParseExpressionMember(binaryExpression.Left, cachedMembers);
             } else {
                 left = ParseExpressionMember(binaryExpression.Left, cachedMembers);
@@ -512,7 +513,7 @@ namespace Prometheus.Engine.ConditionProver
 
         private List<Expr> ParseCachedVariableExpression(ExpressionSyntax memberExpression, Dictionary<string, NodeType> cachedMembers)
         {
-            var memberType = typeService.GetType(memberExpression);
+            var memberType = typeService.GetTypes(memberExpression);
             var memberReference = new Reference(memberExpression);
             string memberName = memberExpression.ToString();
             string uniqueMemberName = $"{memberName}{memberExpression.GetLocation().SourceSpan}";

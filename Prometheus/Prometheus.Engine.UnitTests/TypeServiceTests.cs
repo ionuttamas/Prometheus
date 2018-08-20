@@ -38,7 +38,7 @@ namespace Prometheus.Engine.UnitTests
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var testTypeServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestTypeService));
             var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.SimpleAssignment)).Body.DescendantTokens<SyntaxToken>(x => x.ToString() == "localVar").First();
-            var type = typeService.GetType(identifier);
+            var type = typeService.GetTypes(identifier);
             Assert.AreEqual(typeof(Customer), type);
         }
 
@@ -47,7 +47,7 @@ namespace Prometheus.Engine.UnitTests
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var testTypeServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestTypeService));
             var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.SplitAssignment)).Body.DescendantNodes<IdentifierNameSyntax>(x => x.Identifier.Text == "localVar").First();
-            var type = typeService.GetType(identifier);
+            var type = typeService.GetTypes(identifier);
             Assert.AreEqual(typeof(Customer), type);
         }
 
@@ -56,7 +56,7 @@ namespace Prometheus.Engine.UnitTests
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var testTypeServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestTypeService));
             var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.VarAssignment)).Body.DescendantTokens<SyntaxToken>(x => x.ToString() == "localVar").First();
-            var type = typeService.GetType(identifier);
+            var type = typeService.GetTypes(identifier);
             Assert.AreEqual(typeof(Customer), type);
         }
 
@@ -65,7 +65,7 @@ namespace Prometheus.Engine.UnitTests
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var testTypeServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestTypeService));
             var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.VarNestedAssignment)).Body.DescendantTokens<SyntaxToken>(x => x.ToString() == "localVar").First();
-            var type = typeService.GetType(identifier);
+            var type = typeService.GetTypes(identifier);
             Assert.AreEqual(typeof(string), type);
         }
 
@@ -74,7 +74,7 @@ namespace Prometheus.Engine.UnitTests
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var testTypeServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestTypeService));
             var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.FieldAssignment)).Body.DescendantTokens<SyntaxToken>(x => x.ToString() == "localVar").First();
-            var type = typeService.GetType(identifier);
+            var type = typeService.GetTypes(identifier);
             Assert.AreEqual(typeof(Customer), type);
         }
 
@@ -83,7 +83,7 @@ namespace Prometheus.Engine.UnitTests
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var testTypeServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestTypeService));
             var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.FieldNestedAssignment)).Body.DescendantTokens<SyntaxToken>(x => x.ToString() == "localVar").First();
-            var type = typeService.GetType(identifier);
+            var type = typeService.GetTypes(identifier);
             Assert.AreEqual(typeof(string), type);
         }
 
@@ -92,7 +92,7 @@ namespace Prometheus.Engine.UnitTests
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var testTypeServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestTypeService));
             var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.PropertyAssignment)).Body.DescendantTokens<SyntaxToken>(x => x.ToString() == "localVar").First();
-            var type = typeService.GetType(identifier);
+            var type = typeService.GetTypes(identifier);
             Assert.AreEqual(typeof(Customer), type);
         }
 
@@ -101,7 +101,7 @@ namespace Prometheus.Engine.UnitTests
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var testTypeServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestTypeService));
             var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.PropertyNestedAssignment)).Body.DescendantTokens<SyntaxToken>(x => x.ToString() == "localVar").First();
-            var type = typeService.GetType(identifier);
+            var type = typeService.GetTypes(identifier);
             Assert.AreEqual(typeof(string), type);
         }
 
@@ -110,7 +110,7 @@ namespace Prometheus.Engine.UnitTests
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var testTypeServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestTypeService));
             var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.ParameterInference)).Body.DescendantTokens<SyntaxToken>(x => x.ToString() == "localVar").First();
-            var type = typeService.GetType(identifier);
+            var type = typeService.GetTypes(identifier);
             Assert.AreEqual(typeof(Customer), type);
         }
 
@@ -119,7 +119,7 @@ namespace Prometheus.Engine.UnitTests
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var testTypeServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestTypeService));
             var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.LocalStaticAssignment)).Body.DescendantTokens<SyntaxToken>(x => x.ToString() == "localVar").First();
-            var type = typeService.GetType(identifier);
+            var type = typeService.GetTypes(identifier);
             Assert.AreEqual(typeof(Customer), type);
         }
 
@@ -128,7 +128,7 @@ namespace Prometheus.Engine.UnitTests
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var testTypeServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestTypeService));
             var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.LocalInstanceAssignment)).Body.DescendantTokens<SyntaxToken>(x => x.ToString() == "localVar").First();
-            var type = typeService.GetType(identifier);
+            var type = typeService.GetTypes(identifier);
             Assert.AreEqual(typeof(Customer), type);
         }
 
@@ -137,7 +137,7 @@ namespace Prometheus.Engine.UnitTests
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var testTypeServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestTypeService));
             var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.ExternalVarStaticAssignment)).Body.DescendantTokens<SyntaxToken>(x => x.ToString() == "localVar").First();
-            var type = typeService.GetType(identifier);
+            var type = typeService.GetTypes(identifier);
             Assert.AreEqual(typeof(Customer), type);
         }
 
@@ -146,7 +146,7 @@ namespace Prometheus.Engine.UnitTests
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var testTypeServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestTypeService));
             var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.ExternalVarMethodAssignment)).Body.DescendantTokens<SyntaxToken>(x => x.ToString() == "localVar").First();
-            var type = typeService.GetType(identifier);
+            var type = typeService.GetTypes(identifier);
             Assert.AreEqual(typeof(Customer), type);
         }
 
@@ -155,7 +155,7 @@ namespace Prometheus.Engine.UnitTests
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var testTypeServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestTypeService));
             var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.ExternalVarFieldAssignment)).Body.DescendantTokens<SyntaxToken>(x => x.ToString() == "localVar").First();
-            var type = typeService.GetType(identifier);
+            var type = typeService.GetTypes(identifier);
             Assert.AreEqual(typeof(Customer), type);
         }
 
@@ -164,7 +164,7 @@ namespace Prometheus.Engine.UnitTests
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var testTypeServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestTypeService));
             var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.ExternalVarPropertyAssignment)).Body.DescendantTokens<SyntaxToken>(x => x.ToString() == "localVar").First();
-            var type = typeService.GetType(identifier);
+            var type = typeService.GetTypes(identifier);
             Assert.AreEqual(typeof(Customer), type);
         }
 
@@ -173,7 +173,7 @@ namespace Prometheus.Engine.UnitTests
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var testTypeServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestTypeService));
             var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.GenericListWhereLambdaExpression)).Body.DescendantNodes<MemberAccessExpressionSyntax>(x => x.ToString() == "x.DeliveryAddress.City").First();
-            var type = typeService.GetType(identifier);
+            var type = typeService.GetTypes(identifier);
             Assert.AreEqual(typeof(string), type);
         }
 
@@ -182,7 +182,7 @@ namespace Prometheus.Engine.UnitTests
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var testTypeServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestTypeService));
             var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.GenericIEnumerableWhereLambdaExpression)).Body.DescendantNodes<MemberAccessExpressionSyntax>(x => x.ToString() == "x.DeliveryAddress.City").First();
-            var type = typeService.GetType(identifier);
+            var type = typeService.GetTypes(identifier);
             Assert.AreEqual(typeof(string), type);
         }
 
@@ -191,7 +191,7 @@ namespace Prometheus.Engine.UnitTests
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var testTypeServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestTypeService));
             var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.ArrayWhereLambdaExpression)).Body.DescendantNodes<MemberAccessExpressionSyntax>(x => x.ToString() == "x.DeliveryAddress.City").First();
-            var type = typeService.GetType(identifier);
+            var type = typeService.GetTypes(identifier);
             Assert.AreEqual(typeof(string), type);
         }
 
@@ -200,7 +200,7 @@ namespace Prometheus.Engine.UnitTests
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var testTypeServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestTypeService));
             var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.GetPolymorphicTypeDeclaration)).Body.DescendantTokens<SyntaxToken>(x => x.ToString() == "field").First();
-            var type = typeService.GetType(identifier);
+            var type = typeService.GetTypes(identifier);
             Assert.AreEqual(typeof(AskField), type);
         }
 
@@ -209,7 +209,7 @@ namespace Prometheus.Engine.UnitTests
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var testTypeServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestTypeService));
             var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.GetPolymorphicTypeParameter)).DescendantTokens<SyntaxToken>(x => x.ToString() == "currentPriceField").First();
-            var type = typeService.GetType(identifier);
+            var type = typeService.GetTypes(identifier);
             Assert.AreEqual(typeof(CurrentPriceField), type);
         }
     }

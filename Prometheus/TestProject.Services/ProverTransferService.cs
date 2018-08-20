@@ -24,6 +24,22 @@ namespace TestProject.Services
         }
 
 
+        public void SimpleIfTransfer_NullParams(Customer from, Customer to, decimal amount) {
+            if (from.AccountBalance > 0) {
+                Customer customer = from;
+                from.AccountBalance -= amount;
+                to.AccountBalance += amount;
+            }
+        }
+
+        public void SimpleIf_NegatedTransfer_NullParams(Customer from2, Customer to, decimal amount) {
+            if (from2.AccountBalance < 0 || to.Age > 0) {
+                Customer referenceCustomer = from2;
+                from2.AccountBalance -= amount;
+                to.AccountBalance += amount;
+            }
+        }
+
 
         public void StringCondition_SimpleIfTransfer(Customer from, Customer to, decimal amount)
         {

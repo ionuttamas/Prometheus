@@ -10,6 +10,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Z3;
 using Prometheus.Common;
 using Prometheus.Engine.Model;
+using Prometheus.Engine.Types.Polymorphy;
 using TypeInfo = System.Reflection.TypeInfo;
 
 namespace Prometheus.Engine.Types
@@ -20,7 +21,7 @@ namespace Prometheus.Engine.Types
         private readonly ModelStateConfiguration modelConfig;
         private readonly List<TypeInfo> solutionTypes;
         private readonly List<TypeInfo> externalTypes;
-        private readonly Dictionary<TypeInfo, List<TypeInfo>> interfaceImplementations;
+        private readonly Dictionary<TypeInfo, List<Type>> interfaceImplementations;
         private readonly List<ClassDeclarationSyntax> classDeclarations;
         private readonly Dictionary<string, Type> primitiveTypes;
         private readonly Dictionary<string, Type> coreTypes;
@@ -60,7 +61,7 @@ namespace Prometheus.Engine.Types
                 .ToDictionary(x=>x.AsType(), x => default(EnumSort));
             interfaceImplementations = solutionTypes
                 .Where(x => x.IsInterface)
-                .ToDictionary(x => x, x => solutionTypes.Where(t => t.ImplementedInterfaces.Contains(x)).ToList());
+                .ToDictionary(x => x, x => solutionTypes.Where(t => t.ImplementedInterfaces.Contains(x)).OfType<Type>().ToList());
             classDeclarations = solution.Projects
                 .SelectMany(x => x.GetCompilation().SyntaxTrees)
                 .Select(x => x.GetRoot())
@@ -155,41 +156,43 @@ namespace Prometheus.Engine.Types
             return true;
         }
 
-        public Type GetType(ExpressionSyntax memberExpression)
+        public List<Type> GetTypes(ExpressionSyntax memberExpression)
         {
-            if (typeCache.TryGetType(memberExpression, out var cachedType))
-                return cachedType;
+            if (typeCache.TryGetType(memberExpression, out var cachedTypes))
+                return cachedTypes;
 
-            Type type;
+            List<Type> types;
             var lambdaExpression = memberExpression.AncestorNodes<SimpleLambdaExpressionSyntax>().FirstOrDefault();
 
             if (lambdaExpression != null && (memberExpression.ToString() == lambdaExpression.Parameter.ToString() || memberExpression.ToString().StartsWith($"{lambdaExpression.Parameter}.")))
             {
-                type = GetLambdaExpressionMemberType(memberExpression);
+                types = new List<Type>
+                {
+                    GetLambdaExpressionMemberType(memberExpression)
+                };
             }
             else
             {
                 var expressionKind = memberExpression.Kind();
-                type = expressionKind == SyntaxKind.SimpleMemberAccessExpression
-                    ? GetExpressionTypes(memberExpression.As<MemberAccessExpressionSyntax>()).Last()
-                    : GetImplementedType(memberExpression.GetContainingMethod(), memberExpression.As<IdentifierNameSyntax>().Identifier.Text);
+                types = expressionKind == SyntaxKind.SimpleMemberAccessExpression
+                    ? new List<Type>{GetExpressionTypes(memberExpression.As<MemberAccessExpressionSyntax>()).Last()}
+                    : GetImplementedTypes(memberExpression.GetContainingMethod(), memberExpression.As<IdentifierNameSyntax>().Identifier.Text);
             }
 
-            typeCache.AddToCache(memberExpression, type);
-
-            return type;
+            typeCache.AddToCache(memberExpression, types);
+            return types;
         }
 
-        public Type GetType(SyntaxToken syntaxToken)
+        public List<Type> GetTypes(SyntaxToken syntaxToken)
         {
             if (typeCache.TryGetType(syntaxToken, out var cachedType))
                 return cachedType;
 
             MethodDeclarationSyntax containingMethod = syntaxToken.GetLocation().GetContainingMethod();
-            Type result = GetImplementedType(containingMethod, syntaxToken.Text);
-            typeCache.AddToCache(syntaxToken, result);
+            List<Type> types = GetImplementedTypes(containingMethod, syntaxToken.Text);
+            typeCache.AddToCache(syntaxToken, types);
 
-            return result;
+            return types;
         }
 
         public bool IsExternal(Type type)
@@ -204,7 +207,7 @@ namespace Prometheus.Engine.Types
             var method = memberAccess.Name.Identifier.Text;
 
             if (!TryGetType(expression.Identifier.Text, out Type type)) {
-                type = GetType(expression);
+                type = GetTypes(expression).First();
             }
 
             returnType = type.GetMethod(method).ReturnType;
@@ -372,7 +375,7 @@ namespace Prometheus.Engine.Types
             if (classType != null)
                 return new List<Type> {classType};
 
-            var rootType = GetImplementedType(memberExpression.GetContainingMethod(), rootToken);
+            var rootType = GetImplementedTypes(memberExpression.GetContainingMethod(), rootToken).First();
             var expressionTypes = GetExpressionTypes(rootType, memberExpression);
 
             return expressionTypes;
@@ -414,12 +417,12 @@ namespace Prometheus.Engine.Types
             return types;
         }
 
-        private Type GetImplementedType(MethodDeclarationSyntax method, string token)
+        private List<Type> GetImplementedTypes(MethodDeclarationSyntax method, string token)
         {
             var enumType = enumSorts.FirstOrDefault(x => x.Key.Name == token);
 
             if (!enumType.IsNull())
-                return enumType.Key;
+                return new List<Type> { enumType.Key };
 
             string typeName = GetTypeName(method, token, out var type);
 
@@ -430,15 +433,16 @@ namespace Prometheus.Engine.Types
 
             //TODO: handle abstract classes
             if (!type.IsInterface)
-                return type;
+                return new List<Type> { type };
 
             var typeInfo = type.GetTypeInfo();
 
-            var implementationType = interfaceImplementations[typeInfo].Count==1 ?
-                interfaceImplementations[typeInfo].First() :
-                polymorphicService.GetImplementatedType(method, token);
+            if (!polymorphicService.TryGetImplementationTypes(method, token, out var implementationTypes))
+            {
+                implementationTypes = interfaceImplementations[typeInfo].ToList();
+            }
 
-            return implementationType;
+            return implementationTypes;
         }
 
         private bool TryGetGenericType(string typeName, out Type type)

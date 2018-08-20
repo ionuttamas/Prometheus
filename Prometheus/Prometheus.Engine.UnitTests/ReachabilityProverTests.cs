@@ -117,7 +117,20 @@ namespace Prometheus.Engine.UnitTests
         }
 
         [Test]
-        public void ReachabilityProver_For_NestedIfElse_And_SatisfiableCounterpart_ProvesCorrectly() {
+        public void ReachabilityProver_For_Sat_SimpleIf_And_NegatedCounterpart_NullParams_ProvesCorrectly() {
+            var project = solution.Projects.First(x => x.Name == "TestProject.Services");
+            var proverTransferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.ProverTransferService));
+
+            var firstIdentifier = proverTransferServiceClass.GetMethodDescendant(nameof(TestProject.Services.ProverTransferService.SimpleIfTransfer_NullParams)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer").First();
+            var secondIdentifier = proverTransferServiceClass.GetMethodDescendant(nameof(TestProject.Services.ProverTransferService.SimpleIf_NegatedTransfer_NullParams)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "referenceCustomer").First();
+            var haveCommonValue = reachabilityProver.HaveCommonReference(new Reference(firstIdentifier), new Reference(secondIdentifier), out var commonValue);
+
+            Assert.True(haveCommonValue);
+            Assert.AreEqual("null", commonValue.ToString());
+        }
+
+        [Test]
+        public void ReachabilityProver_For_NestedIfElse_And_SatCounterpart_ProvesCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var proverTransferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.ProverTransferService));
 
@@ -130,7 +143,7 @@ namespace Prometheus.Engine.UnitTests
         }
 
         [Test]
-        public void ReachabilityProver_For_StringConditions_And_SatisfiableCounterpart_ProvesCorrectly()
+        public void ReachabilityProver_For_StringConditions_And_SatCounterpart_ProvesCorrectly()
         {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var proverTransferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.ProverTransferService));
@@ -143,7 +156,7 @@ namespace Prometheus.Engine.UnitTests
         }
 
         [Test]
-        public void ReachabilityProver_For_NestedIfElse_And_NonSatisfiableCounterpart_ProvesCorrectly() {
+        public void ReachabilityProver_For_NestedIfElse_And_NonSatCounterpart_ProvesCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var proverTransferServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.ProverTransferService));
 
@@ -155,7 +168,7 @@ namespace Prometheus.Engine.UnitTests
         }
 
         [Test]
-        public void ReachabilityProver_For_WithSatisfiable_MethodCallAssignments_ProvesCorrectly() {
+        public void ReachabilityProver_For_Sat_MethodCallAssignments_ProvesCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var transferService1Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService1));
             var transferService2Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService2));
@@ -169,7 +182,7 @@ namespace Prometheus.Engine.UnitTests
         }
 
         [Test]
-        public void ReachabilityProver_For_WithComplexSatisfiable_MethodCallAssignments_ProvesCorrectly() {
+        public void ReachabilityProver_For_WithComplexSat_MethodCallAssignments_ProvesCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var transferService1Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService1));
             var transferService2Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService2));
@@ -183,7 +196,7 @@ namespace Prometheus.Engine.UnitTests
         }
 
         [Test]
-        public void ReachabilityProver_For_WithEnumSatisfiableConditions_ProvesCorrectly() {
+        public void ReachabilityProver_For_WithEnumSatConditions_ProvesCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var transferService1Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService1));
             var transferService2Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService2));
@@ -197,7 +210,7 @@ namespace Prometheus.Engine.UnitTests
         }
 
         [Test]
-        public void ReachabilityProver_For_WithEnumUnsatisfiableConditions_ProvesCorrectly() {
+        public void ReachabilityProver_For_WithEnumUnsatConditions_ProvesCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var transferService1Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService1));
             var transferService2Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService2));
@@ -224,7 +237,7 @@ namespace Prometheus.Engine.UnitTests
         }
 
         [Test]
-        public void ReachabilityProver_For_WithSatisfiableNullCheckConditions_ProvesCorrectly() {
+        public void ReachabilityProver_For_WithSatNullCheckConditions_ProvesCorrectly() {
             var project = solution.Projects.First(x => x.Name == "TestProject.Services");
             var transferService1Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService1));
             var transferService2Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService2));

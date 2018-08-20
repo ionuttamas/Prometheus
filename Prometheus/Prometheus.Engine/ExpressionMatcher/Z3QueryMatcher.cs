@@ -66,7 +66,7 @@ namespace Prometheus.Engine.ExpressionMatcher
                 var sourcePermutation = permutation.ToList();
                 var variablesMap = targetVariables.Select((x, ix) => new { Index = ix, Node = x }).ToDictionary(x => x.Node, x => sourcePermutation[x.Index]);
 
-                if (variablesMap.Any(x => typeService.GetType(x.Key.As<ExpressionSyntax>()) != typeService.GetType(x.Value.As<ExpressionSyntax>())))
+                if (variablesMap.Any(x => typeService.GetTypes(x.Key.As<ExpressionSyntax>()) != typeService.GetTypes(x.Value.As<ExpressionSyntax>())))
                     continue;
 
                 var rewriter = new ExpressionRewriter(variablesMap);
@@ -115,7 +115,7 @@ namespace Prometheus.Engine.ExpressionMatcher
                 var sourcePermutation = permutation.ToList();
                 var variablesMap = targetCapturedVariables.Select((x, ix) => new {Index = ix, Node = x}).ToDictionary(x => x.Node, x => sourcePermutation[x.Index]);
 
-                if(variablesMap.Any(x=>typeService.GetType(x.Key.As<ExpressionSyntax>())!= typeService.GetType(x.Value.As<ExpressionSyntax>())))
+                if(variablesMap.Any(x=>typeService.GetTypes(x.Key.As<ExpressionSyntax>())!= typeService.GetTypes(x.Value.As<ExpressionSyntax>())))
                     continue;
 
                 var predicateRewriter = new PredicateRewriter(firstParameter, variablesMap);
@@ -154,7 +154,7 @@ namespace Prometheus.Engine.ExpressionMatcher
                 case SyntaxKind.SimpleMemberAccessExpression:
                 case SyntaxKind.IdentifierName:
                     processedMembers = new Dictionary<string, NodeType>();
-                    var expression = context.MkConst(expressionSyntax.ToString(), typeService.GetSort(typeService.GetType(expressionSyntax)));
+                    var expression = context.MkConst(expressionSyntax.ToString(), typeService.GetSort(typeService.GetTypes(expressionSyntax)));
                     return (expression, new List<Expr> { expression });
                 case SyntaxKind.ParenthesizedExpression:
                     return ParseExpression(expressionSyntax.As<ParenthesizedExpressionSyntax>().Expression, out processedMembers);
@@ -281,7 +281,7 @@ namespace Prometheus.Engine.ExpressionMatcher
                 return ParseUnaryExpression(memberExpression, out processedMembers);
             }
 
-            var memberType = typeService.GetType(memberExpression);
+            var memberType = typeService.GetTypes(memberExpression);
             processedMembers = new Dictionary<string, NodeType>();
 
             //TODO: check nested reference chains from different chains: "customer.Address.ShipInfo" & "order.ShipInfo" to be the same
@@ -333,7 +333,7 @@ namespace Prometheus.Engine.ExpressionMatcher
                     return ParsePrefixUnaryExpression(expression, cachedMembers);
                 case SyntaxKind.SimpleMemberAccessExpression:
                     //TODO: why is this bool only
-                    var memberType = typeService.GetType(expression.OriginalExpression);
+                    var memberType = typeService.GetTypes(expression.OriginalExpression);
                     var sort = typeService.GetSort(memberType);
                     var memberExpression = context.MkConst(expression.RewrittenExpression.ToString(), sort);
                     return (memberExpression, new List<Expr> {memberExpression});
@@ -456,7 +456,7 @@ namespace Prometheus.Engine.ExpressionMatcher
             if (expressionKind == SyntaxKind.UnaryMinusExpression)
                 return ParseUnaryExpression(expression, cachedMembers);
 
-            var memberType = typeService.GetType(expression.OriginalExpression);
+            var memberType = typeService.GetTypes(expression.OriginalExpression);
             var cachedMember = cachedMembers.Values.FirstOrDefault(x => x.Type == memberType && x.Node.ToString()==expression.RewrittenExpression.ToString());
             //TODO: why do we do this check?
             if (cachedMember != null)
