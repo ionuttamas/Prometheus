@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -7,32 +6,33 @@ namespace Prometheus.Engine.Types
 {
     internal class TypeCache
     {
-        private readonly Dictionary<ExpressionSyntax, List<Type>> expressionSyntaxTypeCache;
-        private readonly Dictionary<SyntaxToken, List<Type>> syntaxTokenTypeCache;
+        private readonly Dictionary<ExpressionSyntax, TypeContainer> expressionSyntaxTypeCache;
+        private readonly Dictionary<SyntaxToken, TypeContainer> syntaxTokenTypeCache;
 
         public TypeCache()
         {
-            expressionSyntaxTypeCache = new Dictionary<ExpressionSyntax, List<Type>>();
-            syntaxTokenTypeCache = new Dictionary<SyntaxToken, List<Type>>();
+            expressionSyntaxTypeCache = new Dictionary<ExpressionSyntax, TypeContainer>();
+            syntaxTokenTypeCache = new Dictionary<SyntaxToken, TypeContainer>();
         }
 
-        public void AddToCache(ExpressionSyntax expressionSyntax, List<Type> types)
+        public void AddToCache(ExpressionSyntax expressionSyntax, TypeContainer container)
         {
-            expressionSyntaxTypeCache[expressionSyntax] = types;
+            expressionSyntaxTypeCache[expressionSyntax] = container;
         }
 
-        public void AddToCache(SyntaxToken syntaxToken, List<Type> types)
+        public void AddToCache(SyntaxToken syntaxToken, TypeContainer container)
         {
-            syntaxTokenTypeCache[syntaxToken] = types;
+            syntaxTokenTypeCache[syntaxToken] = container;
         }
 
-        public bool TryGetType(ExpressionSyntax syntax, out List<Type> types)
+        public bool TryGetType(ExpressionSyntax syntax, out TypeContainer container)
         {
-            return expressionSyntaxTypeCache.TryGetValue(syntax, out types);
+            return expressionSyntaxTypeCache.TryGetValue(syntax, out container);
         }
 
-        public bool TryGetType(SyntaxToken syntaxToken, out List<Type> types) {
-            return syntaxTokenTypeCache.TryGetValue(syntaxToken, out types);
+        public bool TryGetType(SyntaxToken syntaxToken, out TypeContainer container)
+        {
+            return syntaxTokenTypeCache.TryGetValue(syntaxToken, out container);
         }
     }
 }

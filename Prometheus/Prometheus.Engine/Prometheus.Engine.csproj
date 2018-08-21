@@ -212,6 +212,7 @@
     <Compile Include="Types\Polymorphy\IPolymorphicResolver.cs" />
     <Compile Include="Types\Polymorphy\PolymorphicResolver.cs" />
     <Compile Include="Types\TypeCache.cs" />
+    <Compile Include="Types\TypeContainer.cs" />
     <Compile Include="Types\TypeService.cs" />
     <Compile Include="Verifier\Args.cs" />
     <Compile Include="Model\ModelStateConfiguration.cs" />
