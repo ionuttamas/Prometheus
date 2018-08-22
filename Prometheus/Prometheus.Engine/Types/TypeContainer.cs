@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Prometheus.Engine.Types
 {
@@ -14,6 +15,11 @@ namespace Prometheus.Engine.Types
         /// The possible implementations available for a given variable.
         /// </summary>
         public List<Type> Implementations { get; }
+
+        /// <summary>
+        /// Gets the contract or the implementation if the contract was not specified.
+        /// </summary>
+        public Type Type => Contract??Implementations.FirstOrDefault();
 
         /// <summary>
         /// Returns true if a variable is of concrete type (is not declared as a contract).

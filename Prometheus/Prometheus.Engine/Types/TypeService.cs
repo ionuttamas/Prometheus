@@ -150,13 +150,10 @@ namespace Prometheus.Engine.Types
                            (coreTypes.ContainsKey(typeName) ? coreTypes[typeName] : null);
             }
 
-            if (type == null)
-                return false;
-
-            return true;
+            return type != null;
         }
 
-        public TypeContainer GetTypes(ExpressionSyntax memberExpression)
+        public TypeContainer GetTypeContainer(ExpressionSyntax memberExpression)
         {
             if(typeCache.TryGetType(memberExpression, out var container))
                 return container;
@@ -171,21 +168,24 @@ namespace Prometheus.Engine.Types
             }
             else
             {
-                var expressionKind = memberExpression.Kind();
-
-
-
-
-                types = expressionKind == SyntaxKind.SimpleMemberAccessExpression
-                    ? new List<Type> { GetExpressionTypes(memberExpression.As<MemberAccessExpressionSyntax>()).Last() }
-                    : GetTypeContainer(memberExpression.GetContainingMethod(), memberExpression.As<IdentifierNameSyntax>().Identifier.Text);
+                if (memberExpression.Kind() == SyntaxKind.SimpleMemberAccessExpression)
+                {
+                    var type = GetExpressionTypes(memberExpression.As<MemberAccessExpressionSyntax>()).Last();
+                    container = type.IsInterface
+                        ? TypeContainer.Empty.WithContract(type)
+                        : TypeContainer.Empty.WithImplementation(type);
+                }
+                else
+                {
+                    container = GetTypeContainer(memberExpression.GetContainingMethod(), memberExpression.As<IdentifierNameSyntax>().Identifier.Text);
+                }
             }
 
             typeCache.AddToCache(memberExpression, container);
             return container;
         }
 
-        public TypeContainer GetTypes(SyntaxToken syntaxToken)
+        public TypeContainer GetTypeContainer(SyntaxToken syntaxToken)
         {
             if (typeCache.TryGetType(syntaxToken, out var cachedType))
                 return cachedType;
@@ -195,6 +195,14 @@ namespace Prometheus.Engine.Types
             typeCache.AddToCache(syntaxToken, typeContainer);
 
             return typeContainer;
+        }
+
+        public bool AreParentChild(TypeContainer first, TypeContainer second)
+        {
+            var firstType = first.Type;
+            var secondType = second.Type;
+
+            return firstType.IsAssignableFrom(secondType) || secondType.IsAssignableFrom(firstType);
         }
 
         public bool IsExternal(Type type)
@@ -209,7 +217,7 @@ namespace Prometheus.Engine.Types
             var method = memberAccess.Name.Identifier.Text;
 
             if (!TryGetType(expression.Identifier.Text, out Type type)) {
-                type = GetTypes(expression).First();
+                type = GetTypeContainer(expression).Type;
             }
 
             returnType = type.GetMethod(method).ReturnType;
@@ -377,7 +385,7 @@ namespace Prometheus.Engine.Types
             if (classType != null)
                 return new List<Type> {classType};
 
-            var rootType = GetTypeContainer(memberExpression.GetContainingMethod(), rootToken).First();
+            var rootType = GetTypeContainer(memberExpression.GetContainingMethod(), rootToken).Type;
             var expressionTypes = GetExpressionTypes(rootType, memberExpression);
 
             return expressionTypes;
@@ -433,14 +441,19 @@ namespace Prometheus.Engine.Types
 
             //TODO: handle abstract classes
             if (!type.IsInterface)
-                return TypeContainer.Empty.WithImplementation(type);
+                return TypeContainer
+                    .Empty
+                    .WithImplementation(type);
 
             if (!polymorphicService.TryGetImplementationTypes(method, token, out var implementationTypes))
             {
                 implementationTypes = interfaceImplementations[type].ToList();
             }
 
-            return TypeContainer.Empty.WithContract(type).WithImplementations(implementationTypes);
+            return TypeContainer
+                .Empty
+                .WithContract(type)
+                .WithImplementations(implementationTypes);
         }
 
         private bool TryGetGenericType(string typeName, out Type type)

@@ -116,12 +116,12 @@ namespace Prometheus.Engine.ConditionProver
 
             if (binaryExpression.Left.Kind() == SyntaxKind.NullLiteralExpression)
             {
-                left = GetNullExpression(typeService.GetTypes(binaryExpression.Right));
+                left = GetNullExpression(typeService.GetTypeContainer(binaryExpression.Right).Type);
                 right = ParseExpressionMember(binaryExpression.Right, out rightProcessedMembers);
             }
             else if (binaryExpression.Right.Kind() == SyntaxKind.NullLiteralExpression)
             {
-                right = GetNullExpression(typeService.GetTypes(binaryExpression.Left));
+                right = GetNullExpression(typeService.GetTypeContainer(binaryExpression.Left).Type);
                 left = ParseExpressionMember(binaryExpression.Left, out leftProcessedMembers);
             }
             else
@@ -212,7 +212,7 @@ namespace Prometheus.Engine.ConditionProver
             if (expressionKind == SyntaxKind.UnaryMinusExpression)
                 return ParseUnaryExpression(memberExpression, out processedMembers);
 
-            var memberType = typeService.GetTypes(memberExpression);
+            var memberType = typeService.GetTypeContainer(memberExpression).Type;
 
             //TODO: check nested reference chains from different chains: "customer.Address.ShipInfo" & "order.ShipInfo" to be the same
             //TODO: check agains same reference chains: "from.Address.ShipInfo" & "to.Address.ShipInfo"
@@ -222,7 +222,7 @@ namespace Prometheus.Engine.ConditionProver
 
         private Expr ParseInvocationExpression(ExpressionSyntax expression, out Dictionary<string, NodeType> processedMembers) {
             var invocationExpression = (InvocationExpressionSyntax)expression;
-            var isPure = typeService.IsPureMethod(invocationExpression, out var returnType);
+            typeService.IsPureMethod(invocationExpression, out var returnType);
             Sort sort = typeService.GetSort(returnType);
             Expr constExpr = context.MkConst(invocationExpression.ToString(), sort);
             processedMembers = new Dictionary<string, NodeType>
@@ -257,7 +257,7 @@ namespace Prometheus.Engine.ConditionProver
                 Sort sort = typeService.GetSort(type);
                 expr = context.MkConst(uniqueMemberName, sort);
                 var rootIdentifier = memberExpression.GetRootIdentifier();
-                var rootType = typeService.GetTypes(rootIdentifier);
+                var rootType = typeService.GetTypeContainer(rootIdentifier).Type;
                 //TODO: https://github.com/ionuttamas/Prometheus/issues/25
                 var firstAssignment = getAssignmentsDelegate(rootIdentifier.Identifier).FirstOrDefault();
 
@@ -336,10 +336,10 @@ namespace Prometheus.Engine.ConditionProver
             List<Expr> right;
 
             if (binaryExpression.Left.Kind() == SyntaxKind.NullLiteralExpression) {
-                left = new List<Expr> { GetNullExpression(typeService.GetTypes(binaryExpression.Right)) };
+                left = new List<Expr> { GetNullExpression(typeService.GetTypeContainer(binaryExpression.Right).Type) };
                 right = ParseExpressionMember(binaryExpression.Right, cachedMembers);
             } else if (binaryExpression.Right.Kind() == SyntaxKind.NullLiteralExpression) {
-                right = new List<Expr> { GetNullExpression(typeService.GetTypes(binaryExpression.Left)) };
+                right = new List<Expr> { GetNullExpression(typeService.GetTypeContainer(binaryExpression.Left).Type) };
                 left = ParseExpressionMember(binaryExpression.Left, cachedMembers);
             } else {
                 left = ParseExpressionMember(binaryExpression.Left, cachedMembers);
@@ -513,7 +513,7 @@ namespace Prometheus.Engine.ConditionProver
 
         private List<Expr> ParseCachedVariableExpression(ExpressionSyntax memberExpression, Dictionary<string, NodeType> cachedMembers)
         {
-            var memberType = typeService.GetTypes(memberExpression);
+            var memberType = typeService.GetTypeContainer(memberExpression).Type;
             var memberReference = new Reference(memberExpression);
             string memberName = memberExpression.ToString();
             string uniqueMemberName = $"{memberName}{memberExpression.GetLocation().SourceSpan}";

@@ -6,7 +6,6 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Prometheus.Common;
 using Prometheus.Engine.ConditionProver;
-using Prometheus.Engine.Reachability.Prover;
 using Prometheus.Engine.ReachabilityProver.Model;
 using Prometheus.Engine.Thread;
 using Prometheus.Engine.Types;
@@ -396,7 +395,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
         private List<ConditionalAssignment> ProcessStaticMethodCallAssignments(SyntaxNode bindingNode, InvocationExpressionSyntax invocationExpression) {
             var memberAccess = invocationExpression.Expression.As<MemberAccessExpressionSyntax>();
             var className = memberAccess.Expression.As<IdentifierNameSyntax>().Identifier.Text;
-            var type = typeService.GetTypes(memberAccess);
+            var type = typeService.GetTypeContainer(memberAccess).Type;
 
             if (typeService.IsExternal(type))
                 return ProcessExternalConditionalMethodAssignments(bindingNode, invocationExpression);
@@ -441,24 +440,34 @@ namespace Prometheus.Engine.Reachability.Tracker {
         }
 
         /// <summary>
-        /// Processes assignments such as "instance = reference.Method(...)" or "instance = collection"
+        /// Processes assignments such as "instance = reference.Method(...)" or "instance = collection.First()/Where()/etc."
+        /// In the case when "reference" has multiple possible implementations specified, we return all possible assignments from all concrete types.
         /// </summary>
-        /// <param name="bindingNode"></param>
-        /// <param name="invocationExpression"></param>
-        /// <returns></returns>
         private List<ConditionalAssignment> ProcessReferenceMethodCallAssignments(SyntaxNode bindingNode, InvocationExpressionSyntax invocationExpression) {
             var memberAccess = invocationExpression.Expression.As<MemberAccessExpressionSyntax>();
             var instanceExpression = memberAccess.Expression.As<IdentifierNameSyntax>();
             var methodName = memberAccess.Name.Identifier.Text;
-            var type = typeService.GetTypes(instanceExpression);
+            var typeContainer = typeService.GetTypeContainer(instanceExpression);
 
-            if (typeService.IsExternal(type))
-                return ProcessExternalConditionalMethodAssignments(bindingNode, invocationExpression);
-
+            //TODO: need to check here for other custom methods such as First(), Where()
             if (referenceParser.IsBuiltInMethod(methodName))
                 return ProcessLinqMethodAssignments(bindingNode, invocationExpression, instanceExpression);
 
-            return ProcessRegularReferenceMethodCallAssignments(bindingNode, invocationExpression, instanceExpression);
+            var assignments = new List<ConditionalAssignment>();
+
+            foreach (Type concreteType in typeContainer.Implementations)
+            {
+                if (typeService.IsExternal(concreteType))
+                {
+                    assignments.AddRange(ProcessExternalConditionalMethodAssignments(bindingNode, invocationExpression));
+                }
+                else
+                {
+                    assignments.AddRange(ProcessRegularReferenceMethodCallAssignments(bindingNode, invocationExpression, instanceExpression, concreteType));
+                }
+            }
+
+            return assignments;
         }
 
         /// <summary>
@@ -492,18 +501,16 @@ namespace Prometheus.Engine.Reachability.Tracker {
         /// </summary>
         private List<ConditionalAssignment> ProcessRegularReferenceMethodCallAssignments(SyntaxNode bindingNode,
             InvocationExpressionSyntax invocationExpression,
-            IdentifierNameSyntax instanceExpression) {
+            IdentifierNameSyntax instanceExpression,
+            Type concreteType) {
             var memberAccess = invocationExpression.Expression.As<MemberAccessExpressionSyntax>();
             var methodName = memberAccess.Name.Identifier.Text;
             var conditions = ExtractConditions(invocationExpression);
-
-            //TODO: handle when code is outside of the current solution (3rd party code)
-            var types = typeService.GetTypes(instanceExpression);
-            var classDeclaration = typeService.GetClassDeclaration(type);
+            var classDeclaration = typeService.GetClassDeclaration(concreteType);
             var parametersCount = invocationExpression.ArgumentList.Arguments.Count;
 
             if (classDeclaration == null)
-                throw new NotSupportedException($"Type {type} is was not found in solution");
+                throw new NotSupportedException($"Type {concreteType} is was not found in solution");
 
             //TODO: this only checks the name and the param count and picks the first method
             var method = classDeclaration
