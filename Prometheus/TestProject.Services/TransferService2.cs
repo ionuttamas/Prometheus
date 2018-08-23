@@ -7,11 +7,46 @@ namespace TestProject.Services
         //TODO: handle interface reference tracking
         private readonly CustomerRepository customerRepository;
         private readonly PaymentProvider paymentProvider;
+        private readonly IField field;
 
-        public TransferService2(CustomerRepository customerRepository, PaymentProvider paymentProvider)
+        public TransferService2(CustomerRepository customerRepository, PaymentProvider paymentProvider, IField field)
         {
             this.customerRepository = customerRepository;
             this.paymentProvider = paymentProvider;
+            this.field = field;
+        }
+
+        public void Polymorphic_VariousFields_ReferenceCall(Customer from2) {
+            var result = field.Compute(100);
+            Customer customer2;
+
+            if (result > 0) {
+                customer2 = from2;
+            } else {
+                customer2 = null;
+            }
+        }
+
+        public void IfCheck_Sat_StaticCall(Customer from2) {
+            if (IsValid(from2) && from2 != null) {
+                Customer customer2 = from2;
+            }
+        }
+
+        public void IfCheck_Unsat_StaticCall(Customer from2) {
+            if (IsValid(from2) && from2 == null) {
+                Customer customer2 = from2;
+            }
+        }
+
+        private bool IsValid(Customer customer) {
+            if (customer.IsActive && customer.Age > 28)
+                return true;
+
+            if (customer.AccountBalance == 200)
+                return true;
+
+            return false;
         }
 
         public void StringConstantTransfer(Customer from2, Customer to2, decimal amount) {

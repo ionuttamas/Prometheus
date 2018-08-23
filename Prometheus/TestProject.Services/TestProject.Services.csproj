@@ -49,6 +49,7 @@
     <Compile Include="Customer.cs" />
     <Compile Include="CustomerRepository.cs" />
     <Compile Include="CustomerUtil.cs" />
+    <Compile Include="IField.cs" />
     <Compile Include="OrderService.cs" />
     <Compile Include="Order.cs" />
     <Compile Include="OrderProcessor.cs" />

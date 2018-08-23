@@ -11,13 +11,15 @@ namespace TestProject.Services
         private readonly PaymentProvider paymentProvider;
         private const int CONST_NUMBER = 100;
         private const string CONST_STRING = "abc";
+        private readonly IField field;
 
-        public TransferService1(CustomerRepository customerRepository, List<Customer> customers, PaymentProvider paymentProvider)
+        public TransferService1(CustomerRepository customerRepository, List<Customer> customers, PaymentProvider paymentProvider, IField field)
         {
             _customerRepository = customerRepository;
             this.customers = customers;
             //TODO: this does not work paymentProvider = new PaymentProvider();
             this.paymentProvider = paymentProvider;
+            this.field = field;
         }
 
         public void StringConstantTransfer(Customer from1, Customer to1, decimal amount)
@@ -32,6 +34,38 @@ namespace TestProject.Services
             if (from1.Age == CONST_NUMBER && to1.Age == 200) {
                 var customer1 = from1;
             }
+        }
+
+        public void Polymorphic_CurrentPriceField_ReferenceCall(Customer from1)
+        {
+            var result = field.Compute(100);
+            Customer customer1;
+
+            if (result > 0)
+            {
+                customer1 = from1;
+            }
+            else
+            {
+                customer1 = null;
+            }
+        }
+
+        public void IfCheck_StaticCall(Customer from1) {
+            if (IsValid(from1) && from1!=null) {
+                Customer customer1 = from1;
+            }
+        }
+
+        private bool IsValid(Customer customer)
+        {
+            if (customer.IsActive && customer.Age > 18)
+                return true;
+
+            if (customer.AccountBalance == CONST_NUMBER)
+                return true;
+
+            return false;
         }
 
         public void If_NullCheck(Customer from1) {

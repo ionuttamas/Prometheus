@@ -122,23 +122,4 @@ namespace TestProject.Services
             return null;
         }
     }
-
-    public interface IField
-    {
-        decimal Compute(decimal delta);
-    }
-
-    public class CurrentPriceField : IField
-    {
-        public decimal Compute(decimal delta)
-        {
-            return delta;
-        }
-    }
-
-    public class AskField : IField {
-        public decimal Compute(decimal delta) {
-            return delta;
-        }
-    }
 }
