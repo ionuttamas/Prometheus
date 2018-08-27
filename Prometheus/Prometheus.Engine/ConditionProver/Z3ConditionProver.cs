@@ -69,7 +69,6 @@ namespace Prometheus.Engine.ConditionProver
             foreach (var assignmentCondition in assignment.Conditions) {
                 var boolExpr = ParseExpression(assignmentCondition.TestExpression, out var membersTable);
                 processedMembers.Merge(membersTable);
-
                 conditions.Add(assignmentCondition.IsNegated ? context.MkNot(boolExpr) : boolExpr);
             }
 
@@ -83,13 +82,13 @@ namespace Prometheus.Engine.ConditionProver
 
             switch (expressionKind) {
                 case SyntaxKind.LogicalNotExpression:
-                    return ParsePrefixUnaryExpression((PrefixUnaryExpressionSyntax)expressionSyntax, out processedMembers);
+                    return ParsePrefixUnaryExpression(expressionSyntax.As<PrefixUnaryExpressionSyntax>(), out processedMembers);
                 case SyntaxKind.SimpleMemberAccessExpression:
                     processedMembers = new Dictionary<string, NodeType>();
                     return context.MkBoolConst(expressionSyntax.ToString());
             }
 
-            var binaryExpression = (BinaryExpressionSyntax)expressionSyntax;
+            var binaryExpression = expressionSyntax.As<BinaryExpressionSyntax>();
 
             switch (expressionKind) {
                 case SyntaxKind.LogicalAndExpression:
@@ -222,13 +221,24 @@ namespace Prometheus.Engine.ConditionProver
 
         private Expr ParseInvocationExpression(ExpressionSyntax expression, out Dictionary<string, NodeType> processedMembers) {
             var invocationExpression = (InvocationExpressionSyntax)expression;
+            var invocationType = GetInvocationType(invocationExpression);
+
+            if (typeService.IsExternal(invocationType.Type))
+            {
+                return ParseExternalCodeInvocationExpression(invocationExpression, out processedMembers);
+            }
+            else
+            {
+
+            }
+        }
+
+        private Expr ParseExternalCodeInvocationExpression(InvocationExpressionSyntax invocationExpression, out Dictionary<string, NodeType> processedMembers) {
             typeService.IsPureMethod(invocationExpression, out var returnType);
             Sort sort = typeService.GetSort(returnType);
             Expr constExpr = context.MkConst(invocationExpression.ToString(), sort);
-            processedMembers = new Dictionary<string, NodeType>
-            {
-                [invocationExpression.Expression.ToString()] = new NodeType
-                {
+            processedMembers = new Dictionary<string, NodeType> {
+                [invocationExpression.Expression.ToString()] = new NodeType {
                     Expression = constExpr,
                     Node = invocationExpression,
                     Type = returnType
@@ -699,12 +709,63 @@ namespace Prometheus.Engine.ConditionProver
             return nullExpr;
         }
 
+        private InvocationType GetInvocationType(InvocationExpressionSyntax invocationExpression)
+        {
+            if (invocationExpression.Expression is IdentifierNameSyntax)
+            {
+                var @class = invocationExpression.GetContainingClass();
+                typeService.TryGetType(@class.Identifier.Text, out var type);
+                var method = type.GetMethods().First(x => x.Name == invocationExpression.Expression.ToString() &&
+                                             x.GetParameters().Length ==
+                                             invocationExpression.ArgumentList.Arguments.Count);
+
+                if (method.IsStatic)
+                {
+                    return new InvocationType {
+                        StaticType = type
+                    };
+                }
+
+                return new InvocationType {
+                    InstanceType = type
+                };
+            }
+
+            var identifier = invocationExpression
+                .Expression.As<MemberAccessExpressionSyntax>()
+                .Expression.As<IdentifierNameSyntax>();
+
+            if (typeService.TryGetType(identifier.Identifier.Text, out var staticType))
+            {
+                return new InvocationType
+                {
+                    StaticType = staticType
+                };
+            }
+
+            return new InvocationType
+            {
+                Instance = identifier,
+                InstanceType = typeService.GetTypeContainer(identifier).Type
+            };
+        }
+
         private class NodeType {
             public SyntaxNode Node { get; set; }
             public Expr Expression { get; set; }
             public Type Type { get; set; }
             public bool IsExternal { get; set; }
             public Reference ExternalReference { get; set; }
+        }
+
+        private class InvocationType
+        {
+            public bool IsStatic => StaticType != null;
+            public bool IsLocalReference => InstanceType == null;
+            public Type StaticType { get; set; }
+            public Type InstanceType { get; set; }
+            public IdentifierNameSyntax Instance { get; set; }
+            public Type Type => StaticType ?? InstanceType;
         }
     }
 }

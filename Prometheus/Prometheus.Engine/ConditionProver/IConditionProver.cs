@@ -17,4 +17,9 @@ namespace Prometheus.Engine.ConditionProver {
         /// </summary>
         bool IsSatisfiable(ConditionalAssignment first, ConditionalAssignment second);
     }
+
+    public interface IBooleanMethodProcessor
+    {
+
+    }
 }

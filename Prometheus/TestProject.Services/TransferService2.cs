@@ -8,12 +8,14 @@ namespace TestProject.Services
         private readonly CustomerRepository customerRepository;
         private readonly PaymentProvider paymentProvider;
         private readonly IField field;
+        private readonly CustomerValidator validator;
 
-        public TransferService2(CustomerRepository customerRepository, PaymentProvider paymentProvider, IField field)
+        public TransferService2(CustomerRepository customerRepository, PaymentProvider paymentProvider, IField field, CustomerValidator validator)
         {
             this.customerRepository = customerRepository;
             this.paymentProvider = paymentProvider;
             this.field = field;
+            this.validator = validator;
         }
 
         public void Polymorphic_VariousFields_ReferenceCall(Customer from2) {
@@ -27,14 +29,50 @@ namespace TestProject.Services
             }
         }
 
-        public void IfCheck_Sat_StaticCall(Customer from2) {
+        public void IfCheck_Sat_FieldReferenceCall(Customer from2) {
+            if (validator.IsValid(from2) && from2 != null) {
+                Customer customer2 = from2;
+            }
+        }
+
+        public void IfCheck_Unsat_FieldReferenceCall(Customer from2) {
+            if (validator.IsValid(from2) && from2 == null) {
+                Customer customer2 = from2;
+            }
+        }
+
+        public void IfCheck_Sat_ThisReferenceCall(Customer from2) {
             if (IsValid(from2) && from2 != null) {
                 Customer customer2 = from2;
             }
         }
 
-        public void IfCheck_Unsat_StaticCall(Customer from2) {
+        public void IfCheck_Unsat_ThisReferenceCall(Customer from2) {
             if (IsValid(from2) && from2 == null) {
+                Customer customer2 = from2;
+            }
+        }
+
+        public void IfCheck_Sat_LocalStaticCall(Customer from2) {
+            if (IsValid(from2) && from2 != null) {
+                Customer customer2 = from2;
+            }
+        }
+
+        public void IfCheck_Unsat_LocalStaticCall(Customer from2) {
+            if (from2 != null && from2.Age < 10) {
+                Customer customer2 = from2;
+            }
+        }
+
+        public void IfCheck_Sat_ExternalStaticCall(Customer from2) {
+            if (CustomerValidator.IsValidStatic(from2, 100) && from2 != null) {
+                Customer customer2 = from2;
+            }
+        }
+
+        public void IfCheck_Unsat_ExternalStaticCall(Customer from2) {
+            if (from2 != null && from2.AccountBalance < 100) {
                 Customer customer2 = from2;
             }
         }

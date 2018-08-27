@@ -528,7 +528,6 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 .Where(x => x.Expression.Kind() != SyntaxKind.ObjectCreationExpression) //TODO: are we interested in "return new X()"?
                 .Select(x => {
                     var (returnReference, query) = referenceParser.Parse(x.Expression);
-
                     var callContext = new CallContext {
                         InstanceReference = instanceExpression,
                         ArgumentsTable = argumentsTable,

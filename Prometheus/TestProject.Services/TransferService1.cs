@@ -9,17 +9,19 @@ namespace TestProject.Services
         private readonly CustomerRepository _customerRepository;
         private readonly List<Customer> customers;
         private readonly PaymentProvider paymentProvider;
+        private readonly CustomerValidator validator;
         private const int CONST_NUMBER = 100;
         private const string CONST_STRING = "abc";
         private readonly IField field;
 
-        public TransferService1(CustomerRepository customerRepository, List<Customer> customers, PaymentProvider paymentProvider, IField field)
+        public TransferService1(CustomerRepository customerRepository, List<Customer> customers, PaymentProvider paymentProvider, IField field, CustomerValidator validator)
         {
             _customerRepository = customerRepository;
             this.customers = customers;
             //TODO: this does not work paymentProvider = new PaymentProvider();
             this.paymentProvider = paymentProvider;
             this.field = field;
+            this.validator = validator;
         }
 
         public void StringConstantTransfer(Customer from1, Customer to1, decimal amount)
@@ -51,13 +53,41 @@ namespace TestProject.Services
             }
         }
 
-        public void IfCheck_StaticCall(Customer from1) {
-            if (IsValid(from1) && from1!=null) {
+        public void IfCheck_FieldReferenceCall(Customer from1) {
+            if (validator.IsValid(from1) && from1 != null) {
                 Customer customer1 = from1;
             }
         }
 
-        private bool IsValid(Customer customer)
+        public void IfCheck_ThisReferenceCall(Customer from1) {
+            if (IsValid(from1) && from1 != null) {
+                Customer customer1 = from1;
+            }
+        }
+
+        public void IfCheck_LocalStaticCall(Customer from1) {
+            if (IsValidStatic(from1) && from1!=null) {
+                Customer customer1 = from1;
+            }
+        }
+
+        public void IfCheck_ExternalStaticCall(Customer from1) {
+            if (CustomerValidator.IsValidStatic(from1, 300) && from1 != null) {
+                Customer customer1 = from1;
+            }
+        }
+
+        private bool IsValid(Customer customer) {
+            if (customer.IsActive && customer.Age > 18)
+                return true;
+
+            if (customer.AccountBalance == CONST_NUMBER)
+                return true;
+
+            return false;
+        }
+
+        private bool IsValidStatic(Customer customer)
         {
             if (customer.IsActive && customer.Age > 18)
                 return true;

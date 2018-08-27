@@ -30,8 +30,8 @@ namespace TestProject.GUI {
             var thread = new Thread(Do);
             var transferService = new TransferService();
             customerRepository = new CustomerRepository(customers);
-
-            transferService1 = new TransferService1(customerRepository, customers, paymentProvider, null);
+            var validator = new CustomerValidator(100, 20, 30);
+            transferService1 = new TransferService1(customerRepository, customers, paymentProvider, null, validator);
             transferService1.If_NullCheck(sharedCustomer);
             transferService1.StringConstantTransfer(sharedCustomer, sharedCustomer, 100);
             transferService1.IntConstantTransfer(sharedCustomer, sharedCustomer, 100);
@@ -91,7 +91,8 @@ namespace TestProject.GUI {
             registrationService.Register(sharedCustomer);
             registrationService.SimpleIfRegister(sharedCustomer);
 
-            var transferService2 = new TransferService2(customerRepository, paymentProvider, null);
+            var validator = new CustomerValidator(200, 25, 35);
+            var transferService2 = new TransferService2(customerRepository, paymentProvider, null, validator);
             transferService2.StringConstantTransfer(sharedCustomer, sharedCustomer, 100);
             transferService2.Unsat_StringConstantTransfer(sharedCustomer, sharedCustomer, 100);
             transferService2.IntConstantTransfer(sharedCustomer, sharedCustomer, 100);
