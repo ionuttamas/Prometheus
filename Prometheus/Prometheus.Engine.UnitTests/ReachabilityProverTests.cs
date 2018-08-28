@@ -38,11 +38,16 @@ namespace Prometheus.Engine.UnitTests
             var polymorphicService = new PolymorphicResolver();
             var context = new Context();
             var typeService = new TypeService(solution, context, polymorphicService, modelStateConfig, "TestProject.GUI", "TestProject.Services", "TestProject.Common");
-            var conditionProver = new Z3ConditionProver(typeService, context);
+            var expressionParser = new Z3BooleanExpressionParser(typeService, context);
+            var conditionProver = new Z3ConditionProver(expressionParser, context);
             var queryMatcher = new Z3QueryMatcher(typeService, context);
             var referenceParser = new ReferenceParser();
-            var referenceTracker = new ReferenceTracker(solution, threadSchedule, typeService, referenceParser);
+            var conditionExtractor = new ConditionExtractor();
+            var referenceTracker = new ReferenceTracker(solution, threadSchedule, typeService, referenceParser, conditionExtractor);
             reachabilityProver = new Reachability.Prover.ReachabilityProver(referenceTracker, conditionProver, queryMatcher);
+
+            expressionParser.Configure(reachabilityProver.HaveCommonReference);
+            expressionParser.Configure(referenceTracker.GetAssignments);
         }
 
         [TearDown]

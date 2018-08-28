@@ -9,17 +9,9 @@ namespace Prometheus.Engine.ConditionProver {
 
     public interface IConditionProver: IDisposable
     {
-        void Configure(HaveCommonReference reachabilityDelegate);
-        void Configure(GetConditionalAssignments getAssignmentsDelegate);
-
         /// <summary>
         /// Checks whether two conditions are reachable or not from the entry point.
         /// </summary>
         bool IsSatisfiable(ConditionalAssignment first, ConditionalAssignment second);
-    }
-
-    public interface IBooleanMethodProcessor
-    {
-
     }
 }

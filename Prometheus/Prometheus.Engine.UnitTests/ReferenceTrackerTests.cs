@@ -29,7 +29,8 @@ namespace Prometheus.Engine.UnitTests
             var typeService = new TypeService(solution, context, polymorphicService, ModelStateConfiguration.Empty, "TestProject.GUI", "TestProject.Services", "TestProject.Common");
             var threadSchedule = new ThreadAnalyzer(solution).GetThreadSchedule(solution.Projects.First(x => x.Name == "TestProject.GUI"));
             var referenceParser = new ReferenceParser();
-            referenceTracker = new ReferenceTracker(solution, threadSchedule, typeService, referenceParser);
+            var conditionExtractor = new ConditionExtractor();
+            referenceTracker = new ReferenceTracker(solution, threadSchedule, typeService, referenceParser, conditionExtractor);
         }
 
         [TearDown]

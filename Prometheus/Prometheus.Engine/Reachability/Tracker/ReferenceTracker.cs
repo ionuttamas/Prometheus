@@ -17,20 +17,21 @@ namespace Prometheus.Engine.Reachability.Tracker {
         private readonly ITypeService typeService;
         private readonly ThreadSchedule threadSchedule;
         private readonly IReferenceParser referenceParser;
+        private readonly ConditionExtractor conditionExtractor;
         private HaveCommonReference reachabilityDelegate;
-        private readonly ConditionCache conditionCache;
         private const string NULL_MARKER = "null";
 
         public ReferenceTracker(Solution solution,
                                 ThreadSchedule threadSchedule,
                                 ITypeService typeService,
-                                IReferenceParser referenceParser)
+                                IReferenceParser referenceParser,
+                                ConditionExtractor conditionExtractor)
         {
             this.solution = solution;
             this.threadSchedule = threadSchedule;
             this.typeService = typeService;
             this.referenceParser = referenceParser;
-            conditionCache = new ConditionCache();
+            this.conditionExtractor = conditionExtractor;
         }
 
         public void Configure(HaveCommonReference @delegate) {
@@ -77,7 +78,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
             var method = identifier.GetLocation().GetContainingMethod();
             var classDeclaration = method.FirstAncestorOrSelf<ClassDeclarationSyntax>();
             var matchingField = classDeclaration.FirstDescendantNode<FieldDeclarationSyntax>(x => x.Declaration.Variables.Any(v => v.Identifier.Text == identifierName));
-            var conditions = ExtractConditions(identifier.Parent);
+            var conditions = conditionExtractor.ExtractConditions(identifier.Parent);
 
             if (matchingField != null && matchingField.Modifiers.All(x=>x.Kind()!=SyntaxKind.StaticKeyword))
             {
@@ -316,7 +317,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 conditionalAssignment.RightReference.Node = matchingField.Declaration.Variables[0];
             }
 
-            var ifElseConditions = ExtractConditions(currentNode);
+            var ifElseConditions = conditionExtractor.ExtractConditions(currentNode);
             conditionalAssignment.Conditions.UnionWith(ifElseConditions);
 
             return new List<ConditionalAssignment>{ conditionalAssignment };
@@ -350,7 +351,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
         /// </summary>
         private List<ConditionalAssignment> ProcessLocalMethodCallAssignments(SyntaxNode bindingNode, InvocationExpressionSyntax invocationExpression) {
             var methodName = invocationExpression.Expression.As<IdentifierNameSyntax>().Identifier.Text;
-            var conditions = ExtractConditions(invocationExpression);
+            var conditions = conditionExtractor.ExtractConditions(invocationExpression);
             var classDeclaration = invocationExpression.GetContainingClass();
             var parametersCount = invocationExpression.ArgumentList.Arguments.Count;
 
@@ -401,7 +402,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 return ProcessExternalConditionalMethodAssignments(bindingNode, invocationExpression);
 
             var methodName = memberAccess.Name.Identifier.Text;
-            var conditions = ExtractConditions(invocationExpression);
+            var conditions = conditionExtractor.ExtractConditions(invocationExpression);
             var classDeclaration = typeService.GetClassDeclaration(className);
             var parametersCount = invocationExpression.ArgumentList.Arguments.Count;
 
@@ -478,7 +479,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
             IdentifierNameSyntax instanceExpression)
         {
             //We only take into consideration the calling method conditions
-            var conditions = ExtractConditions(invocationExpression);
+            var conditions = conditionExtractor.ExtractConditions(invocationExpression);
             var (reference, query) = referenceParser.Parse(invocationExpression);
             var callContext = new CallContext
             {
@@ -505,7 +506,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
             Type concreteType) {
             var memberAccess = invocationExpression.Expression.As<MemberAccessExpressionSyntax>();
             var methodName = memberAccess.Name.Identifier.Text;
-            var conditions = ExtractConditions(invocationExpression);
+            var conditions = conditionExtractor.ExtractConditions(invocationExpression);
             var classDeclaration = typeService.GetClassDeclaration(concreteType);
             var parametersCount = invocationExpression.ArgumentList.Arguments.Count;
 
@@ -555,156 +556,10 @@ namespace Prometheus.Engine.Reachability.Tracker {
             var conditionalAssignment = new ConditionalAssignment {
                 LeftReference = new Reference(bindingNode),
                 RightReference = rightReference,
-                Conditions = ExtractConditions(bindingNode)
+                Conditions = conditionExtractor.ExtractConditions(bindingNode)
             };
 
             return new List<ConditionalAssignment> { conditionalAssignment };
-        }
-
-        private HashSet<Condition> ExtractConditions(SyntaxNode node)
-        {
-            if (conditionCache.TryGet(node, out var conditions))
-                return conditions;
-
-            var exitConditions = ExtractNegatedExitConditions(node);
-            conditions = ExtractIfElseConditions(node);
-            conditions.UnionWith(exitConditions);
-            conditionCache.AddToCache(node, conditions);
-
-            return conditions;
-        }
-
-        /// <summary>
-        /// In the case of return types, for instance for "return person" statement to be reached,
-        /// the previous 2 conditions need to be negated: NOT (person.Age == 20) AND NOT (person.Age == 30).
-        /// </summary>
-        /// <code>
-        ///  public Person DecrementAge(Person person)
-        ///  {
-        ///      if(person.Age == 20)
-        ///      {
-        ///          return new Person(20);
-        ///      }
-        ///      else if(person.Age == 30)
-        ///      {
-        ///          return new Person(30);
-        ///      }
-        ///
-        ///      return person;
-        ///  }
-        /// </code>
-        private HashSet<Condition> ExtractNegatedExitConditions(SyntaxNode node)
-        {
-            var nodeSpan = node.GetLocation().SourceSpan;
-            var methodDeclaration = node.GetContainingMethod();
-            var previousReturnConditions = methodDeclaration
-                .DescendantNodes<ReturnStatementSyntax>()
-                .Where(x => x.GetLocation().SourceSpan.End < nodeSpan.Start)
-                .Select(ExtractIfElseConditions)
-                .Where(x=>x.Any())
-                .Select(x=> new Condition(x, true))
-                .ToList();
-            var exitConditions = previousReturnConditions.Any() ? new HashSet<Condition>(previousReturnConditions) : new HashSet<Condition>();
-
-            return exitConditions;
-        }
-
-        /// <summary>
-        /// In the case of return types, for instance for "return new Person(30)" statement to be reached,
-        /// the following conditions need to be satisfied: (person.AccountBalance == 100) AND NOT `(person.Age == 20) AND (person.Age == 30).
-        /// </summary>
-        /// <code>
-        ///  public Person DecrementAge(Person person)
-        ///  {
-        ///      if(person.AccountBalance == 100)
-        ///      {
-        ///         if(person.Age == 20)
-        ///         {
-        ///             return new Person(20);
-        ///         }
-        ///         else if(person.Age == 30)
-        ///         {
-        ///             return new Person(30);
-        ///         }
-        ///      }
-        ///
-        ///      return person;
-        ///  }
-        /// </code>
-        private HashSet<Condition> ExtractIfElseConditions(SyntaxNode node)
-        {
-            HashSet<Condition> conditions = new HashSet<Condition>();
-            var elseClause = node.FirstAncestor<ElseClauseSyntax>();
-            var ifClause = node.FirstAncestor<IfStatementSyntax>();
-
-            //If the node is within the condition of an IfStatement,
-            //we exclude the condition and continue with the ancestors
-            if (ifClause!=null && ifClause.Condition.Contains(node))
-            {
-                node = ifClause;
-                ifClause = ifClause.FirstAncestor<IfStatementSyntax>();
-            }
-
-            while (node != null) {
-                if (ifClause != null && !ifClause.Contains(elseClause)) {
-                    conditions.UnionWith(ProcessIfStatement(node, out node));
-                } else if (elseClause != null) {
-                    conditions.UnionWith(ProcessElseStatement(node, out node));
-                } else {
-                    return conditions;
-                }
-
-                elseClause = node.FirstAncestor<ElseClauseSyntax>();
-                ifClause = node.FirstAncestor<IfStatementSyntax>();
-            }
-
-            return conditions;
-        }
-
-        private HashSet<Condition> ProcessIfStatement(SyntaxNode node, out SyntaxNode lastNode) {
-            var ifClause = node.FirstAncestor<IfStatementSyntax>();
-            var conditions = new HashSet<Condition>();
-
-            lastNode = ifClause;
-
-            if (ifClause == null)
-                return conditions;
-
-            conditions.Add(new Condition(ifClause.Condition, false));
-            var elseClause = ifClause.Parent as ElseClauseSyntax;
-
-            while (elseClause != null) {
-                var ifStatement = elseClause.Parent as IfStatementSyntax;
-
-                if (ifStatement == null)
-                    break;
-
-                conditions.Add(new Condition(ifStatement.Condition, true));
-                lastNode = ifStatement;
-                elseClause = ifStatement.Parent as ElseClauseSyntax;
-            }
-
-            return conditions;
-        }
-
-        private HashSet<Condition> ProcessElseStatement(SyntaxNode node, out SyntaxNode lastNode)
-        {
-            var elseClause = node.FirstAncestor<ElseClauseSyntax>();
-            var conditions = new HashSet<Condition>();
-            lastNode = elseClause;
-
-            while (elseClause != null) {
-                var ifStatement = elseClause.Parent as IfStatementSyntax;
-
-                if (ifStatement == null)
-                    break;
-
-                conditions.Add(new Condition(ifStatement.Condition, true));
-                lastNode = ifStatement;
-                elseClause = ifStatement.Parent as ElseClauseSyntax;
-            }
-
-            return conditions;
         }
 
         private IEnumerable<ObjectCreationExpressionSyntax> FindObjectCreations(ClassDeclarationSyntax node) {

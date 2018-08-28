@@ -25,8 +25,6 @@ namespace Prometheus.Engine.Reachability.Prover
             this.conditionProver = conditionProver;
             this.queryMatcher = queryMatcher;
             reachabilityCache = new ReachabilityCache();
-            conditionProver.Configure(HaveCommonReference);
-            conditionProver.Configure(referenceTracker.GetAssignments);
             referenceTracker.Configure(HaveCommonReference);
         }
 
