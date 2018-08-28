@@ -16,6 +16,8 @@ namespace Prometheus.Engine.ConditionProver
         private readonly ITypeService typeService;
         private HaveCommonReference reachabilityDelegate;
         private GetConditionalAssignments getAssignmentsDelegate;
+        private ParseBooleanMethod parseBooleanMethodDelegate;
+
         private readonly Context context;
 
         public Z3BooleanExpressionParser(ITypeService typeService, Context context) {
@@ -29,6 +31,10 @@ namespace Prometheus.Engine.ConditionProver
 
         public void Configure(GetConditionalAssignments @delegate) {
             getAssignmentsDelegate = @delegate;
+        }
+
+        public void Configure(ParseBooleanMethod @delegate) {
+            parseBooleanMethodDelegate = @delegate;
         }
 
         public BoolExpr ParseExpression(ExpressionSyntax expressionSyntax, out Dictionary<string, NodeType> processedMembers) {
@@ -197,6 +203,7 @@ namespace Prometheus.Engine.ConditionProver
             if (typeService.IsExternal(invocationType.Type)) {
                 return ParseExternalCodeInvocationExpression(invocationExpression, out processedMembers);
             } else {
+
                 processedMembers = null;
                 return null;
             }
@@ -609,39 +616,73 @@ namespace Prometheus.Engine.ConditionProver
             return nullExpr;
         }
 
-        private InvocationType GetInvocationType(InvocationExpressionSyntax invocationExpression) {
-            if (invocationExpression.Expression is IdentifierNameSyntax) {
-                var @class = invocationExpression.GetContainingClass();
-                typeService.TryGetType(@class.Identifier.Text, out var type);
-                var method = type.GetMethods().First(x => x.Name == invocationExpression.Expression.ToString() &&
-                                                          x.GetParameters().Length ==
-                                                          invocationExpression.ArgumentList.Arguments.Count);
+        private InvocationType GetInvocationType(InvocationExpressionSyntax invocationExpression)
+        {
+            if (invocationExpression.Expression is IdentifierNameSyntax)
+                return GetLocalInvocationType(invocationExpression);
 
-                if (method.IsStatic) {
-                    return new InvocationType {
-                        StaticType = type
-                    };
-                }
+            return GetExternalInvocationType(invocationExpression);
+        }
 
-                return new InvocationType {
-                    InstanceType = type
-                };
+        /// <summary>
+        /// Gets the invocation type of a method local to the current class.
+        /// </summary>
+        private InvocationType GetLocalInvocationType(InvocationExpressionSyntax invocationExpression) {
+            var @class = invocationExpression.GetContainingClass();
+            typeService.TryGetType(@class.Identifier.Text, out var type);
+            var methodName = invocationExpression.Expression.ToString();
+            var parametersCount = invocationExpression.ArgumentList.Arguments.Count;
+            var method = type.GetMethods().First(x => x.Name == methodName &&
+                                                      x.GetParameters().Length == parametersCount);
+            var methodDeclaration = @class.DescendantNodes<MethodDeclarationSyntax>(x => x.Identifier.Text == methodName &&
+                                                                                         x.ParameterList.Parameters.Count ==
+                                                                                         parametersCount)
+                .First();
+            var invocationType = new InvocationType {
+                MethodDeclaration = methodDeclaration
+            };
+
+            if (method.IsStatic) {
+                invocationType.StaticType = type;
+            } else {
+                invocationType.InstanceType = type;
             }
 
-            var identifier = invocationExpression
+            return invocationType;
+        }
+
+        /// <summary>
+        /// Gets invocation type for invocation of a method external to the current type.
+        /// </summary>
+        private InvocationType GetExternalInvocationType(InvocationExpressionSyntax invocationExpression)
+        {
+            var instanceOrType = invocationExpression
                 .Expression.As<MemberAccessExpressionSyntax>()
                 .Expression.As<IdentifierNameSyntax>();
+            var methodName = invocationExpression
+                .Expression.As<MemberAccessExpressionSyntax>()
+                .Name.As<IdentifierNameSyntax>()
+                .Identifier.Text;
+            var parametersCount = invocationExpression.ArgumentList.Arguments.Count;
+            var invocationType = new InvocationType();
 
-            if (typeService.TryGetType(identifier.Identifier.Text, out var staticType)) {
-                return new InvocationType {
-                    StaticType = staticType
-                };
+            if (!typeService.TryGetType(instanceOrType.Identifier.Text, out var type))
+            {
+                type = typeService.GetTypeContainer(instanceOrType).Type;
+                invocationType.StaticType = type;
             }
 
-            return new InvocationType {
-                Instance = identifier,
-                InstanceType = typeService.GetTypeContainer(identifier).Type
-            };
+            var classDeclaration = typeService.GetClassDeclaration(type);
+            var methodDeclaration = classDeclaration.DescendantNodes<MethodDeclarationSyntax>(
+                    x => x.Identifier.Text == methodName &&
+                         x.ParameterList.Parameters.Count ==
+                         parametersCount)
+                .First();
+            invocationType.MethodDeclaration = methodDeclaration;
+            invocationType.InstanceType = invocationType.IsStatic ? null : type;
+            invocationType.Instance = invocationType.IsStatic ? null : instanceOrType;
+
+            return invocationType;
         }
     }
 }

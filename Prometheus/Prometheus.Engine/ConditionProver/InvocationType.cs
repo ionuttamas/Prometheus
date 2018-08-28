@@ -10,6 +10,7 @@ namespace Prometheus.Engine.ConditionProver
         public Type StaticType { get; set; }
         public Type InstanceType { get; set; }
         public IdentifierNameSyntax Instance { get; set; }
+        public MethodDeclarationSyntax MethodDeclaration { get; set; }
         public Type Type => StaticType ?? InstanceType;
     }
 }

@@ -21,7 +21,7 @@ namespace Prometheus.Engine.ConditionProver
             this.context = context;
         }
 
-        public Expr ParseMethod(MethodDeclarationSyntax methodDeclaration, out Dictionary<string, NodeType> processedNodes)
+        public Expr ParseBooleanMethod(MethodDeclarationSyntax methodDeclaration, out Dictionary<string, NodeType> processedNodes)
         {
             var returnExpressions = methodDeclaration
                 .DescendantNodes<ReturnStatementSyntax>()
