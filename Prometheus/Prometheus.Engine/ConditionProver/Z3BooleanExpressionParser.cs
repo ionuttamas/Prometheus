@@ -202,7 +202,7 @@ namespace Prometheus.Engine.ConditionProver
 
             return typeService.IsExternal(invocationType.Type) ?
                 ParseExternalCodeInvocationExpression(invocationExpression, out processedMembers) :
-                ParseInternalCodeInvocationExpression(out processedMembers, invocationType, invocationExpression);
+                ParseInternalCodeInvocationExpression(invocationExpression, invocationType, out processedMembers);
         }
 
         private Expr ParseExternalCodeInvocationExpression(InvocationExpressionSyntax invocationExpression, out Dictionary<string, NodeType> processedMembers) {
