@@ -200,13 +200,9 @@ namespace Prometheus.Engine.ConditionProver
             var invocationExpression = (InvocationExpressionSyntax)expression;
             var invocationType = GetInvocationType(invocationExpression);
 
-            if (typeService.IsExternal(invocationType.Type)) {
-                return ParseExternalCodeInvocationExpression(invocationExpression, out processedMembers);
-            } else {
-
-                processedMembers = null;
-                return null;
-            }
+            return typeService.IsExternal(invocationType.Type) ?
+                ParseExternalCodeInvocationExpression(invocationExpression, out processedMembers) :
+                ParseInternalCodeInvocationExpression(out processedMembers, invocationType, invocationExpression);
         }
 
         private Expr ParseExternalCodeInvocationExpression(InvocationExpressionSyntax invocationExpression, out Dictionary<string, NodeType> processedMembers) {
@@ -222,6 +218,22 @@ namespace Prometheus.Engine.ConditionProver
             };
 
             return constExpr;
+        }
+
+        private Expr ParseInternalCodeInvocationExpression(InvocationExpressionSyntax invocationExpression, InvocationType invocationType, out Dictionary<string, NodeType> processedMembers) {
+            var expr = parseBooleanMethodDelegate(invocationType.MethodDeclaration, out processedMembers);
+            var callContext = new CallContext {
+                InstanceReference = invocationType.Instance,
+                ArgumentsTable = argumentsTable,
+                InvocationExpression = invocationExpression
+            };
+            var referenceContext = new ReferenceContext(callContext, null);
+
+            foreach (var processedMember in processedMembers) {
+                processedMember.Value.ExternalReference.AddContext(referenceContext);
+            }
+
+            return expr;
         }
 
         private Expr ParseUnaryExpression(ExpressionSyntax unaryExpression, out Dictionary<string, NodeType> processedMembers) {

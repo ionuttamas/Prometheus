@@ -24,6 +24,11 @@ namespace Prometheus.Engine.ReachabilityProver.Model
             Token = token;
         }
 
+        public void AddContext(ReferenceContext context)
+        {
+            ReferenceContexts.Push(context);
+        }
+
         public Location GetLocation()
         {
             return Node != null ? Node.GetLocation() : Token.GetLocation();

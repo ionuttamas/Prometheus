@@ -300,7 +300,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
 
             if (query != null)
             {
-                rightReference.ReferenceContexts.Push(new ReferenceContext(null, query));
+                rightReference.AddContext(new ReferenceContext(null, query));
             }
 
             var conditionalAssignment = new ConditionalAssignment {
@@ -376,7 +376,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                         ArgumentsTable = argumentsTable,
                         InvocationExpression = invocationExpression
                     };
-                    returnReference.ReferenceContexts.Push(new ReferenceContext(callContext, query));
+                    returnReference.AddContext(new ReferenceContext(callContext, query));
 
                     return new ConditionalAssignment {
                         RightReference = returnReference,
@@ -427,7 +427,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                         ArgumentsTable = argumentsTable,
                         InvocationExpression = invocationExpression
                     };
-                    returnReference.ReferenceContexts.Push(new ReferenceContext(callContext, query));
+                    returnReference.AddContext(new ReferenceContext(callContext, query));
 
                     return new ConditionalAssignment {
                         RightReference = returnReference,
@@ -485,7 +485,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
             {
                 InstanceReference = instanceExpression
             };
-            reference.ReferenceContexts.Push(new ReferenceContext(callContext, query));
+            reference.AddContext(new ReferenceContext(callContext, query));
 
             var assignment = new ConditionalAssignment
             {
@@ -534,7 +534,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                         ArgumentsTable = argumentsTable,
                         InvocationExpression = invocationExpression
                     };
-                    returnReference.ReferenceContexts.Push(new ReferenceContext(callContext, query));
+                    returnReference.AddContext(new ReferenceContext(callContext, query));
 
                     return new ConditionalAssignment {
                         RightReference = returnReference,
