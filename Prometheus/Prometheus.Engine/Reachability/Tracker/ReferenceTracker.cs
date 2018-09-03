@@ -353,7 +353,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
             var conditions = conditionExtractor.ExtractConditions(invocationExpression);
             var classDeclaration = invocationExpression.GetContainingClass();
             var methodName = invocationExpression.Expression.As<IdentifierNameSyntax>().Identifier.Text;
-            var method = GetMethodBindings(invocationExpression, classDeclaration, methodName, out var argumentsTable);
+            var method = referenceParser.GetMethodBindings(invocationExpression, classDeclaration, methodName, out var argumentsTable);
 
             var returnExpressions = method
                 .DescendantNodes<ReturnStatementSyntax>()
@@ -393,7 +393,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
             var conditions = conditionExtractor.ExtractConditions(invocationExpression);
             var classDeclaration = typeService.GetClassDeclaration(className);
             var methodName = invocationExpression.Expression.As<MemberAccessExpressionSyntax>().Name.Identifier.Text;
-            var method = GetMethodBindings(invocationExpression, classDeclaration, methodName, out var argumentsTable);
+            var method = referenceParser.GetMethodBindings(invocationExpression, classDeclaration, methodName, out var argumentsTable);
 
             var returnExpressions = method
                 .DescendantNodes<ReturnStatementSyntax>()
@@ -488,7 +488,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 throw new NotSupportedException($"Type {concreteType} is was not found in solution");
 
             var methodName = invocationExpression.Expression.As<MemberAccessExpressionSyntax>().Name.Identifier.Text;
-            var method = GetMethodBindings(invocationExpression, classDeclaration, methodName, out var argumentsTable);
+            var method = referenceParser.GetMethodBindings(invocationExpression, classDeclaration, methodName, out var argumentsTable);
             var conditions = conditionExtractor.ExtractConditions(invocationExpression);
 
             var returnExpressions = method
@@ -514,7 +514,6 @@ namespace Prometheus.Engine.Reachability.Tracker {
             return returnExpressions;
         }
 
-
         private List<ConditionalAssignment> ProcessExternalConditionalMethodAssignments(SyntaxNode bindingNode, InvocationExpressionSyntax invocationExpression) {
             var rightReference = new Reference(invocationExpression) {
                 IsExternal = true,
@@ -528,22 +527,6 @@ namespace Prometheus.Engine.Reachability.Tracker {
             };
 
             return new List<ConditionalAssignment> { conditionalAssignment };
-        }
-
-        private static MethodDeclarationSyntax GetMethodBindings(InvocationExpressionSyntax invocationExpression, ClassDeclarationSyntax classDeclaration, string methodName, out Dictionary<ParameterSyntax, ArgumentSyntax> argumentsTable) {
-            var parametersCount = invocationExpression.ArgumentList.Arguments.Count;
-
-            //TODO: this only checks the name and the param count and picks the first method
-            var method = classDeclaration
-                .DescendantNodes<MethodDeclarationSyntax>(x => x.Identifier.Text == methodName &&
-                                                               x.ParameterList.Parameters.Count == parametersCount)
-                .First();
-            argumentsTable = new Dictionary<ParameterSyntax, ArgumentSyntax>();
-
-            for (int i = 0; i < method.ParameterList.Parameters.Count; i++) {
-                argumentsTable[method.ParameterList.Parameters[i]] = invocationExpression.ArgumentList.Arguments[i];
-            }
-            return method;
         }
 
         private IEnumerable<ObjectCreationExpressionSyntax> FindObjectCreations(ClassDeclarationSyntax node) {

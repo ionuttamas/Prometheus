@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -25,6 +26,22 @@ namespace Prometheus.Engine.Reachability.Tracker
                 return InternalParse(node.As<ReturnStatementSyntax>().Expression);
 
             return InternalParse(node);
+        }
+
+        public MethodDeclarationSyntax GetMethodBindings(InvocationExpressionSyntax invocationExpression, ClassDeclarationSyntax classDeclaration, string methodName, out Dictionary<ParameterSyntax, ArgumentSyntax> argumentsTable) {
+            var parametersCount = invocationExpression.ArgumentList.Arguments.Count;
+
+            //TODO: this only checks the name and the param count and picks the first method
+            var method = classDeclaration
+                .DescendantNodes<MethodDeclarationSyntax>(x => x.Identifier.Text == methodName &&
+                                                               x.ParameterList.Parameters.Count == parametersCount)
+                .First();
+            argumentsTable = new Dictionary<ParameterSyntax, ArgumentSyntax>();
+
+            for (int i = 0; i < method.ParameterList.Parameters.Count; i++) {
+                argumentsTable[method.ParameterList.Parameters[i]] = invocationExpression.ArgumentList.Arguments[i];
+            }
+            return method;
         }
 
         private (Reference, IReferenceQuery) InternalParse(SyntaxNode node)

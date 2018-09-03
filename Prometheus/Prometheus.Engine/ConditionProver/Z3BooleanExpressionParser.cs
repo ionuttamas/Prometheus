@@ -6,6 +6,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Z3;
 using Prometheus.Common;
+using Prometheus.Engine.Reachability.Tracker;
 using Prometheus.Engine.ReachabilityProver.Model;
 using Prometheus.Engine.Types;
 
@@ -14,14 +15,16 @@ namespace Prometheus.Engine.ConditionProver
     internal class Z3BooleanExpressionParser
     {
         private readonly ITypeService typeService;
+        private readonly IReferenceParser referenceParser;
         private HaveCommonReference reachabilityDelegate;
         private GetConditionalAssignments getAssignmentsDelegate;
         private ParseBooleanMethod parseBooleanMethodDelegate;
 
         private readonly Context context;
 
-        public Z3BooleanExpressionParser(ITypeService typeService, Context context) {
+        public Z3BooleanExpressionParser(ITypeService typeService, IReferenceParser referenceParser, Context context) {
             this.typeService = typeService;
+            this.referenceParser = referenceParser;
             this.context = context;
         }
 
@@ -222,6 +225,7 @@ namespace Prometheus.Engine.ConditionProver
 
         private Expr ParseInternalCodeInvocationExpression(InvocationExpressionSyntax invocationExpression, InvocationType invocationType, out Dictionary<string, NodeType> processedMembers) {
             var expr = parseBooleanMethodDelegate(invocationType.MethodDeclaration, out processedMembers);
+            referenceParser.GetMethodBindings(invocationExpression, invocationType.MethodDeclaration.GetContainingClass(), invocationType.MethodDeclaration.Identifier.Text, out var argumentsTable);
             var callContext = new CallContext {
                 InstanceReference = invocationType.Instance,
                 ArgumentsTable = argumentsTable,
