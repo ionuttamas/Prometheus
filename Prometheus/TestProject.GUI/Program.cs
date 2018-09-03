@@ -35,6 +35,10 @@ namespace TestProject.GUI {
             transferService1.If_NullCheck(sharedCustomer);
             transferService1.StringConstantTransfer(sharedCustomer, sharedCustomer, 100);
             transferService1.IntConstantTransfer(sharedCustomer, sharedCustomer, 100);
+            transferService1.IfCheck_FieldReferenceCall(sharedCustomer);
+            transferService1.IfCheck_LocalStaticCall(sharedCustomer);
+            transferService1.IfCheck_ThisReferenceCall(sharedCustomer);
+            transferService1.IfCheck_ExternalStaticCall(sharedCustomer);
             transferService1.If_3rdPartyCheck_StaticPureCall(sharedCustomer);
             transferService1.If_3rdPartyCheck_PureMethodStaticAssignment_DirectCheck(sharedCustomer);
             transferService1.If_3rdPartyCheck_ImpureStaticAssignment(sharedCustomer);
@@ -97,6 +101,14 @@ namespace TestProject.GUI {
             transferService2.Unsat_StringConstantTransfer(sharedCustomer, sharedCustomer, 100);
             transferService2.IntConstantTransfer(sharedCustomer, sharedCustomer, 100);
             transferService2.Unsat_IntConstantTransfer(sharedCustomer, sharedCustomer, 100);
+            transferService2.IfCheck_Sat_FieldReferenceCall(sharedCustomer);
+            transferService2.IfCheck_Unsat_FieldReferenceCall(sharedCustomer);
+            transferService2.IfCheck_Sat_LocalStaticCall(sharedCustomer);
+            transferService2.IfCheck_Unsat_LocalStaticCall(sharedCustomer);
+            transferService2.IfCheck_Sat_ThisReferenceCall(sharedCustomer);
+            transferService2.IfCheck_Unsat_ThisReferenceCall(sharedCustomer);
+            transferService2.IfCheck_Sat_ExternalStaticCall(sharedCustomer);
+            transferService2.IfCheck_Unsat_ExternalStaticCall(sharedCustomer);
             transferService2.If_3rdPartyCheck_StaticPureCall(sharedCustomer);
             transferService2.If_3rdPartyCheck_PureReferenceCall(sharedCustomer, sharedCustomer, 100);
             transferService2.If_3rdPartyCheck_ImpureReferenceCall(sharedCustomer, sharedCustomer, 100);

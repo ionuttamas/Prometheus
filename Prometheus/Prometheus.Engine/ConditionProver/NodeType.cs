@@ -11,5 +11,10 @@ namespace Prometheus.Engine.ConditionProver
         public Type Type { get; set; }
         public bool IsExternal { get; set; }
         public Reference ExternalReference { get; set; }
+
+        public NodeType()
+        {
+            ExternalReference = new Reference();
+        }
     }
 }

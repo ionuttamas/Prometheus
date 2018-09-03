@@ -42,8 +42,13 @@ namespace Prometheus.Engine.ConditionProver
 
         public BoolExpr ParseExpression(ExpressionSyntax expressionSyntax, out Dictionary<string, NodeType> processedMembers) {
             var expressionKind = expressionSyntax.Kind();
+            processedMembers = new Dictionary<string, NodeType>();
 
             switch (expressionKind) {
+                case SyntaxKind.TrueLiteralExpression:
+                    return context.MkTrue();
+                case SyntaxKind.FalseLiteralExpression:
+                    return context.MkFalse();
                 case SyntaxKind.LogicalNotExpression:
                     return ParsePrefixUnaryExpression(expressionSyntax.As<PrefixUnaryExpressionSyntax>(), out processedMembers);
                 case SyntaxKind.SimpleMemberAccessExpression:

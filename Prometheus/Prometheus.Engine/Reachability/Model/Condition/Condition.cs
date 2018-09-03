@@ -12,6 +12,7 @@ namespace Prometheus.Engine.ReachabilityProver.Model
 
         public Condition(ExpressionSyntax testExpression, bool isNegated)
         {
+            Conditions = new HashSet<Condition>();
             TestExpression = testExpression;
             IsNegated = isNegated;
         }

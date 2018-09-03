@@ -5,6 +5,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Z3;
 using Prometheus.Common;
 using Prometheus.Engine.Reachability.Tracker;
+using Prometheus.Engine.ReachabilityProver.Model;
 
 namespace Prometheus.Engine.ConditionProver
 {
@@ -45,18 +46,30 @@ namespace Prometheus.Engine.ConditionProver
             var conditions = conditionExtractor.ExtractConditions(returnStatement);
             var returnExpr = expressionParser.ParseExpression(returnStatement.Expression, out processedNodes);
             var resultExpr = returnExpr;
+            var condition = new Condition(conditions, false);
+            var testExpr = ProcessCondition(condition, out processedNodes);
+            resultExpr = context.MkAnd(resultExpr, testExpr);
 
-            foreach (var condition in conditions)
+            return resultExpr;
+        }
+
+        private BoolExpr ProcessCondition(Condition condition, out Dictionary<string, NodeType> processedNodes)
+        {
+            if (!condition.Conditions.Any())
             {
-                var expr = expressionParser.ParseExpression(condition.TestExpression, out var nodes);
+                var expr = expressionParser.ParseExpression(condition.TestExpression, out processedNodes);
 
-                if (condition.IsNegated)
-                {
-                    expr = context.MkNot(expr);
-                }
+                return condition.IsNegated ? context.MkNot(expr) : expr;
+            }
 
-                processedNodes.Merge(nodes);
+            var resultExpr = context.MkTrue();
+            processedNodes = new Dictionary<string, NodeType>();
+
+            foreach (var nestedCondition in condition.Conditions)
+            {
+                var expr = ProcessCondition(nestedCondition, out var nodes);
                 resultExpr = context.MkAnd(resultExpr, expr);
+                processedNodes.Merge(nodes);
             }
 
             return resultExpr;
