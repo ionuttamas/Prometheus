@@ -5,6 +5,7 @@ namespace Prometheus.Engine.ConditionProver
 {
     internal class InvocationType
     {
+        public InvocationExpressionSyntax Expression { get; set; }
         public bool IsStatic => StaticType != null;
         public bool IsLocalReference => InstanceType == null;
         public Type StaticType { get; set; }

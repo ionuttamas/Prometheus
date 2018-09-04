@@ -238,7 +238,9 @@ namespace Prometheus.Engine.ConditionProver
             };
             var referenceContext = new ReferenceContext(callContext, null);
 
-            foreach (var processedMember in processedMembers) {
+            foreach (var processedMember in processedMembers)
+            {
+                processedMember.Value.ExternalReference = processedMember.Value.ExternalReference ?? new Reference();
                 processedMember.Value.ExternalReference.AddContext(referenceContext);
             }
 
@@ -402,13 +404,36 @@ namespace Prometheus.Engine.ConditionProver
         private List<Expr> ParseCachedInvocationExpression(ExpressionSyntax expression, Dictionary<string, NodeType> cachedMembers) {
             //Currently, we treat 3rd party code as well as solution code methods within "if" test conditions the same
             var invocationExpression = (InvocationExpressionSyntax)expression;
-            var className = invocationExpression
-                .Expression.As<MemberAccessExpressionSyntax>()
-                .Expression.As<IdentifierNameSyntax>()
-                .Identifier.Text;
-            var expr = typeService.TryGetType(className, out var _) ?
-                ParseCachedStaticInvocationExpression(cachedMembers, invocationExpression) :
-                ParseCachedReferenceInvocationExpression(cachedMembers, invocationExpression);
+            var invocationType = GetInvocationType(invocationExpression);
+
+            return typeService.IsExternal(invocationType.Type) ?
+                ParseCachedExternalCodeInvocationExpression(invocationType, cachedMembers) :
+                ParseCachedInternalCodeInvocationExpression(invocationType, cachedMembers);
+        }
+
+        private List<Expr> ParseCachedExternalCodeInvocationExpression(InvocationType invocationType, Dictionary<string, NodeType> cachedMembers) {
+            var expr = invocationType.IsStatic ?
+                ParseCachedStaticInvocationExpression(cachedMembers, invocationType.Expression) :
+                ParseCachedReferenceInvocationExpression(cachedMembers, invocationType.Expression);
+
+            return expr;
+        }
+
+        private List<Expr> ParseCachedInternalCodeInvocationExpression(InvocationType invocationType, Dictionary<string, NodeType> cachedMembers) {
+            TODO
+            var expr = parseBooleanMethodDelegate(invocationType.MethodDeclaration, out var processedMembers);
+            referenceParser.GetMethodBindings(invocationExpression, invocationType.MethodDeclaration.GetContainingClass(), invocationType.MethodDeclaration.Identifier.Text, out var argumentsTable);
+            var callContext = new CallContext {
+                InstanceReference = invocationType.Instance,
+                ArgumentsTable = argumentsTable,
+                InvocationExpression = invocationExpression
+            };
+            var referenceContext = new ReferenceContext(callContext, null);
+
+            foreach (var processedMember in processedMembers) {
+                processedMember.Value.ExternalReference = processedMember.Value.ExternalReference ?? new Reference();
+                processedMember.Value.ExternalReference.AddContext(referenceContext);
+            }
 
             return expr;
         }
@@ -483,15 +508,11 @@ namespace Prometheus.Engine.ConditionProver
             }
 
             foreach (NodeType node in cachedMembers.Values.Where(x => x.Type == memberType)) {
-                if (node.IsExternal && node.ExternalReference.IsPure) {
-                    if (MatchCachedExternalPureMethodAssignment(memberExpression, node, out Expr nodeExpression)) {
-                        reachableExprs.Add(nodeExpression);
-                    }
+                if (node.IsExternal && node.ExternalReference.IsPure && MatchCachedExternalPureMethodAssignment(memberExpression, node, out Expr nodeExpression)) {
+                     reachableExprs.Add(nodeExpression);
                 } else if (node.Node is IdentifierNameSyntax && memberExpression is IdentifierNameSyntax &&
-                           !node.IsExternal) {
-                    if (reachabilityDelegate(new Reference(node.Node), memberReference, out Reference _)) {
-                        reachableExprs.Add(node.Expression);
-                    }
+                           !node.IsExternal && reachabilityDelegate(new Reference(node.Node), memberReference, out Reference _)) {
+                    reachableExprs.Add(node.Expression);
                 } else if (node.Node is MemberAccessExpressionSyntax && memberExpression is MemberAccessExpressionSyntax) {
                     //TODO: MAJOR
                     //TODO: for now, we only match "amount1" with "amount2" (identifier with identifier) or "[from].AccountBalance" with "[from2].AccountBalance"
@@ -653,13 +674,13 @@ namespace Prometheus.Engine.ConditionProver
             typeService.TryGetType(@class.Identifier.Text, out var type);
             var methodName = invocationExpression.Expression.ToString();
             var parametersCount = invocationExpression.ArgumentList.Arguments.Count;
-            var method = type.GetMethods().First(x => x.Name == methodName &&
-                                                      x.GetParameters().Length == parametersCount);
+            var method = type.GetMethod(x => x.Name == methodName && x.GetParameters().Length == parametersCount);
             var methodDeclaration = @class.DescendantNodes<MethodDeclarationSyntax>(x => x.Identifier.Text == methodName &&
                                                                                          x.ParameterList.Parameters.Count ==
                                                                                          parametersCount)
                 .First();
             var invocationType = new InvocationType {
+                Expression = invocationExpression,
                 MethodDeclaration = methodDeclaration
             };
 
@@ -699,6 +720,7 @@ namespace Prometheus.Engine.ConditionProver
                          x.ParameterList.Parameters.Count ==
                          parametersCount)
                 .First();
+            invocationType.Expression = invocationExpression;
             invocationType.MethodDeclaration = methodDeclaration;
             invocationType.InstanceType = invocationType.IsStatic ? null : type;
             invocationType.Instance = invocationType.IsStatic ? null : instanceOrType;

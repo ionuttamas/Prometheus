@@ -27,6 +27,14 @@ namespace Prometheus.Common
             }
         }
 
+        public static MethodInfo GetMethod(this Type type, Predicate<MethodInfo> filter)
+        {
+            var method = type.GetMethods(BindingFlags.Static | BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
+                .FirstOrDefault(x => filter(x));
+
+            return method;
+        }
+
         public static Expression GetExpression(this PropertyInfo propertyInfo, Type type)
         {
             ParameterExpression parameter = Expression.Parameter(type, "x");
