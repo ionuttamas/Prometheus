@@ -49,8 +49,8 @@ namespace Prometheus.Engine.UnitTests
             var firstAssignment = referenceTracker.GetAssignments(firstIdentifier).First();
             var secondAssignment = referenceTracker.GetAssignments(secondIdentifier).First();
 
-            var areEquivalent = queryMatcher.AreEquivalent(firstAssignment.RightReference.ReferenceContexts.First().Query,
-                                       secondAssignment.RightReference.ReferenceContexts.First().Query,
+            var areEquivalent = queryMatcher.AreEquivalent(firstAssignment.RightReference.ReferenceContexts.PeekFirst().Query,
+                                       secondAssignment.RightReference.ReferenceContexts.PeekFirst().Query,
                                        out var satisfiableTable);
 
             Assert.True(areEquivalent);
@@ -69,8 +69,8 @@ namespace Prometheus.Engine.UnitTests
             var firstAssignment = referenceTracker.GetAssignments(firstIdentifier).First();
             var secondAssignment = referenceTracker.GetAssignments(secondIdentifier).First();
 
-            var areEquivalent = queryMatcher.AreEquivalent(firstAssignment.RightReference.ReferenceContexts.First().Query,
-                secondAssignment.RightReference.ReferenceContexts.First().Query,
+            var areEquivalent = queryMatcher.AreEquivalent(firstAssignment.RightReference.ReferenceContexts.PeekFirst().Query,
+                secondAssignment.RightReference.ReferenceContexts.PeekFirst().Query,
                 out var satisfiableTable);
 
             Assert.True(areEquivalent);
@@ -89,8 +89,8 @@ namespace Prometheus.Engine.UnitTests
             var firstAssignment = referenceTracker.GetAssignments(firstIdentifier).First();
             var secondAssignment = referenceTracker.GetAssignments(secondIdentifier).First();
 
-            var areEquivalent = queryMatcher.AreEquivalent(firstAssignment.RightReference.ReferenceContexts.First().Query,
-                secondAssignment.RightReference.ReferenceContexts.First().Query,
+            var areEquivalent = queryMatcher.AreEquivalent(firstAssignment.RightReference.ReferenceContexts.PeekFirst().Query,
+                secondAssignment.RightReference.ReferenceContexts.PeekFirst().Query,
                 out var satisfiableTable);
 
             Assert.True(areEquivalent);

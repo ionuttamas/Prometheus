@@ -44,7 +44,7 @@ namespace Prometheus.Engine.UnitTests
             var queryMatcher = new Z3QueryMatcher(typeService, context);
             var conditionExtractor = new ConditionExtractor();
             var referenceTracker = new ReferenceTracker(solution, threadSchedule, typeService, referenceParser, conditionExtractor);
-            reachabilityProver = new Reachability.Prover.ReachabilityProver(referenceTracker, conditionProver, queryMatcher);
+            reachabilityProver = new Reachability.Prover.ReachabilityProver(referenceTracker, conditionProver, queryMatcher, typeService);
             var methodParser = new Z3BooleanMethodParser(expressionParser, conditionExtractor, context);
 
             expressionParser.Configure(reachabilityProver.HaveCommonReference);

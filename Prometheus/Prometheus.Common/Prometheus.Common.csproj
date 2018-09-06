@@ -58,6 +58,7 @@
   <ItemGroup>
     <Compile Include="CollectionExtensions.cs" />
     <Compile Include="ConvertExtensions.cs" />
+    <Compile Include="DEQueue.cs" />
     <Compile Include="ExpressionExtensions.cs" />
     <Compile Include="ObjectExtensions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

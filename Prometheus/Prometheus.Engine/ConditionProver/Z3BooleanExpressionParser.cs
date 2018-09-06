@@ -240,8 +240,8 @@ namespace Prometheus.Engine.ConditionProver
 
             foreach (var processedMember in processedMembers)
             {
-                processedMember.Value.ExternalReference = processedMember.Value.ExternalReference ?? new Reference();
-                processedMember.Value.ExternalReference.AddContext(referenceContext);
+                processedMember.Value.Reference = processedMember.Value.Reference ?? new Reference();
+                processedMember.Value.Reference.PrependContext(referenceContext);
             }
 
             return expr;
@@ -281,7 +281,7 @@ namespace Prometheus.Engine.ConditionProver
                 Node = memberExpression,
                 Type = type,
                 IsExternal = isExternal,
-                ExternalReference = externalReference
+                Reference = externalReference
             };
 
             return expr;
@@ -420,22 +420,37 @@ namespace Prometheus.Engine.ConditionProver
         }
 
         private List<Expr> ParseCachedInternalCodeInvocationExpression(InvocationType invocationType, Dictionary<string, NodeType> cachedMembers) {
-            TODO
             var expr = parseBooleanMethodDelegate(invocationType.MethodDeclaration, out var processedMembers);
-            referenceParser.GetMethodBindings(invocationExpression, invocationType.MethodDeclaration.GetContainingClass(), invocationType.MethodDeclaration.Identifier.Text, out var argumentsTable);
+            referenceParser.GetMethodBindings(invocationType.Expression, invocationType.MethodDeclaration.GetContainingClass(), invocationType.MethodDeclaration.Identifier.Text, out var argumentsTable);
             var callContext = new CallContext {
                 InstanceReference = invocationType.Instance,
                 ArgumentsTable = argumentsTable,
-                InvocationExpression = invocationExpression
+                InvocationExpression = invocationType.Expression
             };
             var referenceContext = new ReferenceContext(callContext, null);
 
             foreach (var processedMember in processedMembers) {
-                processedMember.Value.ExternalReference = processedMember.Value.ExternalReference ?? new Reference();
-                processedMember.Value.ExternalReference.AddContext(referenceContext);
+                processedMember.Value.Reference = processedMember.Value.Reference ?? new Reference();
+                processedMember.Value.Reference.PrependContext(referenceContext);
             }
 
-            return expr;
+            List<Expr> reachableExprs = new List<Expr>();
+
+            foreach (var processedMember in processedMembers.Where(x=>!x.Value.IsExternal))
+            {
+                foreach (var cachedMember in cachedMembers.Where(x => !x.Value.IsExternal)) {
+                    if (reachabilityDelegate(processedMember.Value.Reference, cachedMember.Value.Reference, out _)) {
+                        reachableExprs.Add(cachedMember.Value.Expression);
+                    }
+                }
+            }
+
+            if (!reachableExprs.Any())
+            {
+                reachableExprs.Add(expr);
+            }
+
+            return reachableExprs;
         }
 
         private List<Expr> ParseCachedReferenceInvocationExpression(Dictionary<string, NodeType> cachedMembers, InvocationExpressionSyntax invocationExpression) {
@@ -455,11 +470,10 @@ namespace Prometheus.Engine.ConditionProver
             if (cachedInvocation.IsNull())
                 return new List<Expr> { context.MkConst(invocationExpression.ToString(), sort) };
 
-            var cachedArguments = cachedInvocation
-                .Value.Node.As<InvocationExpressionSyntax>()
-                .ArgumentList.Arguments
-                .ToList();
-            var arguments = invocationExpression.ArgumentList.Arguments.ToList();
+            var cachedArguments = cachedInvocation.Value
+                .Node.As<InvocationExpressionSyntax>()
+                .ArgumentList;
+            var arguments = invocationExpression.ArgumentList;
 
             if (AreArgumentsEquivalent(cachedArguments, arguments))
                 return new List<Expr> { cachedInvocation.Value.Expression };
@@ -474,11 +488,9 @@ namespace Prometheus.Engine.ConditionProver
                 x => x.Value.Node is InvocationExpressionSyntax && x.Key == invocationExpression.Expression.ToString());
 
             if (!cachedInvocation.IsNull() && isPure) {
-                var cachedArguments = cachedInvocation
-                    .Value.Node.As<InvocationExpressionSyntax>()
-                    .ArgumentList.Arguments
-                    .ToList();
-                var arguments = invocationExpression.ArgumentList.Arguments.ToList();
+                var cachedArguments = cachedInvocation.Value
+                    .Node.As<InvocationExpressionSyntax>().ArgumentList;
+                var arguments = invocationExpression.ArgumentList;
 
                 if (AreArgumentsEquivalent(cachedArguments, arguments)) {
                     return new List<Expr> { cachedInvocation.Value.Expression };
@@ -503,12 +515,11 @@ namespace Prometheus.Engine.ConditionProver
             string uniqueMemberName = $"{memberName}{memberExpression.GetLocation().SourceSpan}";
             List<Expr> reachableExprs = new List<Expr>();
 
-            if (TryParseFixedExpression(memberExpression, memberType, out var expr)) {
+            if (TryParseFixedExpression(memberExpression, memberType, out var expr))
                 return new List<Expr> { expr };
-            }
 
             foreach (NodeType node in cachedMembers.Values.Where(x => x.Type == memberType)) {
-                if (node.IsExternal && node.ExternalReference.IsPure && MatchCachedExternalPureMethodAssignment(memberExpression, node, out Expr nodeExpression)) {
+                if (node.IsExternal && node.Reference.IsPure && MatchCachedExternalPureMethodAssignment(memberExpression, node, out Expr nodeExpression)) {
                      reachableExprs.Add(nodeExpression);
                 } else if (node.Node is IdentifierNameSyntax && memberExpression is IdentifierNameSyntax &&
                            !node.IsExternal && reachabilityDelegate(new Reference(node.Node), memberReference, out Reference _)) {
@@ -548,45 +559,38 @@ namespace Prometheus.Engine.ConditionProver
                 .Expression.As<MemberAccessExpressionSyntax>()
                 .Expression.As<IdentifierNameSyntax>()
                 .Identifier.Text;
-            var cachedArguments = node.ExternalReference
-                .Node.As<InvocationExpressionSyntax>()
-                .ArgumentList.Arguments
-                .ToList();
-            var arguments = invocationReference.ArgumentList.Arguments.ToList();
+            var cachedArguments = node.Reference
+                .Node.As<InvocationExpressionSyntax>().ArgumentList;
+            var arguments = invocationReference.ArgumentList;
 
-            if (typeService.TryGetType(className, out var _)) {
-                if (AreArgumentsEquivalent(cachedArguments, arguments)) {
-                    {
-                        nodeExpression = node.Expression;
-                        return true;
-                    }
-                }
-            } else {
-                var instanceReference = new Reference(invocationReference.Expression.As<MemberAccessExpressionSyntax>()
-                    .Expression);
-                var cachedReference = new Reference(node.ExternalReference.Node.As<InvocationExpressionSyntax>().Expression
-                    .As<MemberAccessExpressionSyntax>().Expression);
+            // Process static method calls
+            if (typeService.TryGetType(className, out var _) && AreArgumentsEquivalent(cachedArguments, arguments)) {
+                nodeExpression = node.Expression;
+                return true;
+            }
 
-                if (reachabilityDelegate(instanceReference, cachedReference, out var _) &&
-                    AreArgumentsEquivalent(cachedArguments, arguments)) {
-                    {
-                        nodeExpression = node.Expression;
-                        return true;
-                    }
-                }
+            // Process instance method calls like "instanceReference.Do(...)"
+            var instanceReference = new Reference(invocationReference.Expression.As<MemberAccessExpressionSyntax>().Expression);
+            var cachedReference = new Reference(node.Reference.Node.As<InvocationExpressionSyntax>().Expression.As<MemberAccessExpressionSyntax>().Expression);
+
+            if (reachabilityDelegate(instanceReference, cachedReference, out var _) && AreArgumentsEquivalent(cachedArguments, arguments))
+            {
+                nodeExpression = node.Expression;
+                return true;
             }
 
             return false;
         }
 
-        private bool AreArgumentsEquivalent(List<ArgumentSyntax> first, List<ArgumentSyntax> second) {
-            if (first.Count != second.Count)
+        private bool AreArgumentsEquivalent(ArgumentListSyntax firstSyntax, ArgumentListSyntax secondSyntax)
+        {
+            if (firstSyntax.Arguments.Count != secondSyntax.Arguments.Count)
                 return false;
 
-            for (int i = 0; i < first.Count; i++) {
+            for (int i = 0; i < firstSyntax.Arguments.Count; i++) {
                 //TODO: if we have here from1.Age and from2.Age => it will compare from1 and from2 only; in the case of from1.Name and from2.Address it will fail to compute the right values
-                var firstReference = new Reference(first[i].Expression.GetRootIdentifier());
-                var secondReference = new Reference(second[i].Expression.GetRootIdentifier());
+                var firstReference = new Reference(firstSyntax.Arguments[i].Expression.GetRootIdentifier());
+                var secondReference = new Reference(secondSyntax.Arguments[i].Expression.GetRootIdentifier());
 
                 if (!reachabilityDelegate(firstReference, secondReference, out var _))
                     return false;

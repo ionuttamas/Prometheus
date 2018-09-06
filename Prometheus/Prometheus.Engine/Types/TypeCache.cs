@@ -6,16 +6,16 @@ namespace Prometheus.Engine.Types
 {
     internal class TypeCache
     {
-        private readonly Dictionary<ExpressionSyntax, TypeContainer> expressionSyntaxTypeCache;
+        private readonly Dictionary<SyntaxNode, TypeContainer> expressionSyntaxTypeCache;
         private readonly Dictionary<SyntaxToken, TypeContainer> syntaxTokenTypeCache;
 
         public TypeCache()
         {
-            expressionSyntaxTypeCache = new Dictionary<ExpressionSyntax, TypeContainer>();
+            expressionSyntaxTypeCache = new Dictionary<SyntaxNode, TypeContainer>();
             syntaxTokenTypeCache = new Dictionary<SyntaxToken, TypeContainer>();
         }
 
-        public void AddToCache(ExpressionSyntax expressionSyntax, TypeContainer container)
+        public void AddToCache(SyntaxNode expressionSyntax, TypeContainer container)
         {
             expressionSyntaxTypeCache[expressionSyntax] = container;
         }
@@ -25,7 +25,7 @@ namespace Prometheus.Engine.Types
             syntaxTokenTypeCache[syntaxToken] = container;
         }
 
-        public bool TryGetType(ExpressionSyntax syntax, out TypeContainer container)
+        public bool TryGetType(SyntaxNode syntax, out TypeContainer container)
         {
             return expressionSyntaxTypeCache.TryGetValue(syntax, out container);
         }

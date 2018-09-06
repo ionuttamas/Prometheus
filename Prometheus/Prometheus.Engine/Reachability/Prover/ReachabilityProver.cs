@@ -8,6 +8,7 @@ using Prometheus.Engine.ConditionProver;
 using Prometheus.Engine.ExpressionMatcher;
 using Prometheus.Engine.Reachability.Tracker;
 using Prometheus.Engine.ReachabilityProver.Model;
+using Prometheus.Engine.Types;
 
 namespace Prometheus.Engine.Reachability.Prover
 {
@@ -16,14 +17,16 @@ namespace Prometheus.Engine.Reachability.Prover
         private readonly ReferenceTracker referenceTracker;
         private readonly IConditionProver conditionProver;
         private readonly IQueryMatcher queryMatcher;
+        private readonly ITypeService typeService;
         private readonly ReachabilityCache reachabilityCache;
         private const string NULL_MARKER = "null";
 
-        public ReachabilityProver(ReferenceTracker referenceTracker, IConditionProver conditionProver, IQueryMatcher queryMatcher)
+        public ReachabilityProver(ReferenceTracker referenceTracker, IConditionProver conditionProver, IQueryMatcher queryMatcher, ITypeService typeService)
         {
             this.referenceTracker = referenceTracker;
             this.conditionProver = conditionProver;
             this.queryMatcher = queryMatcher;
+            this.typeService = typeService;
             reachabilityCache = new ReachabilityCache();
             referenceTracker.Configure(HaveCommonReference);
         }
@@ -35,6 +38,15 @@ namespace Prometheus.Engine.Reachability.Prover
         /// </summary>
         public bool HaveCommonReference(Reference first, Reference second, out Reference commonNode)
         {
+            //TODO: need to check for reference contexts
+
+            if (!CheckTypes(first, second))
+            {
+                commonNode = null;
+                reachabilityCache.AddToCache(first, second, null);
+                return false;
+            }
+
             var firstAssignment = new ConditionalAssignment
             {
                 LeftReference = first,
@@ -113,6 +125,13 @@ namespace Prometheus.Engine.Reachability.Prover
             return false;
         }
 
+        private bool CheckTypes(Reference first, Reference second) {
+            var firstContainer = first.Node != null ? typeService.GetTypeContainer(first.Node) : typeService.GetTypeContainer(first.Token);
+            var secondContainer = second.Node != null ? typeService.GetTypeContainer(second.Node) : typeService.GetTypeContainer(second.Token);
+
+            return typeService.AreParentChild(firstContainer, secondContainer);
+        }
+
         /// <summary>
         /// This checks whether two nodes are the same reference (the shared memory of two threads).
         /// This can be a class field/property used by both thread functions or parameters passed to threads that are the same
@@ -153,8 +172,8 @@ namespace Prometheus.Engine.Reachability.Prover
 
                 foreach (var variableMapping in satisfiableTable)
                 {
-                    var firstReference = new Reference(variableMapping.Key){ ReferenceContexts = new Stack<ReferenceContext>(new[] { firstMethodCalls[i] }) };
-                    var secondReference = new Reference(variableMapping.Value){ ReferenceContexts = new Stack<ReferenceContext>(new[] { secondMethodCalls[i] }) };
+                    var firstReference = new Reference(variableMapping.Key){ ReferenceContexts = new DEQueue<ReferenceContext>(new[] { firstMethodCalls[i] }) };
+                    var secondReference = new Reference(variableMapping.Value){ ReferenceContexts = new DEQueue<ReferenceContext>(new[] { secondMethodCalls[i] }) };
 
                     if (!HaveCommonReference(firstReference, secondReference, out var _))
                         return false;

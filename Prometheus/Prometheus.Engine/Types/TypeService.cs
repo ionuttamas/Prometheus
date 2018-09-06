@@ -153,35 +153,35 @@ namespace Prometheus.Engine.Types
             return type != null;
         }
 
-        public TypeContainer GetTypeContainer(ExpressionSyntax memberExpression)
+        public TypeContainer GetTypeContainer(SyntaxNode node)
         {
-            if(typeCache.TryGetType(memberExpression, out var container))
+            if(typeCache.TryGetType(node, out var container))
                 return container;
 
-            var lambdaExpression = memberExpression.AncestorNodes<SimpleLambdaExpressionSyntax>().FirstOrDefault();
+            var lambdaExpression = node.AncestorNodes<SimpleLambdaExpressionSyntax>().FirstOrDefault();
 
             if (lambdaExpression != null &&
-                (memberExpression.ToString() == lambdaExpression.Parameter.ToString() || memberExpression.ToString().StartsWith($"{lambdaExpression.Parameter}.")))
+                (node.ToString() == lambdaExpression.Parameter.ToString() || node.ToString().StartsWith($"{lambdaExpression.Parameter}.")))
             {
-                var type = GetLambdaExpressionMemberType(memberExpression);
+                var type = GetLambdaExpressionMemberType(node.As<ExpressionSyntax>());
                 container = type.IsInterface ? TypeContainer.Empty.WithContract(type) : TypeContainer.Empty.WithImplementation(type);
             }
             else
             {
-                if (memberExpression.Kind() == SyntaxKind.SimpleMemberAccessExpression)
+                if (node.Kind() == SyntaxKind.SimpleMemberAccessExpression)
                 {
-                    var type = GetExpressionTypes(memberExpression.As<MemberAccessExpressionSyntax>()).Last();
+                    var type = GetExpressionTypes(node.As<MemberAccessExpressionSyntax>()).Last();
                     container = type.IsInterface
                         ? TypeContainer.Empty.WithContract(type)
                         : TypeContainer.Empty.WithImplementation(type);
                 }
                 else
                 {
-                    container = GetTypeContainer(memberExpression.GetContainingMethod(), memberExpression.As<IdentifierNameSyntax>().Identifier.Text);
+                    container = GetTypeContainer(node.GetContainingMethod(), node.As<IdentifierNameSyntax>().Identifier.Text);
                 }
             }
 
-            typeCache.AddToCache(memberExpression, container);
+            typeCache.AddToCache(node, container);
             return container;
         }
 

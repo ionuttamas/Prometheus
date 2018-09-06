@@ -8,7 +8,7 @@ namespace Prometheus.Engine.Types
     public interface ITypeService
     {
         bool TryGetType(string typeName, out Type type);
-        TypeContainer GetTypeContainer(ExpressionSyntax expressionSyntax);
+        TypeContainer GetTypeContainer(SyntaxNode node);
         TypeContainer GetTypeContainer(SyntaxToken syntaxToken);
         bool AreParentChild(TypeContainer first, TypeContainer second);
         bool IsExternal(Type type);

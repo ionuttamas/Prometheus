@@ -183,7 +183,11 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ConditionProver\Z3BooleanMethodParser.cs" />
     <Compile Include="ConditionProver\IConditionProver.cs" />
+    <Compile Include="ConditionProver\InvocationType.cs" />
+    <Compile Include="ConditionProver\NodeType.cs" />
+    <Compile Include="ConditionProver\Z3BooleanExpressionParser.cs" />
     <Compile Include="ConditionProver\Z3ConditionProver.cs" />
     <Compile Include="ExpressionMatcher\Rewriters\ExpressionRewriter.cs" />
     <Compile Include="ExpressionMatcher\IQueryMatcher.cs" />
@@ -199,6 +203,7 @@
     <Compile Include="Reachability\Model\Query\IndexArgumentQuery.cs" />
     <Compile Include="Reachability\Model\Query\PredicateExpressionQuery.cs" />
     <Compile Include="Reachability\Tracker\ConditionCache.cs" />
+    <Compile Include="Reachability\Tracker\ConditionExtractor.cs" />
     <Compile Include="Reachability\Tracker\IReferenceParser.cs" />
     <Compile Include="Reachability\Model\Query\IReferenceQuery.cs" />
     <Compile Include="Reachability\Model\Query\WhereExpressionQuery.cs" />
