@@ -220,6 +220,14 @@ namespace TestProject.Services
         public void If_3rdPartyCheck_Sat_Negated_PureMethodReferenceAssignment_DifferentArgs_MemberCheck(Customer from2, Customer to2, decimal amount) {
             var result = paymentProvider.ProcessPaymentPure(from2.Name, to2.Name, amount);
 
+            if (amount > 5 && result.IsSuccessful) {
+                Customer customer2 = from2;
+            }
+        }
+
+        public void If_3rdPartyCheck_Unsat_Negated_PureMethodReferenceAssignment_DifferentArgs_MemberCheck(Customer from2, Customer to2, decimal amount) {
+            var result = paymentProvider.ProcessPaymentPure(from2.Name, to2.Name, amount);
+
             if (amount > 0 && !result.IsSuccessful) {
                 Customer customer2 = from2;
             }

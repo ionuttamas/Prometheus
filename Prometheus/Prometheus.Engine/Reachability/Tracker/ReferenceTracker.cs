@@ -232,7 +232,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                         .As<IdentifierNameSyntax>());
 
                     //TODO: currently, we do not handle situations in which the found reference assignment happened before the current assignment
-                    return reachabilityDelegate(reference, new Reference(referenceContexts.PeekLast().CallContext.InstanceReference), out var _);
+                    return reachabilityDelegate(reference, new Reference(referenceContexts.PeekLast().CallContext.InstanceNode), out var _);
                 })
                 .SelectMany(x => GetConditionalAssignments(x, x.ArgumentList.Arguments[constructorParameterIndex]))
                 .Select(x =>
@@ -461,7 +461,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
             var (reference, query) = referenceParser.Parse(invocationExpression);
             var callContext = new CallContext
             {
-                InstanceReference = instanceExpression
+                InstanceNode = instanceExpression
             };
             reference.AppendContext(new ReferenceContext(callContext, query));
 
@@ -497,7 +497,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 .Select(x => {
                     var (returnReference, query) = referenceParser.Parse(x.Expression);
                     var callContext = new CallContext {
-                        InstanceReference = instanceExpression,
+                        InstanceNode = instanceExpression,
                         ArgumentsTable = argumentsTable,
                         InvocationExpression = invocationExpression
                     };

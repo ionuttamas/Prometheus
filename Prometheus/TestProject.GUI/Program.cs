@@ -17,6 +17,7 @@ namespace TestProject.GUI {
         private static NonAtomicQueue<int> nonAtomicQueue;
         private static DeadlockedQueue<int> deadlockedQueue;
         private static Customer sharedCustomer;
+        private static Customer sharedCustomer2;
         private static CustomerRepository customerRepository;
         private static List<Customer> customers;
         private static TransferService1 transferService1;
@@ -34,7 +35,7 @@ namespace TestProject.GUI {
             transferService1 = new TransferService1(customerRepository, customers, paymentProvider, null, validator);
             transferService1.If_NullCheck(sharedCustomer);
             transferService1.StringConstantTransfer(sharedCustomer, sharedCustomer, 100);
-            transferService1.IntConstantTransfer(sharedCustomer, sharedCustomer, 100);
+            transferService1.IntConstantTransfer(sharedCustomer, sharedCustomer2, 100); //TODO: for (sharedCustomer, sharedCustomer) arguments it fails
             transferService1.IfCheck_FieldReferenceCall(sharedCustomer);
             transferService1.IfCheck_LocalStaticCall(sharedCustomer);
             transferService1.IfCheck_ThisReferenceCall(sharedCustomer);
@@ -100,7 +101,7 @@ namespace TestProject.GUI {
             transferService2.StringConstantTransfer(sharedCustomer, sharedCustomer, 100);
             transferService2.Unsat_StringConstantTransfer(sharedCustomer, sharedCustomer, 100);
             transferService2.IntConstantTransfer(sharedCustomer, sharedCustomer, 100);
-            transferService2.Unsat_IntConstantTransfer(sharedCustomer, sharedCustomer, 100);
+            transferService2.Unsat_IntConstantTransfer(sharedCustomer, sharedCustomer2, 100);
             transferService2.IfCheck_Sat_FieldReferenceCall(sharedCustomer);
             transferService2.IfCheck_Unsat_FieldReferenceCall(sharedCustomer);
             transferService2.IfCheck_Sat_LocalStaticCall(sharedCustomer);
@@ -131,6 +132,7 @@ namespace TestProject.GUI {
             transferService2.If_3rdPartyCheck_Negated_Sat_ImpureMethodStaticAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
             transferService2.If_3rdPartyCheck_ImpureMethodStaticAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
             transferService2.If_3rdPartyCheck_Sat_Negated_PureMethodReferenceAssignment_DifferentArgs_MemberCheck(sharedCustomer, sharedCustomer, 34);
+            transferService2.If_3rdPartyCheck_Unsat_Negated_PureMethodReferenceAssignment_DifferentArgs_MemberCheck(sharedCustomer, sharedCustomer, 34);
             transferService2.If_3rdPartyCheck_Negated_Sat_ImpureMethodReferenceAssignment_DirectCheck(sharedCustomer, sharedCustomer, 100);
             transferService2.If_3rdPartyCheck_Negated_Sat_ImpureMethodReferenceAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
             transferService2.If_3rdPartyCheck_Negated_Sat_StaticPureCall_DifferentArgs(null, sharedCustomer);

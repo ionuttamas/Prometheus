@@ -27,6 +27,7 @@ namespace Prometheus.Engine.Model
         public static ModelStateConfiguration Empty => new ModelStateConfiguration();
 
         #region Model configuration
+        //TODO: replace this with IsPure
         public ModelStateConfiguration ChangesState<T>(Expression<Action<T>> expression) {
             var type = typeof(T);
 
@@ -63,6 +64,7 @@ namespace Prometheus.Engine.Model
             return this;
         }
 
+        //TODO: replace this with IsPure
         //TODO: need to check the method as a whole not just its name
         public bool ChangesState(Type type, string methodName) {
             if (!stateChangeMethods.ContainsKey(type))
@@ -99,7 +101,7 @@ namespace Prometheus.Engine.Model
         #endregion
 
         #region Pure methods
-
+        //TODO: a cheap, but inexhaustive would be to see if the method modifies any state fields
         /// <summary>
         /// Configuration for 3rd party code that defines if a method is pure or not, that is its output depends only on the input without any side-effects.
         /// These methods can be used in if/else conditions to check if they are mutually exclusive or not.

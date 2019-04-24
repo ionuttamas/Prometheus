@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Z3;
@@ -232,7 +233,7 @@ namespace Prometheus.Engine.ConditionProver
             var expr = parseBooleanMethodDelegate(invocationType.MethodDeclaration, out processedMembers);
             referenceParser.GetMethodBindings(invocationExpression, invocationType.MethodDeclaration.GetContainingClass(), invocationType.MethodDeclaration.Identifier.Text, out var argumentsTable);
             var callContext = new CallContext {
-                InstanceReference = invocationType.Instance,
+                InstanceNode = invocationType.Instance,
                 ArgumentsTable = argumentsTable,
                 InvocationExpression = invocationExpression
             };
@@ -423,7 +424,7 @@ namespace Prometheus.Engine.ConditionProver
             var expr = parseBooleanMethodDelegate(invocationType.MethodDeclaration, out var processedMembers);
             referenceParser.GetMethodBindings(invocationType.Expression, invocationType.MethodDeclaration.GetContainingClass(), invocationType.MethodDeclaration.Identifier.Text, out var argumentsTable);
             var callContext = new CallContext {
-                InstanceReference = invocationType.Instance,
+                InstanceNode = invocationType.Instance,
                 ArgumentsTable = argumentsTable,
                 InvocationExpression = invocationType.Expression
             };
@@ -438,17 +439,18 @@ namespace Prometheus.Engine.ConditionProver
 
             foreach (var processedMember in processedMembers.Where(x=>!x.Value.IsExternal))
             {
-                foreach (var cachedMember in cachedMembers.Where(x => !x.Value.IsExternal)) {
+                foreach (var cachedMember in cachedMembers.Where(x => !x.Value.IsExternal))
+                {
+                    if(processedMember.Value.Reference.Node==null || cachedMember.Value.Reference.Node==null)
+                        continue;
+
                     if (reachabilityDelegate(processedMember.Value.Reference, cachedMember.Value.Reference, out _)) {
                         reachableExprs.Add(cachedMember.Value.Expression);
                     }
                 }
             }
 
-            if (!reachableExprs.Any())
-            {
-                reachableExprs.Add(expr);
-            }
+            reachableExprs.Add(expr);
 
             return reachableExprs;
         }
@@ -715,17 +717,26 @@ namespace Prometheus.Engine.ConditionProver
             if (!typeService.TryGetType(instanceOrType.Identifier.Text, out var type))
             {
                 type = typeService.GetTypeContainer(instanceOrType).Type;
+            }
+            else
+            {
                 invocationType.StaticType = type;
             }
 
-            var classDeclaration = typeService.GetClassDeclaration(type);
-            var methodDeclaration = classDeclaration.DescendantNodes<MethodDeclarationSyntax>(
-                    x => x.Identifier.Text == methodName &&
-                         x.ParameterList.Parameters.Count ==
-                         parametersCount)
-                .First();
+            var isExternal = typeService.IsExternal(type);
+
+            if (!isExternal)
+            {
+                var classDeclaration = typeService.GetClassDeclaration(type);
+                MethodDeclarationSyntax methodDeclaration = classDeclaration.DescendantNodes<MethodDeclarationSyntax>(
+                        x => x.Identifier.Text == methodName &&
+                             x.ParameterList.Parameters.Count ==
+                             parametersCount)
+                    .First();
+                invocationType.MethodDeclaration = methodDeclaration;
+            }
+
             invocationType.Expression = invocationExpression;
-            invocationType.MethodDeclaration = methodDeclaration;
             invocationType.InstanceType = invocationType.IsStatic ? null : type;
             invocationType.Instance = invocationType.IsStatic ? null : instanceOrType;
 

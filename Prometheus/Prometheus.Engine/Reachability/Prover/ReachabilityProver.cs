@@ -6,6 +6,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Prometheus.Common;
 using Prometheus.Engine.ConditionProver;
 using Prometheus.Engine.ExpressionMatcher;
+using Prometheus.Engine.ExpressionMatcher.Query;
 using Prometheus.Engine.Reachability.Tracker;
 using Prometheus.Engine.ReachabilityProver.Model;
 using Prometheus.Engine.Types;
@@ -159,28 +160,90 @@ namespace Prometheus.Engine.Reachability.Prover
             if (first.ReferenceContexts.Count != second.ReferenceContexts.Count)
                 return false;
 
-            var firstMethodCalls = first.ReferenceContexts.ToList();
-            var secondMethodCalls = second.ReferenceContexts.ToList();
+            var firstMethodContexts = first.ReferenceContexts.ToList();
+            var secondMethodContexts = second.ReferenceContexts.ToList();
 
-            if (firstMethodCalls.Count == 0)
+            return MatchCallContexts(firstMethodContexts, secondMethodContexts);
+        }
+
+        //TODO: redesign: incorrect as it doesn't capture many cases
+        private bool MatchCallContexts(List<ReferenceContext> firstMethodContexts, List<ReferenceContext> secondMethodContexts)
+        {
+            if (firstMethodContexts.Count == 0)
                 return false;
 
-            for (int i = 0; i < firstMethodCalls.Count; i++)
+            for (int i = 0; i < firstMethodContexts.Count; i++)
             {
-                if (!queryMatcher.AreEquivalent(firstMethodCalls[i].Query, secondMethodCalls[i].Query, out var satisfiableTable))
-                    continue;
+                var lambdaEquivalence = AreLambdaContextsEquivalent(firstMethodContexts[i], secondMethodContexts[i]);
 
-                foreach (var variableMapping in satisfiableTable)
-                {
-                    var firstReference = new Reference(variableMapping.Key){ ReferenceContexts = new DEQueue<ReferenceContext>(new[] { firstMethodCalls[i] }) };
-                    var secondReference = new Reference(variableMapping.Value){ ReferenceContexts = new DEQueue<ReferenceContext>(new[] { secondMethodCalls[i] }) };
+                if (lambdaEquivalence!=null)
+                    return lambdaEquivalence.Value;
 
-                    if (!HaveCommonReference(firstReference, secondReference, out var _))
-                        return false;
-                }
+                var functionEquivalence = AreFunctionContextsEquivalent(firstMethodContexts[i], secondMethodContexts[i]);
+
+                if (functionEquivalence != null)
+                    return functionEquivalence.Value;
             }
 
             return true;
+        }
+
+        private bool? AreLambdaContextsEquivalent(ReferenceContext firstMethodContext, ReferenceContext secondMethodContext)
+        {
+            if ((firstMethodContext.Query == null && secondMethodContext.Query != null) ||
+                (firstMethodContext.Query != null && secondMethodContext.Query == null) ||
+                (firstMethodContext.Query == null && secondMethodContext.Query == null))
+                return null;
+
+            if (!queryMatcher.AreEquivalent(firstMethodContext.Query, secondMethodContext.Query, out var satisfiableTable))
+            {
+                return null;
+            }
+
+            foreach (var variableMapping in satisfiableTable) {
+                var firstReference = new Reference(variableMapping.Key) { ReferenceContexts = new DEQueue<ReferenceContext>(new[] { firstMethodContext }) };
+                var secondReference = new Reference(variableMapping.Value) { ReferenceContexts = new DEQueue<ReferenceContext>(new[] { secondMethodContext }) };
+
+                if (!HaveCommonReference(firstReference, secondReference, out var _))
+                    return false;
+            }
+
+            return null;
+        }
+
+        private bool? AreFunctionContextsEquivalent(ReferenceContext firstMethodContext, ReferenceContext secondMethodContext) {
+            if (firstMethodContext.Query != null || secondMethodContext.Query != null)
+                return null;
+
+            //TODO: this only checks if for {a.Foo(x)} and {b.Foo(y)}, a≡b, Foo≡Foo, x≡y; this is incomplete: {a.Foo(m,n)} and {b.Bar(y)}
+            var firstReference = new Reference(firstMethodContext.CallContext.InstanceNode);
+            var secondReference = new Reference(secondMethodContext.CallContext.InstanceNode);
+
+            if (!HaveCommonReference(firstReference, secondReference, out var _))
+                return false;
+
+            var firstMethod = firstMethodContext.CallContext.InvocationExpression.GetMethodName();
+            var secondMethod = secondMethodContext.CallContext.InvocationExpression.GetMethodName();
+
+            if (firstMethod != secondMethod)
+                return false;
+
+            var firstArguments = firstMethodContext.CallContext.ArgumentsTable;
+            var secondArguments = secondMethodContext.CallContext.ArgumentsTable;
+
+            if (firstArguments.Count != secondArguments.Count)
+                return false;
+
+            foreach (var entry  in firstArguments)
+            {
+                var firstArgumentReference = new Reference(entry.Value);
+                var secondArgumentReference = new Reference(secondArguments.First(x => x.Key.ToString() == entry.Key.ToString()).Value);
+
+                if (!HaveCommonReference(firstArgumentReference, secondArgumentReference, out var _))
+                    return false;
+            }
+
+            return null;
         }
     }
 }

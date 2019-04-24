@@ -175,6 +175,10 @@ namespace Prometheus.Engine.Types
                         ? TypeContainer.Empty.WithContract(type)
                         : TypeContainer.Empty.WithImplementation(type);
                 }
+                else if(node.Kind() == SyntaxKind.Argument)
+                {
+                    container = GetTypeContainer(node.GetContainingMethod(), node.As<ArgumentSyntax>().Expression.As<IdentifierNameSyntax>().Identifier.Text);
+                }
                 else
                 {
                     container = GetTypeContainer(node.GetContainingMethod(), node.As<IdentifierNameSyntax>().Identifier.Text);

@@ -24,7 +24,7 @@ namespace Prometheus.Engine.ReachabilityProver.Model
         ///     }
         /// }
         /// </summary>
-        public SyntaxNode InstanceReference { get; set; }
+        public SyntaxNode InstanceNode { get; set; }
 
         /// <summary>
         /// The arguments table given the call context.

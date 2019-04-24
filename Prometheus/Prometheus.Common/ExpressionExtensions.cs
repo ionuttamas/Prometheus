@@ -46,6 +46,5 @@ namespace Prometheus.Common
 
             return propertyInfo;
         }
-
     }
 }

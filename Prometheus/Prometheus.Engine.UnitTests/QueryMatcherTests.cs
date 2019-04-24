@@ -4,6 +4,7 @@ using Microsoft.Z3;
 using NUnit.Framework;
 using Prometheus.Common;
 using Prometheus.Engine.ExpressionMatcher;
+using Prometheus.Engine.ExpressionMatcher.Query;
 using Prometheus.Engine.Model;
 using Prometheus.Engine.Reachability.Tracker;
 using Prometheus.Engine.Thread;

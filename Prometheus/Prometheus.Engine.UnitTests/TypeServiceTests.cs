@@ -201,7 +201,7 @@ namespace Prometheus.Engine.UnitTests
             var testTypeServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestTypeService));
             var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.GetPolymorphicTypeDeclaration)).Body.DescendantTokens<SyntaxToken>(x => x.ToString() == "field").First();
             var type = typeService.GetTypeContainer(identifier).Type;
-            Assert.AreEqual(typeof(AskField), type);
+            Assert.AreEqual(typeof(IField), type);
         }
 
         [Test]
@@ -210,7 +210,7 @@ namespace Prometheus.Engine.UnitTests
             var testTypeServiceClass = project.GetCompilation().GetClassDeclaration(typeof(TestTypeService));
             var identifier = testTypeServiceClass.GetMethodDescendant(nameof(TestTypeService.GetPolymorphicTypeParameter)).DescendantTokens<SyntaxToken>(x => x.ToString() == "currentPriceField").First();
             var type = typeService.GetTypeContainer(identifier).Type;
-            Assert.AreEqual(typeof(CurrentPriceField), type);
+            Assert.AreEqual(typeof(IField), type);
         }
     }
 }
