@@ -53,6 +53,14 @@ namespace TestProject.Services
             }
         }
 
+        public void IfCheck_LocallyInitialized_FieldReferenceCall(Customer from1) {
+            var localValidator = new CustomerValidator(100, 20, 40);
+
+            if (localValidator.IsValid(from1) && from1 != null) {
+                Customer customer1 = from1;
+            }
+        }
+
         public void IfCheck_FieldReferenceCall(Customer from1) {
             if (validator.IsValid(from1) && from1 != null) {
                 Customer customer1 = from1;

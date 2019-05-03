@@ -323,10 +323,36 @@ namespace Prometheus.Engine.UnitTests
 
             var firstIdentifier = transferService1Class.GetMethodDescendant(nameof(TestProject.Services.TransferService1.IfCheck_FieldReferenceCall)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer1").First();
             var secondIdentifier = transferService2Class.GetMethodDescendant(nameof(TestProject.Services.TransferService2.IfCheck_Unsat_FieldReferenceCall)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer2").First();
+            var haveCommonValue = reachabilityProver.HaveCommonReference(new Reference(firstIdentifier), new Reference(secondIdentifier), out var _);
+
+            Assert.False(haveCommonValue);
+        }
+
+        [Test]
+        public void ReachabilityProver_For_LocallyInitialized_FieldReferenceCall_InTestCondition_Sat_ProvesCorrectly() {
+            var project = solution.Projects.First(x => x.Name == "TestProject.Services");
+            var transferService1Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService1));
+            var transferService2Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService2));
+
+            var firstIdentifier = transferService1Class.GetMethodDescendant(nameof(TestProject.Services.TransferService1.IfCheck_LocallyInitialized_FieldReferenceCall)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer1").First();
+            var secondIdentifier = transferService2Class.GetMethodDescendant(nameof(TestProject.Services.TransferService2.IfCheck_Sat_LocallyInitialized_FieldReferenceCall)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer2").First();
             var haveCommonValue = reachabilityProver.HaveCommonReference(new Reference(firstIdentifier), new Reference(secondIdentifier), out var commonValue);
 
             Assert.True(haveCommonValue);
             Assert.AreEqual("sharedCustomer", commonValue.ToString());
+        }
+
+        [Test]
+        public void ReachabilityProver_For_LocallyInitialized_FieldReferenceCall_InTestCondition_Unsat_ProvesCorrectly() {
+            var project = solution.Projects.First(x => x.Name == "TestProject.Services");
+            var transferService1Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService1));
+            var transferService2Class = project.GetCompilation().GetClassDeclaration(typeof(TestProject.Services.TransferService2));
+
+            var firstIdentifier = transferService1Class.GetMethodDescendant(nameof(TestProject.Services.TransferService1.IfCheck_LocallyInitialized_FieldReferenceCall)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer1").First();
+            var secondIdentifier = transferService2Class.GetMethodDescendant(nameof(TestProject.Services.TransferService2.IfCheck_Unsat_LocallyInitialized_FieldReferenceCall)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer2").First();
+            var haveCommonValue = reachabilityProver.HaveCommonReference(new Reference(firstIdentifier), new Reference(secondIdentifier), out var _);
+
+            Assert.False(haveCommonValue);
         }
 
         [Test]
@@ -351,10 +377,9 @@ namespace Prometheus.Engine.UnitTests
 
             var firstIdentifier = transferService1Class.GetMethodDescendant(nameof(TestProject.Services.TransferService1.IfCheck_ThisReferenceCall)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer1").First();
             var secondIdentifier = transferService2Class.GetMethodDescendant(nameof(TestProject.Services.TransferService2.IfCheck_Unsat_ThisReferenceCall)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer2").First();
-            var haveCommonValue = reachabilityProver.HaveCommonReference(new Reference(firstIdentifier), new Reference(secondIdentifier), out var commonValue);
+            var haveCommonValue = reachabilityProver.HaveCommonReference(new Reference(firstIdentifier), new Reference(secondIdentifier), out var _);
 
-            Assert.True(haveCommonValue);
-            Assert.AreEqual("sharedCustomer", commonValue.ToString());
+            Assert.False(haveCommonValue);
         }
 
         [Test]
