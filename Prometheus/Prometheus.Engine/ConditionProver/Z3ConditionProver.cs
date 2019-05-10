@@ -25,6 +25,7 @@ namespace Prometheus.Engine.ConditionProver {
         public bool IsSatisfiable(ConditionalAssignment first, ConditionalAssignment second)
         {
             BoolExpr firstCondition = ParseConditionalAssignment(first, out var processedMembers);
+            //TODO: use (reference, state) for reference context validation
             List<BoolExpr> secondConditions = ParseConditionalAssignment(second, processedMembers);
             Solver solver = context.MkSolver();
 

@@ -267,8 +267,9 @@ namespace Prometheus.Engine.ConditionProver
                 expr = context.MkConst(uniqueMemberName, sort);
                 var rootIdentifier = memberExpression.GetRootIdentifier();
                 var rootType = typeService.GetTypeContainer(rootIdentifier).Type;
+                var reference = new Reference(rootIdentifier);
                 //TODO: https://github.com/ionuttamas/Prometheus/issues/25
-                var firstAssignment = getAssignmentsDelegate(rootIdentifier.Identifier).FirstOrDefault();
+                var firstAssignment = getAssignmentsDelegate(reference).FirstOrDefault();
 
                 if (firstAssignment != null && firstAssignment.RightReference.IsExternal || typeService.IsExternal(rootType)) {
                     isExternal = true;
@@ -555,7 +556,8 @@ namespace Prometheus.Engine.ConditionProver
             var rootIdentifier = memberExpression is MemberAccessExpressionSyntax
                 ? memberExpression.As<MemberAccessExpressionSyntax>().GetRootIdentifier()
                 : memberExpression.As<IdentifierNameSyntax>();
-            var invocationReference = getAssignmentsDelegate(rootIdentifier.Identifier)[0].RightReference.Node
+            var reference = new Reference(rootIdentifier);
+            var invocationReference = getAssignmentsDelegate(reference)[0].RightReference.Node
                 .As<InvocationExpressionSyntax>();
             var className = invocationReference
                 .Expression.As<MemberAccessExpressionSyntax>()

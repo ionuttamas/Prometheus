@@ -7,13 +7,13 @@ namespace Prometheus.Engine.ConditionProver
 {
     //TODO: see if this can't be reduced by Reference & Expression only
     internal class NodeType {
-        public Reference Reference { get; set; }
-        public SyntaxNode Node { get; set; }
-        public Expr Expression { get; set; }
-        public Type Type { get; set; }
         /// <summary>
         /// Specifies if the node is external type (3rd party code outside of the solution under test).
         /// </summary>
         public bool IsExternal { get; set; }
+        public Reference Reference { get; set; }
+        public SyntaxNode Node { get; set; }
+        public Expr Expression { get; set; }
+        public Type Type { get; set; }
     }
 }

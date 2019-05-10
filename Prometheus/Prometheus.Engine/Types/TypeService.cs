@@ -546,6 +546,9 @@ namespace Prometheus.Engine.Types
             if (ProcessStaticMethodAssignment(localDeclaration, out typeName))
                 return true;
 
+            if (ProcessInstanceInitializationAssignment(localDeclaration, out typeName))
+                return true;
+
             return false;
         }
 
@@ -696,6 +699,25 @@ namespace Prometheus.Engine.Types
                 BindingFlags.Public |
                 BindingFlags.Static);
             typeName = method.ReturnType.Name;
+
+            return true;
+        }
+
+        private bool ProcessInstanceInitializationAssignment(LocalDeclarationStatementSyntax declaration, out string typeName) {
+            var newExpression = declaration.Declaration.Variables[0].Initializer.Value;
+            typeName = null;
+
+            if (newExpression.Kind() != SyntaxKind.ObjectCreationExpression) {
+                return false;
+            }
+
+            var initializationExpression = (ObjectCreationExpressionSyntax)newExpression;
+
+            if (initializationExpression.Type.Kind() != SyntaxKind.IdentifierName)
+                return false;
+
+            var identifierSyntax = (IdentifierNameSyntax) initializationExpression.Type;
+            typeName = identifierSyntax.Identifier.ValueText;
 
             return true;
         }

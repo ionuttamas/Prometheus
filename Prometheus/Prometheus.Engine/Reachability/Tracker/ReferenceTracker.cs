@@ -68,8 +68,11 @@ namespace Prometheus.Engine.Reachability.Tracker {
         /// </code>
         /// </example>
         /// </summary>
-        public List<ConditionalAssignment> GetAssignments(SyntaxToken identifier, DEQueue<ReferenceContext> referenceContexts = null)
+        public List<ConditionalAssignment> GetAssignments(Reference reference)
         {
+            SyntaxToken identifier = reference.Node?.DescendantTokens().First() ?? reference.Token;
+            DEQueue<ReferenceContext> referenceContexts = reference.ReferenceContexts;
+
             if (!threadSchedule.ContainsLocation(solution, identifier.GetLocation()))
                 return new List<ConditionalAssignment>();
 
@@ -93,15 +96,15 @@ namespace Prometheus.Engine.Reachability.Tracker {
 
             if (identifier.Text == NULL_MARKER)
             {
-                var reference = new Reference(identifier.Parent);
+                var localreference = new Reference(identifier.Parent);
 
                 return new List<ConditionalAssignment>
                 {
                     new ConditionalAssignment
                     {
                         Conditions = conditions,
-                        LeftReference = reference,
-                        RightReference = reference
+                        LeftReference = localreference,
+                        RightReference = localreference
                     }
                 };
             }
@@ -127,6 +130,11 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 .ToList();
 
             return result;
+        }
+
+        public List<ConditionalAssignment> GetAssignments(SyntaxToken identifier)
+        {
+            return GetAssignments(new Reference(identifier));
         }
 
         private bool IsAssignmentKindAllowed(SyntaxKind kind)

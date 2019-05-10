@@ -7,6 +7,7 @@ using Prometheus.Engine.ExpressionMatcher;
 using Prometheus.Engine.ExpressionMatcher.Query;
 using Prometheus.Engine.Model;
 using Prometheus.Engine.Reachability.Tracker;
+using Prometheus.Engine.ReachabilityProver.Model;
 using Prometheus.Engine.Thread;
 using Prometheus.Engine.Types;
 using Prometheus.Engine.Types.Polymorphy;
@@ -47,8 +48,8 @@ namespace Prometheus.Engine.UnitTests
             var transferService2Class = project.GetCompilation().GetClassDeclaration(typeof(TransferService2));
             var firstIdentifier = transferService1Class.GetMethodDescendant(nameof(TransferService1.MethodAssignment_WithIndexQuery_1)).DescendantTokens<SyntaxToken>(x => x.ToString() == "indexCustomer1").First();
             var secondIdentifier = transferService2Class.GetMethodDescendant(nameof(TransferService2.MethodAssignment_WithIndexQuery_2)).DescendantTokens<SyntaxToken>(x => x.ToString() == "indexCustomer2").First();
-            var firstAssignment = referenceTracker.GetAssignments(firstIdentifier).First();
-            var secondAssignment = referenceTracker.GetAssignments(secondIdentifier).First();
+            var firstAssignment = referenceTracker.GetAssignments(new Reference(firstIdentifier)).First();
+            var secondAssignment = referenceTracker.GetAssignments(new Reference(secondIdentifier)).First();
 
             var areEquivalent = queryMatcher.AreEquivalent(firstAssignment.RightReference.ReferenceContexts.PeekFirst().Query,
                                        secondAssignment.RightReference.ReferenceContexts.PeekFirst().Query,
@@ -67,8 +68,8 @@ namespace Prometheus.Engine.UnitTests
             var transferService2Class = project.GetCompilation().GetClassDeclaration(typeof(TransferService2));
             var firstIdentifier = transferService1Class.GetMethodDescendant(nameof(TransferService1.MethodAssignment_WithFirstQuery_1)).DescendantTokens<SyntaxToken>(x => x.ToString() == "firstCustomer1").First();
             var secondIdentifier = transferService2Class.GetMethodDescendant(nameof(TransferService2.MethodAssignment_WithFirstQuery_2)).DescendantTokens<SyntaxToken>(x => x.ToString() == "firstCustomer2").First();
-            var firstAssignment = referenceTracker.GetAssignments(firstIdentifier).First();
-            var secondAssignment = referenceTracker.GetAssignments(secondIdentifier).First();
+            var firstAssignment = referenceTracker.GetAssignments(new Reference(firstIdentifier)).First();
+            var secondAssignment = referenceTracker.GetAssignments(new Reference(secondIdentifier)).First();
 
             var areEquivalent = queryMatcher.AreEquivalent(firstAssignment.RightReference.ReferenceContexts.PeekFirst().Query,
                 secondAssignment.RightReference.ReferenceContexts.PeekFirst().Query,

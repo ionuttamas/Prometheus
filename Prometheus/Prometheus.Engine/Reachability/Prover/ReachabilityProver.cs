@@ -90,10 +90,10 @@ namespace Prometheus.Engine.Reachability.Prover
 
             var firstAssignments = first.LeftReference.ToString() == NULL_MARKER ?
                                     new List<ConditionalAssignment>() :
-                                    referenceTracker.GetAssignments(first.RightReference.Node?.DescendantTokens().First() ?? first.RightReference.Token, first.RightReference.ReferenceContexts);
+                                    referenceTracker.GetAssignments(first.RightReference);
             var secondAssignments = second.LeftReference.ToString() == NULL_MARKER ?
                                     new List<ConditionalAssignment>() :
-                                    referenceTracker.GetAssignments(second.RightReference.Node?.DescendantTokens().First() ?? second.RightReference.Token, second.RightReference.ReferenceContexts);
+                                    referenceTracker.GetAssignments(second.RightReference);
 
             if (!firstAssignments.Any() && !secondAssignments.Any())
             {
