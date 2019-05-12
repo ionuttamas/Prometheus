@@ -18,6 +18,13 @@ namespace Prometheus.Engine.ReachabilityProver.Model
             RightReference = new Reference();
         }
 
+        public ConditionalAssignment(Reference left, Reference right, HashSet<Condition> conditions)
+        {
+            Conditions = conditions;
+            LeftReference = left;
+            RightReference = right;
+        }
+
         public void AddCondition(IfStatementSyntax ifStatement, bool isNegated)
         {
             Conditions.Add(new Condition(ifStatement.Condition, isNegated));

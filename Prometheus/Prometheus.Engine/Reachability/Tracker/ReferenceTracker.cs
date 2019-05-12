@@ -85,12 +85,9 @@ namespace Prometheus.Engine.Reachability.Tracker {
 
             if (matchingField != null && matchingField.Modifiers.All(x=>x.Kind()!=SyntaxKind.StaticKeyword))
             {
-                var constructorAssigments = GetConstructorAssignments(identifier, classDeclaration, referenceContexts)
-                    .Where(x => x.RightReference.Node == null || IsAssignmentKindAllowed(x.RightReference.Node.Kind()))
-                    .ToList();
+                var constructorAssigments = GetConstructorAssignments(identifier, classDeclaration, referenceContexts);
                 constructorAssigments.ForEach(x => x.Conditions.UnionWith(conditions));
 
-                //TODO: append if/else conditions of the identifier location
                 return constructorAssigments;
             }
 
@@ -100,34 +97,25 @@ namespace Prometheus.Engine.Reachability.Tracker {
 
                 return new List<ConditionalAssignment>
                 {
-                    new ConditionalAssignment
-                    {
-                        Conditions = conditions,
-                        LeftReference = localreference,
-                        RightReference = localreference
-                    }
+                    new ConditionalAssignment(localreference, localreference, conditions)
                 };
             }
 
             var parameterIndex = method.ParameterList.Parameters.IndexOf(x => x.Identifier.Text == identifierName);
             List<ConditionalAssignment> result;
 
-            //The assignment is not from a method parameter, so we search for the assignment inside
             if (parameterIndex < 0)
             {
-                result = GetInMethodAssignments(identifier);
+                result = GetInsideMethodAssignments(identifier);
             }
             else
             {
+                // Exclude all except reference names; method calls "a = GetReference(c, d)" are not supported at the moment TODO: double check here
+                //TODO: currently we support only one level method call assigment: "a = instance.Get(..);"
                 result = GetReferenceMethodCallAssignments(method, parameterIndex, referenceContexts);
                 result.ForEach(x => x.Conditions.UnionWith(conditions));
             }
 
-            // Exclude all except reference names; method calls "a = GetReference(c, d)" are not supported at the moment TODO: double check here
-            //TODO: currently we support only one level method call assigment: "a = instance.Get(..);"
-            result = result
-                .Where(x => x.RightReference.Node == null || IsAssignmentKindAllowed(x.RightReference.Node.Kind()))
-                .ToList();
 
             return result;
         }
@@ -169,7 +157,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 .Where(x => threadSchedule.ContainsLocation(solution, x.Location))
                 .Select(x => x.GetNode<InvocationExpressionSyntax>());
             var methodCallAssignments = invocations
-                .Where(x => referenceContexts == null || referenceContexts.Count==0 || x == referenceContexts.PeekLast().CallContext?.InvocationExpression)
+                .Where(x => referenceContexts.IsNullOrEmpty() || reachabilityDelegate(new Reference(x.GetReferenceNode()), new Reference(referenceContexts.PeekLast().CallContext?.InstanceNode), out var _))
                 .SelectMany(x => GetConditionalAssignments(x, x.ArgumentList.Arguments[parameterIndex]))
                 .Select(x => {
                     if (referenceContexts == null)
@@ -183,6 +171,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
 
                     return x;
                 })
+                .Where(x => x.RightReference.Node == null || IsAssignmentKindAllowed(x.RightReference.Node.Kind()))
                 .ToList();
 
             return methodCallAssignments;
@@ -257,6 +246,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
 
                     return x;
                 })
+                .Where(x => x.RightReference.Node == null || IsAssignmentKindAllowed(x.RightReference.Node.Kind()))
                 .ToList();
 
             return constructorAssignments;
@@ -265,7 +255,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
         /// <summary>
         /// Returns the list of assignments made for that identifier within the method in which the identifier is used.
         /// </summary>
-        private List<ConditionalAssignment> GetInMethodAssignments(SyntaxToken identifier)
+        private List<ConditionalAssignment> GetInsideMethodAssignments(SyntaxToken identifier)
         {
             var method = identifier.GetLocation().GetContainingMethod();
             var identifierName = identifier.ToString();
@@ -278,7 +268,9 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 .DescendantNodes<LocalDeclarationStatementSyntax>()
                 .Where(x => x.Declaration.Variables[0].Identifier.Text == identifierName && x.Declaration.Variables[0].Initializer!=null)
                 .SelectMany(x => GetConditionalAssignments(x, x.Declaration.Variables[0].Initializer.Value));
-            var conditionalAssignments = simpleAssignments.Concat(localDeclarationAssignments).ToList();
+            var conditionalAssignments = simpleAssignments.Concat(localDeclarationAssignments)
+                .Where(x => x.RightReference.Node == null || IsAssignmentKindAllowed(x.RightReference.Node.Kind()))
+                .ToList();
 
             return conditionalAssignments;
         }
@@ -332,14 +324,15 @@ namespace Prometheus.Engine.Reachability.Tracker {
         }
 
         /// <summary>
-        /// Process static or reference method calls assignments.
+        /// Process static, external to the current class or reference method calls assignments.
         /// </summary>
         private List<ConditionalAssignment> ProcessNonLocalMethodCallAssignments(SyntaxNode bindingNode, InvocationExpressionSyntax invocationExpression)
         {
             var className = invocationExpression
                 .Expression.As<MemberAccessExpressionSyntax>()
                 .Expression.As<IdentifierNameSyntax>()
-                .Identifier.Text;
+                .Identifier
+                .Text;
 
             var isStatic = typeService.TryGetType(className, out var type);
 
