@@ -20,7 +20,7 @@ namespace Prometheus.Engine.Types
         private readonly IPolymorphicResolver polymorphicService;
         private readonly ModelStateConfiguration modelConfig;
         private readonly List<TypeInfo> solutionTypes;
-        private readonly List<TypeInfo> externalTypes;
+        private readonly List<TypeInfo> thirdPartyTypes;
         private readonly Dictionary<Type, List<Type>> interfaceImplementations;
         private readonly List<ClassDeclarationSyntax> classDeclarations;
         private readonly Dictionary<string, Type> primitiveTypes;
@@ -51,7 +51,7 @@ namespace Prometheus.Engine.Types
                 .Where(x=> !x.Name.StartsWith("System") && !x.Name.Contains("mscorlib"))
                 .Select(x => Assembly.Load(x.FullName))
                 .ToList();
-            externalTypes = externalAssemblies
+            thirdPartyTypes = externalAssemblies
                 .SelectMany(x => x.DefinedTypes)
                 .ToList();
             coreTypes = typeof(int).Assembly.DefinedTypes.DistinctBy(x=>x.Name).ToDictionary(x => x.Name, x => x.AsType());
@@ -146,7 +146,7 @@ namespace Prometheus.Engine.Types
             {
                 type = (primitiveTypes.ContainsKey(typeName) ?
                            primitiveTypes[typeName] :
-                           externalTypes.FirstOrDefault(x => x.Name == typeName)) ??
+                           thirdPartyTypes.FirstOrDefault(x => x.Name == typeName)) ??
                            (coreTypes.ContainsKey(typeName) ? coreTypes[typeName] : null);
             }
 
@@ -209,9 +209,9 @@ namespace Prometheus.Engine.Types
             return firstType.IsAssignableFrom(secondType) || secondType.IsAssignableFrom(firstType);
         }
 
-        public bool IsExternal(Type type)
+        public bool Is3rdParty(Type type)
         {
-            return externalTypes.Contains(type);
+            return thirdPartyTypes.Contains(type);
         }
 
         public bool IsPureMethod(SyntaxNode node, out Type returnType) {
@@ -384,7 +384,7 @@ namespace Prometheus.Engine.Types
             string rootToken = memberTokens.First();
 
             var classType = solutionTypes.FirstOrDefault(x => x.Name == rootToken);
-            classType = classType ?? externalTypes.FirstOrDefault(x => x.Name == rootToken);
+            classType = classType ?? thirdPartyTypes.FirstOrDefault(x => x.Name == rootToken);
 
             if (classType != null)
                 return new List<Type> {classType};
@@ -687,7 +687,7 @@ namespace Prometheus.Engine.Types
             //TODO we only process one level calls like "ClassName.StaticMethod()" not nested calls like "ClassName.[StaticMethod()]...Method()"
             var memberExpression = (MemberAccessExpressionSyntax)invocationExpression.Expression;
             var classType= solutionTypes.FirstOrDefault(x => x.Name == memberExpression.Expression.ToString());
-            classType = classType ?? externalTypes.FirstOrDefault(x => x.Name == memberExpression.Expression.ToString());
+            classType = classType ?? thirdPartyTypes.FirstOrDefault(x => x.Name == memberExpression.Expression.ToString());
 
             if (classType == null)
             {

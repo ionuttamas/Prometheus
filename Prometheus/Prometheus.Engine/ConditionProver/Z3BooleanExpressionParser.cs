@@ -20,6 +20,7 @@ namespace Prometheus.Engine.ConditionProver
         private HaveCommonReference reachabilityDelegate;
         private GetConditionalAssignments getAssignmentsDelegate;
         private ParseBooleanMethod parseBooleanMethodDelegate;
+        private ParseCachedBooleanMethod parseCachedBooleanMethodDelegate;
 
         private readonly Context context;
 
@@ -39,6 +40,10 @@ namespace Prometheus.Engine.ConditionProver
 
         public void Configure(ParseBooleanMethod @delegate) {
             parseBooleanMethodDelegate = @delegate;
+        }
+
+        public void Configure(ParseCachedBooleanMethod @delegate) {
+            parseCachedBooleanMethodDelegate = @delegate;
         }
 
         public BoolExpr ParseExpression(ExpressionSyntax expressionSyntax, out Dictionary<string, NodeType> processedMembers) {
@@ -75,10 +80,14 @@ namespace Prometheus.Engine.ConditionProver
 
         }
 
-        public List<BoolExpr> ParseExpression(ExpressionSyntax expressionSyntax, Dictionary<string, NodeType> cachedMembers) {
+        public List<BoolExpr> ParseCachedExpression(ExpressionSyntax expressionSyntax, Dictionary<string, NodeType> cachedMembers) {
             var expressionKind = expressionSyntax.Kind();
 
             switch (expressionKind) {
+                case SyntaxKind.TrueLiteralExpression:
+                    return new List<BoolExpr> { context.MkTrue() };
+                case SyntaxKind.FalseLiteralExpression:
+                    return new List<BoolExpr> { context.MkFalse() };
                 case SyntaxKind.LogicalNotExpression:
                     return ParsePrefixUnaryExpression((PrefixUnaryExpressionSyntax)expressionSyntax, cachedMembers);
                 case SyntaxKind.SimpleMemberAccessExpression:
@@ -209,12 +218,12 @@ namespace Prometheus.Engine.ConditionProver
             var invocationExpression = (InvocationExpressionSyntax)expression;
             var invocationType = GetInvocationType(invocationExpression);
 
-            return typeService.IsExternal(invocationType.Type) ?
-                ParseExternalCodeInvocationExpression(invocationExpression, out processedMembers) :
+            return typeService.Is3rdParty(invocationType.Type) ?
+                Parse3rdPartyCodeInvocationExpression(invocationExpression, out processedMembers) :
                 ParseInternalCodeInvocationExpression(invocationExpression, invocationType, out processedMembers);
         }
 
-        private Expr ParseExternalCodeInvocationExpression(InvocationExpressionSyntax invocationExpression, out Dictionary<string, NodeType> processedMembers) {
+        private Expr Parse3rdPartyCodeInvocationExpression(InvocationExpressionSyntax invocationExpression, out Dictionary<string, NodeType> processedMembers) {
             typeService.IsPureMethod(invocationExpression, out var returnType);
             Sort sort = typeService.GetSort(returnType);
             Expr constExpr = context.MkConst(invocationExpression.ToString(), sort);
@@ -259,8 +268,8 @@ namespace Prometheus.Engine.ConditionProver
             string memberName = memberExpression.ToString();
             string uniqueMemberName = $"{memberName}{memberExpression.GetLocation().SourceSpan}";
             Expr expr;
-            bool isExternal = false;
-            Reference externalReference = null;
+            bool is3rdParty = false;
+            Reference thirdPartyReference = null;
 
             if (!TryParseFixedExpression(memberExpression, type, out expr)) {
                 Sort sort = typeService.GetSort(type);
@@ -271,10 +280,10 @@ namespace Prometheus.Engine.ConditionProver
                 //TODO: https://github.com/ionuttamas/Prometheus/issues/25
                 var firstAssignment = getAssignmentsDelegate(reference).FirstOrDefault();
 
-                if (firstAssignment != null && firstAssignment.RightReference.IsExternal || typeService.IsExternal(rootType)) {
-                    isExternal = true;
+                if (firstAssignment != null && firstAssignment.RightReference.Is3rdParty || typeService.Is3rdParty(rootType)) {
+                    is3rdParty = true;
                     //todo: currently we only take the first assignments of the rootIdentifier to see if is pure or not, regardless of any conditions
-                    externalReference = firstAssignment.RightReference;
+                    thirdPartyReference = firstAssignment.RightReference;
                 }
             }
 
@@ -282,8 +291,8 @@ namespace Prometheus.Engine.ConditionProver
                 Expression = expr,
                 Node = memberExpression,
                 Type = type,
-                IsExternal = isExternal,
-                Reference = externalReference
+                Is3rdParty = is3rdParty,
+                Reference = thirdPartyReference
             };
 
             return expr;
@@ -393,12 +402,12 @@ namespace Prometheus.Engine.ConditionProver
 
             if (expressionKind != SyntaxKind.SimpleMemberAccessExpression && expressionKind != SyntaxKind.IdentifierName) {
                 return expressionKind == SyntaxKind.UnaryMinusExpression
-                    ? ParseUnaryExpression(memberExpression, cachedMembers)
-                    : ParseExpression(memberExpression, cachedMembers).OfType<Expr>().ToList();
+                    ? ParseCachedUnaryExpression(memberExpression, cachedMembers)
+                    : ParseCachedExpression(memberExpression, cachedMembers).OfType<Expr>().ToList();
             }
 
             if (expressionKind == SyntaxKind.UnaryMinusExpression)
-                return ParseUnaryExpression(memberExpression, cachedMembers);
+                return ParseCachedUnaryExpression(memberExpression, cachedMembers);
 
             return ParseCachedVariableExpression(memberExpression, cachedMembers);
         }
@@ -408,12 +417,12 @@ namespace Prometheus.Engine.ConditionProver
             var invocationExpression = (InvocationExpressionSyntax)expression;
             var invocationType = GetInvocationType(invocationExpression);
 
-            return typeService.IsExternal(invocationType.Type) ?
-                ParseCachedExternalCodeInvocationExpression(invocationType, cachedMembers) :
+            return typeService.Is3rdParty(invocationType.Type) ?
+                ParseCached3rdPartyCodeInvocationExpression(invocationType, cachedMembers) :
                 ParseCachedInternalCodeInvocationExpression(invocationType, cachedMembers);
         }
 
-        private List<Expr> ParseCachedExternalCodeInvocationExpression(InvocationType invocationType, Dictionary<string, NodeType> cachedMembers) {
+        private List<Expr> ParseCached3rdPartyCodeInvocationExpression(InvocationType invocationType, Dictionary<string, NodeType> cachedMembers) {
             var expr = invocationType.IsStatic ?
                 ParseCachedStaticInvocationExpression(cachedMembers, invocationType.Expression) :
                 ParseCachedReferenceInvocationExpression(cachedMembers, invocationType.Expression);
@@ -422,36 +431,7 @@ namespace Prometheus.Engine.ConditionProver
         }
 
         private List<Expr> ParseCachedInternalCodeInvocationExpression(InvocationType invocationType, Dictionary<string, NodeType> cachedMembers) {
-            var expr = parseBooleanMethodDelegate(invocationType.MethodDeclaration, out var processedMembers);
-            referenceParser.GetMethodBindings(invocationType.Expression, invocationType.MethodDeclaration.GetContainingClass(), invocationType.MethodDeclaration.Identifier.Text, out var argumentsTable);
-            var callContext = new CallContext {
-                InstanceNode = invocationType.Instance,
-                ArgumentsTable = argumentsTable,
-                InvocationExpression = invocationType.Expression
-            };
-            var referenceContext = new ReferenceContext(callContext, null);
-
-            foreach (var processedMember in processedMembers) {
-                processedMember.Value.Reference = processedMember.Value.Reference ?? new Reference();
-                processedMember.Value.Reference.PrependContext(referenceContext);
-            }
-
-            List<Expr> reachableExprs = new List<Expr>();
-
-            foreach (var processedMember in processedMembers.Where(x=>!x.Value.IsExternal))
-            {
-                foreach (var cachedMember in cachedMembers.Where(x => !x.Value.IsExternal))
-                {
-                    if(processedMember.Value.Reference.Node==null || cachedMember.Value.Reference.Node==null)
-                        continue;
-
-                    if (reachabilityDelegate(processedMember.Value.Reference, cachedMember.Value.Reference, out _)) {
-                        reachableExprs.Add(cachedMember.Value.Expression);
-                    }
-                }
-            }
-
-            reachableExprs.Add(expr);
+            var reachableExprs = parseCachedBooleanMethodDelegate(invocationType.MethodDeclaration, cachedMembers);
 
             return reachableExprs;
         }
@@ -504,7 +484,7 @@ namespace Prometheus.Engine.ConditionProver
             return new List<Expr> { expr };
         }
 
-        private List<Expr> ParseUnaryExpression(ExpressionSyntax unaryExpression, Dictionary<string, NodeType> cachedMembers) {
+        private List<Expr> ParseCachedUnaryExpression(ExpressionSyntax unaryExpression, Dictionary<string, NodeType> cachedMembers) {
             var prefixUnaryExpression = (PrefixUnaryExpressionSyntax)unaryExpression;
             var negatedExpressions = ParseExpressionMember(prefixUnaryExpression.Operand, cachedMembers);
 
@@ -522,10 +502,10 @@ namespace Prometheus.Engine.ConditionProver
                 return new List<Expr> { expr };
 
             foreach (NodeType node in cachedMembers.Values.Where(x => x.Type == memberType)) {
-                if (node.IsExternal && node.Reference.IsPure && MatchCachedExternalPureMethodAssignment(memberExpression, node, out Expr nodeExpression)) {
+                if (node.Is3rdParty && node.Reference.IsPure && MatchCached3rdPartyPureMethodAssignment(memberExpression, node, out Expr nodeExpression)) {
                      reachableExprs.Add(nodeExpression);
                 } else if (node.Node is IdentifierNameSyntax && memberExpression is IdentifierNameSyntax &&
-                           !node.IsExternal && reachabilityDelegate(new Reference(node.Node), memberReference, out Reference _)) {
+                           !node.Is3rdParty && reachabilityDelegate(new Reference(node.Node), memberReference, out Reference _)) {
                     reachableExprs.Add(node.Expression);
                 } else if (node.Node is MemberAccessExpressionSyntax && memberExpression is MemberAccessExpressionSyntax) {
                     //TODO: MAJOR
@@ -551,7 +531,7 @@ namespace Prometheus.Engine.ConditionProver
             return reachableExprs;
         }
 
-        private bool MatchCachedExternalPureMethodAssignment(ExpressionSyntax memberExpression, NodeType node, out Expr nodeExpression) {
+        private bool MatchCached3rdPartyPureMethodAssignment(ExpressionSyntax memberExpression, NodeType node, out Expr nodeExpression) {
             nodeExpression = null;
             var rootIdentifier = memberExpression is MemberAccessExpressionSyntax
                 ? memberExpression.As<MemberAccessExpressionSyntax>().GetRootIdentifier()
@@ -725,9 +705,9 @@ namespace Prometheus.Engine.ConditionProver
                 invocationType.StaticType = type;
             }
 
-            var isExternal = typeService.IsExternal(type);
+            var is3rdParty = typeService.Is3rdParty(type);
 
-            if (!isExternal)
+            if (!is3rdParty)
             {
                 var classDeclaration = typeService.GetClassDeclaration(type);
                 MethodDeclarationSyntax methodDeclaration = classDeclaration.DescendantNodes<MethodDeclarationSyntax>(

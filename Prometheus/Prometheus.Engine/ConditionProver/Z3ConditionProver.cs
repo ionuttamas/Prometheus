@@ -68,8 +68,8 @@ namespace Prometheus.Engine.ConditionProver {
                 .Conditions
                 .Select(x =>
                         x.IsNegated
-                        ? boolExpressionParser.ParseExpression(x.TestExpression, cachedMembers).Select(expr=>context.MkNot(expr)).ToList()
-                        : boolExpressionParser.ParseExpression(x.TestExpression, cachedMembers))
+                        ? boolExpressionParser.ParseCachedExpression(x.TestExpression, cachedMembers).Select(expr=>context.MkNot(expr)).ToList()
+                        : boolExpressionParser.ParseCachedExpression(x.TestExpression, cachedMembers))
                 .ToList();
             var cartesianProduct = conditions.CartesianProduct();
             var result = cartesianProduct.Select(x => context.MkAnd(x)).ToList();

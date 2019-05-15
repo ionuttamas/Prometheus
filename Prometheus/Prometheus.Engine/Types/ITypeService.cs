@@ -11,7 +11,7 @@ namespace Prometheus.Engine.Types
         TypeContainer GetTypeContainer(SyntaxNode node);
         TypeContainer GetTypeContainer(SyntaxToken syntaxToken);
         bool AreParentChild(TypeContainer first, TypeContainer second);
-        bool IsExternal(Type type);
+        bool Is3rdParty(Type type);
         bool IsPureMethod(SyntaxNode node, out Type returnType);
         ClassDeclarationSyntax GetClassDeclaration(string className);
         ClassDeclarationSyntax GetClassDeclaration(Type type);

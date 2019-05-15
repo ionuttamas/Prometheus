@@ -41,8 +41,20 @@ namespace Prometheus.Engine.ConditionProver
             return resultExpr;
         }
 
-        private BoolExpr ParseReturnStatement(ReturnStatementSyntax returnStatement, out Dictionary<string, NodeType> processedNodes)
-        {
+        public List<Expr> ParseCachedBooleanMethod(MethodDeclarationSyntax methodDeclaration, Dictionary<string, NodeType> cachedNodes) {
+            var returnExpressions = methodDeclaration
+                .DescendantNodes<ReturnStatementSyntax>()
+                .Where(x => x.Expression.Kind() != SyntaxKind.ObjectCreationExpression) //TODO: are we interested in "return new X()"?
+                .ToList();
+            var resultExprs = returnExpressions
+                .Select(x => ParseCachedReturnStatement(x, cachedNodes))
+                .SelectMany(x=>x)
+                .ToList();
+
+            return resultExprs;
+        }
+
+        private BoolExpr ParseReturnStatement(ReturnStatementSyntax returnStatement, out Dictionary<string, NodeType> processedNodes) {
             var conditions = conditionExtractor.ExtractConditions(returnStatement);
             var returnExpr = expressionParser.ParseExpression(returnStatement.Expression, out processedNodes);
             var resultExpr = returnExpr;
@@ -53,10 +65,8 @@ namespace Prometheus.Engine.ConditionProver
             return resultExpr;
         }
 
-        private BoolExpr ProcessCondition(Condition condition, out Dictionary<string, NodeType> processedNodes)
-        {
-            if (!condition.Conditions.Any())
-            {
+        private BoolExpr ProcessCondition(Condition condition, out Dictionary<string, NodeType> processedNodes) {
+            if (!condition.Conditions.Any()) {
                 var expr = expressionParser.ParseExpression(condition.TestExpression, out processedNodes);
 
                 return condition.IsNegated ? context.MkNot(expr) : expr;
@@ -65,14 +75,47 @@ namespace Prometheus.Engine.ConditionProver
             var resultExpr = context.MkTrue();
             processedNodes = new Dictionary<string, NodeType>();
 
-            foreach (var nestedCondition in condition.Conditions)
-            {
+            foreach (var nestedCondition in condition.Conditions) {
                 var expr = ProcessCondition(nestedCondition, out var nodes);
                 resultExpr = context.MkAnd(resultExpr, expr);
                 processedNodes.Merge(nodes);
             }
 
             return resultExpr;
+        }
+
+        private List<Expr> ParseCachedReturnStatement(ReturnStatementSyntax returnStatement, Dictionary<string, NodeType> cachedNodes) {
+            var conditions = conditionExtractor.ExtractConditions(returnStatement);
+            var returnExprs = expressionParser.ParseCachedExpression(returnStatement.Expression, cachedNodes);
+            var condition = new Condition(conditions, false);
+            var testExprs = ProcessCachedCondition(condition, cachedNodes);
+
+            var combinedExprs = new List<List<BoolExpr>>{testExprs, returnExprs};
+            var resultExprs = combinedExprs
+                .CartesianProduct()
+                .Select(x => (Expr)context.MkAnd(x))
+                .ToList();
+
+            return resultExprs;
+        }
+
+        private List<BoolExpr> ProcessCachedCondition(Condition condition, Dictionary<string, NodeType> cachedNodes) {
+            if (!condition.Conditions.Any()) {
+                var exprs = expressionParser.ParseCachedExpression(condition.TestExpression, cachedNodes);
+                exprs = exprs.Select(x=> condition.IsNegated ? context.MkNot(x) : x).ToList();
+
+                return exprs;
+            }
+
+            //TODO: double check this
+            var expressions = condition
+                .Conditions
+                .Select(x => ProcessCachedCondition(x, cachedNodes))
+                .CartesianProduct()
+                .Select(x=>context.MkAnd(x))
+                .ToList();
+
+            return expressions;
         }
     }
 }

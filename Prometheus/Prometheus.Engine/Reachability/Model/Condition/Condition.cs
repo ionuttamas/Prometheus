@@ -8,6 +8,7 @@ namespace Prometheus.Engine.ReachabilityProver.Model
     {
         public ExpressionSyntax TestExpression { get; }
         public bool IsNegated { get; set; }
+        //TODO: check how OR conditions are handled
         public HashSet<Condition> Conditions { get; }
 
         public Condition(ExpressionSyntax testExpression, bool isNegated)

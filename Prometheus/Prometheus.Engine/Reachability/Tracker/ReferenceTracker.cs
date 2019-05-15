@@ -336,9 +336,9 @@ namespace Prometheus.Engine.Reachability.Tracker {
 
             var isStatic = typeService.TryGetType(className, out var type);
 
-            if (typeService.IsExternal(type))
+            if (typeService.Is3rdParty(type))
             {
-                return ProcessExternalConditionalMethodAssignments(bindingNode, invocationExpression);
+                return Process3rdPartyConditionalMethodAssignments(bindingNode, invocationExpression);
             }
 
             return isStatic ?
@@ -388,8 +388,8 @@ namespace Prometheus.Engine.Reachability.Tracker {
             var className = memberAccess.Expression.As<IdentifierNameSyntax>().Identifier.Text;
             var type = typeService.GetTypeContainer(memberAccess).Type;
 
-            if (typeService.IsExternal(type))
-                return ProcessExternalConditionalMethodAssignments(bindingNode, invocationExpression);
+            if (typeService.Is3rdParty(type))
+                return Process3rdPartyConditionalMethodAssignments(bindingNode, invocationExpression);
 
             var conditions = conditionExtractor.ExtractConditions(invocationExpression);
             var classDeclaration = typeService.GetClassDeclaration(className);
@@ -437,9 +437,9 @@ namespace Prometheus.Engine.Reachability.Tracker {
 
             foreach (Type concreteType in typeContainer.Implementations)
             {
-                if (typeService.IsExternal(concreteType))
+                if (typeService.Is3rdParty(concreteType))
                 {
-                    assignments.AddRange(ProcessExternalConditionalMethodAssignments(bindingNode, invocationExpression));
+                    assignments.AddRange(Process3rdPartyConditionalMethodAssignments(bindingNode, invocationExpression));
                 }
                 else
                 {
@@ -515,9 +515,9 @@ namespace Prometheus.Engine.Reachability.Tracker {
             return returnExpressions;
         }
 
-        private List<ConditionalAssignment> ProcessExternalConditionalMethodAssignments(SyntaxNode bindingNode, InvocationExpressionSyntax invocationExpression) {
+        private List<ConditionalAssignment> Process3rdPartyConditionalMethodAssignments(SyntaxNode bindingNode, InvocationExpressionSyntax invocationExpression) {
             var rightReference = new Reference(invocationExpression) {
-                IsExternal = true,
+                Is3rdParty = true,
                 IsPure = typeService.IsPureMethod(invocationExpression, out var _)
             };
 

@@ -9,7 +9,7 @@ namespace Prometheus.Engine.ReachabilityProver.Model
         public DEQueue<ReferenceContext> ReferenceContexts { get; set; }
         public SyntaxNode Node { get; set; }
         public SyntaxToken Token { get; set; }
-        public bool IsExternal { get; set; }
+        public bool Is3rdParty { get; set; }
         public bool IsPure { get; set; }
 
         public Reference() {
