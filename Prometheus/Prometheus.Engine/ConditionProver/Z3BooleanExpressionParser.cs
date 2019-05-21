@@ -20,8 +20,7 @@ namespace Prometheus.Engine.ConditionProver
         private HaveCommonReference reachabilityDelegate;
         private GetConditionalAssignments getAssignmentsDelegate;
         private ParseBooleanMethod parseBooleanMethodDelegate;
-        private ParseCachedBooleanMethod parseCachedBooleanMethodDelegate;
-
+        private Func<MethodDeclarationSyntax, DEQueue<ReferenceContext>, Dictionary<string, NodeType>, List<Expr>> parseCachedBooleanMethodDelegate;
         private readonly Context context;
 
         public Z3BooleanExpressionParser(ITypeService typeService, IReferenceParser referenceParser, Context context) {
@@ -42,8 +41,9 @@ namespace Prometheus.Engine.ConditionProver
             parseBooleanMethodDelegate = @delegate;
         }
 
-        public void Configure(ParseCachedBooleanMethod @delegate) {
-            parseCachedBooleanMethodDelegate = @delegate;
+        public void Configure(ParseCachedBooleanMethod @delegate)
+        {
+            parseCachedBooleanMethodDelegate = (method, contexts, cachedNodes) => @delegate(method, contexts, cachedNodes);
         }
 
         public BoolExpr ParseExpression(ExpressionSyntax expressionSyntax, out Dictionary<string, NodeType> processedMembers) {
@@ -80,7 +80,7 @@ namespace Prometheus.Engine.ConditionProver
 
         }
 
-        public List<BoolExpr> ParseCachedExpression(ExpressionSyntax expressionSyntax, Dictionary<string, NodeType> cachedMembers) {
+        public List<BoolExpr> ParseCachedExpression(ExpressionSyntax expressionSyntax, DEQueue<ReferenceContext> contexts, Dictionary<string, NodeType> cachedMembers) {
             var expressionKind = expressionSyntax.Kind();
 
             switch (expressionKind) {
@@ -89,7 +89,7 @@ namespace Prometheus.Engine.ConditionProver
                 case SyntaxKind.FalseLiteralExpression:
                     return new List<BoolExpr> { context.MkFalse() };
                 case SyntaxKind.LogicalNotExpression:
-                    return ParsePrefixUnaryExpression((PrefixUnaryExpressionSyntax)expressionSyntax, cachedMembers);
+                    return ParseCachedPrefixUnaryExpression((PrefixUnaryExpressionSyntax)expressionSyntax, contexts, cachedMembers);
                 case SyntaxKind.SimpleMemberAccessExpression:
                     return new List<BoolExpr> { context.MkBoolConst(expressionSyntax.ToString()) };
 
@@ -101,7 +101,7 @@ namespace Prometheus.Engine.ConditionProver
                 case SyntaxKind.LessThanOrEqualExpression:
                 case SyntaxKind.EqualsExpression:
                 case SyntaxKind.NotEqualsExpression:
-                    return ParseBinaryExpression(expressionSyntax.As<BinaryExpressionSyntax>(), cachedMembers);
+                    return ParseCachedBinaryExpression(expressionSyntax.As<BinaryExpressionSyntax>(), contexts, cachedMembers);
                 default:
                     throw new NotImplementedException();
             }
@@ -239,6 +239,7 @@ namespace Prometheus.Engine.ConditionProver
         }
 
         private Expr ParseInternalCodeInvocationExpression(InvocationExpressionSyntax invocationExpression, InvocationType invocationType, out Dictionary<string, NodeType> processedMembers) {
+            //TODO: need to pass instance as reference
             var expr = parseBooleanMethodDelegate(invocationType.MethodDeclaration, out processedMembers);
             referenceParser.GetMethodBindings(invocationExpression, invocationType.MethodDeclaration.GetContainingClass(), invocationType.MethodDeclaration.Identifier.Text, out var argumentsTable);
             var callContext = new CallContext {
@@ -246,11 +247,11 @@ namespace Prometheus.Engine.ConditionProver
                 ArgumentsTable = argumentsTable,
                 InvocationExpression = invocationExpression
             };
-            var referenceContext = new ReferenceContext(callContext, null);
+            var referenceContext = new ReferenceContext(callContext);
 
             foreach (var processedMember in processedMembers)
             {
-                processedMember.Value.Reference = processedMember.Value.Reference ?? new Reference();
+                processedMember.Value.Reference = processedMember.Value.Reference ?? new Reference(processedMember.Value.Node);
                 processedMember.Value.Reference.PrependContext(referenceContext);
             }
 
@@ -292,7 +293,7 @@ namespace Prometheus.Engine.ConditionProver
                 Node = memberExpression,
                 Type = type,
                 Is3rdParty = is3rdParty,
-                Reference = thirdPartyReference
+                Reference = thirdPartyReference??new Reference(memberExpression)
             };
 
             return expr;
@@ -311,20 +312,20 @@ namespace Prometheus.Engine.ConditionProver
 
         #region Cached processing
 
-        private List<BoolExpr> ParseBinaryExpression(BinaryExpressionSyntax binaryExpression, Dictionary<string, NodeType> cachedMembers) {
+        private List<BoolExpr> ParseCachedBinaryExpression(BinaryExpressionSyntax binaryExpression, DEQueue<ReferenceContext> contexts, Dictionary<string, NodeType> cachedMembers) {
             SyntaxKind expressionKind = binaryExpression.Kind();
             List<Expr> left;
             List<Expr> right;
 
             if (binaryExpression.Left.Kind() == SyntaxKind.NullLiteralExpression) {
                 left = new List<Expr> { GetNullExpression(typeService.GetTypeContainer(binaryExpression.Right).Type) };
-                right = ParseExpressionMember(binaryExpression.Right, cachedMembers);
+                right = ParseCachedExpressionMember(binaryExpression.Right, contexts, cachedMembers);
             } else if (binaryExpression.Right.Kind() == SyntaxKind.NullLiteralExpression) {
                 right = new List<Expr> { GetNullExpression(typeService.GetTypeContainer(binaryExpression.Left).Type) };
-                left = ParseExpressionMember(binaryExpression.Left, cachedMembers);
+                left = ParseCachedExpressionMember(binaryExpression.Left, contexts, cachedMembers);
             } else {
-                left = ParseExpressionMember(binaryExpression.Left, cachedMembers);
-                right = ParseExpressionMember(binaryExpression.Right, cachedMembers);
+                left = ParseCachedExpressionMember(binaryExpression.Left, contexts, cachedMembers);
+                right = ParseCachedExpressionMember(binaryExpression.Right, contexts, cachedMembers);
             }
 
             switch (expressionKind) {
@@ -361,7 +362,7 @@ namespace Prometheus.Engine.ConditionProver
             return result;
         }
 
-        private List<BoolExpr> ParsePrefixUnaryExpression(PrefixUnaryExpressionSyntax prefixUnaryExpression, Dictionary<string, NodeType> cachedMembers) {
+        private List<BoolExpr> ParseCachedPrefixUnaryExpression(PrefixUnaryExpressionSyntax prefixUnaryExpression, DEQueue<ReferenceContext> contexts, Dictionary<string, NodeType> cachedMembers) {
             if (prefixUnaryExpression.Kind() != SyntaxKind.LogicalNotExpression)
                 throw new NotImplementedException();
 
@@ -369,7 +370,7 @@ namespace Prometheus.Engine.ConditionProver
             var innerExpressionKind = innerExpression.Kind();
 
             if (innerExpressionKind == SyntaxKind.SimpleMemberAccessExpression || innerExpressionKind == SyntaxKind.IdentifierName) {
-                var parsedExpressions = ParseExpressionMember(innerExpression, cachedMembers);
+                var parsedExpressions = ParseCachedExpressionMember(innerExpression, contexts, cachedMembers);
                 return parsedExpressions.Select(x => context.MkNot(x.As<BoolExpr>())).ToList();
             }
 
@@ -377,7 +378,7 @@ namespace Prometheus.Engine.ConditionProver
                 typeService.IsPureMethod(innerExpression.As<InvocationExpressionSyntax>(), out var returnType);
 
                 if (returnType == typeof(bool)) {
-                    var parsedExpressions = ParseCachedInvocationExpression(innerExpression, cachedMembers).Select(x => context.MkNot(x.As<BoolExpr>())).ToList();
+                    var parsedExpressions = ParseCachedInvocationExpression(innerExpression, contexts, cachedMembers).Select(x => context.MkNot(x.As<BoolExpr>())).ToList();
                     return parsedExpressions;
                 }
             }
@@ -385,11 +386,11 @@ namespace Prometheus.Engine.ConditionProver
             throw new InvalidOperationException($"PrefixUnaryExpression {prefixUnaryExpression} could not be processed");
         }
 
-        private List<Expr> ParseExpressionMember(ExpressionSyntax memberExpression, Dictionary<string, NodeType> cachedMembers) {
+        private List<Expr> ParseCachedExpressionMember(ExpressionSyntax memberExpression, DEQueue<ReferenceContext> contexts, Dictionary<string, NodeType> cachedMembers) {
             var expressionKind = memberExpression.Kind();
 
             if (memberExpression is BinaryExpressionSyntax)
-                return ParseBinaryExpression((BinaryExpressionSyntax)memberExpression, cachedMembers).OfType<Expr>().ToList();
+                return ParseCachedBinaryExpression((BinaryExpressionSyntax)memberExpression, contexts, cachedMembers).OfType<Expr>().ToList();
 
             if (expressionKind == SyntaxKind.NumericLiteralExpression)
                 return new List<Expr> { ParseNumericLiteral(memberExpression.ToString()) };
@@ -398,28 +399,28 @@ namespace Prometheus.Engine.ConditionProver
                 return new List<Expr> { ParseStringLiteral(memberExpression.As<LiteralExpressionSyntax>().Token.ValueText) };
 
             if (expressionKind == SyntaxKind.InvocationExpression)
-                return ParseCachedInvocationExpression(memberExpression, cachedMembers);
+                return ParseCachedInvocationExpression(memberExpression, contexts, cachedMembers);
 
             if (expressionKind != SyntaxKind.SimpleMemberAccessExpression && expressionKind != SyntaxKind.IdentifierName) {
                 return expressionKind == SyntaxKind.UnaryMinusExpression
-                    ? ParseCachedUnaryExpression(memberExpression, cachedMembers)
-                    : ParseCachedExpression(memberExpression, cachedMembers).OfType<Expr>().ToList();
+                    ? ParseCachedUnaryExpression(memberExpression, contexts, cachedMembers)
+                    : ParseCachedExpression(memberExpression, contexts, cachedMembers).OfType<Expr>().ToList();
             }
 
             if (expressionKind == SyntaxKind.UnaryMinusExpression)
-                return ParseCachedUnaryExpression(memberExpression, cachedMembers);
+                return ParseCachedUnaryExpression(memberExpression, contexts, cachedMembers);
 
-            return ParseCachedVariableExpression(memberExpression, cachedMembers);
+            return ParseCachedVariableExpression(memberExpression, contexts, cachedMembers);
         }
 
-        private List<Expr> ParseCachedInvocationExpression(ExpressionSyntax expression, Dictionary<string, NodeType> cachedMembers) {
+        private List<Expr> ParseCachedInvocationExpression(ExpressionSyntax expression, DEQueue<ReferenceContext> contexts, Dictionary<string, NodeType> cachedMembers) {
             //Currently, we treat 3rd party code as well as solution code methods within "if" test conditions the same
             var invocationExpression = (InvocationExpressionSyntax)expression;
             var invocationType = GetInvocationType(invocationExpression);
 
             return typeService.Is3rdParty(invocationType.Type) ?
                 ParseCached3rdPartyCodeInvocationExpression(invocationType, cachedMembers) :
-                ParseCachedInternalCodeInvocationExpression(invocationType, cachedMembers);
+                ParseCachedInternalCodeInvocationExpression(invocationType, contexts, cachedMembers);
         }
 
         private List<Expr> ParseCached3rdPartyCodeInvocationExpression(InvocationType invocationType, Dictionary<string, NodeType> cachedMembers) {
@@ -430,8 +431,22 @@ namespace Prometheus.Engine.ConditionProver
             return expr;
         }
 
-        private List<Expr> ParseCachedInternalCodeInvocationExpression(InvocationType invocationType, Dictionary<string, NodeType> cachedMembers) {
-            var reachableExprs = parseCachedBooleanMethodDelegate(invocationType.MethodDeclaration, cachedMembers);
+        private List<Expr> ParseCachedInternalCodeInvocationExpression(InvocationType invocationType, DEQueue<ReferenceContext> oldContexts, Dictionary<string, NodeType> cachedMembers) {
+            referenceParser.GetMethodBindings(invocationType.Expression, invocationType.MethodDeclaration.GetContainingClass(), invocationType.MethodDeclaration.Identifier.Text, out var argumentsTable);
+            var callContext = new CallContext {
+                InstanceNode = invocationType.Instance,
+                ArgumentsTable = argumentsTable,
+                InvocationExpression = invocationType.Expression
+            };
+            var referenceContext = new ReferenceContext(callContext);
+            var contexts = new DEQueue<ReferenceContext>(referenceContext);
+
+            foreach (var oldContext in oldContexts.ToList())
+            {
+                contexts.Append(oldContext);
+            }
+
+            var reachableExprs = parseCachedBooleanMethodDelegate(invocationType.MethodDeclaration, contexts, cachedMembers);
 
             return reachableExprs;
         }
@@ -484,42 +499,27 @@ namespace Prometheus.Engine.ConditionProver
             return new List<Expr> { expr };
         }
 
-        private List<Expr> ParseCachedUnaryExpression(ExpressionSyntax unaryExpression, Dictionary<string, NodeType> cachedMembers) {
+        private List<Expr> ParseCachedUnaryExpression(ExpressionSyntax unaryExpression, DEQueue<ReferenceContext> contexts, Dictionary<string, NodeType> cachedMembers) {
             var prefixUnaryExpression = (PrefixUnaryExpressionSyntax)unaryExpression;
-            var negatedExpressions = ParseExpressionMember(prefixUnaryExpression.Operand, cachedMembers);
+            var negatedExpressions = ParseCachedExpressionMember(prefixUnaryExpression.Operand, contexts, cachedMembers);
 
             return negatedExpressions.Select(x => context.MkUnaryMinus((ArithExpr)x).As<Expr>()).ToList();
         }
 
-        private List<Expr> ParseCachedVariableExpression(ExpressionSyntax memberExpression, Dictionary<string, NodeType> cachedMembers) {
+        private List<Expr> ParseCachedVariableExpression(ExpressionSyntax memberExpression, DEQueue<ReferenceContext> contexts, Dictionary<string, NodeType> cachedMembers) {
             var memberType = typeService.GetTypeContainer(memberExpression).Type;
-            var memberReference = new Reference(memberExpression);
+            var memberReference = new Reference(memberExpression, contexts);
             string memberName = memberExpression.ToString();
             string uniqueMemberName = $"{memberName}{memberExpression.GetLocation().SourceSpan}";
-            List<Expr> reachableExprs = new List<Expr>();
+            var reachableExprs = new List<Expr>();
 
             if (TryParseFixedExpression(memberExpression, memberType, out var expr))
                 return new List<Expr> { expr };
 
-            foreach (NodeType node in cachedMembers.Values.Where(x => x.Type == memberType)) {
-                if (node.Is3rdParty && node.Reference.IsPure && MatchCached3rdPartyPureMethodAssignment(memberExpression, node, out Expr nodeExpression)) {
-                     reachableExprs.Add(nodeExpression);
-                } else if (node.Node is IdentifierNameSyntax && memberExpression is IdentifierNameSyntax &&
-                           !node.Is3rdParty && reachabilityDelegate(new Reference(node.Node), memberReference, out Reference _)) {
-                    reachableExprs.Add(node.Expression);
-                } else if (node.Node is MemberAccessExpressionSyntax && memberExpression is MemberAccessExpressionSyntax) {
-                    //TODO: MAJOR
-                    //TODO: for now, we only match "amount1" with "amount2" (identifier with identifier) or "[from].AccountBalance" with "[from2].AccountBalance"
-                    //TODO: need to extend to "amount" with "[from].AccountBalance" and other combinations
-                    var firstMember = (MemberAccessExpressionSyntax)node.Node;
-                    var secondMember = (MemberAccessExpressionSyntax)memberExpression;
-                    var firstRootReference = new Reference(firstMember.GetRootIdentifier());
-                    var secondRootReference = new Reference(secondMember.GetRootIdentifier());
-
-                    if (reachabilityDelegate(firstRootReference, secondRootReference, out Reference _)) {
-                        reachableExprs.Add(node.Expression);
-                    }
-                }
+            foreach (NodeType node in cachedMembers.Values.Where(x => x.Type == memberType))
+            {
+                var matchedExprs = MatchCachedNode(node, memberReference);
+                reachableExprs.AddRange(matchedExprs);
             }
 
             if (reachableExprs.Any())
@@ -529,6 +529,44 @@ namespace Prometheus.Engine.ConditionProver
             expr = context.MkConst(uniqueMemberName, sort);
             reachableExprs.Add(expr);
             return reachableExprs;
+        }
+
+        private List<Expr> MatchCachedNode(NodeType node, Reference memberReference)
+        {
+            List<Expr> matchedExprs = new List<Expr>();
+            ExpressionSyntax memberExpression = memberReference.Node.As<ExpressionSyntax>();
+
+            if (node.Is3rdParty && node.Reference.IsPure)
+            {
+                if (MatchCached3rdPartyPureMethodAssignment(memberExpression, node, out Expr nodeExpression))
+                {
+                    matchedExprs.Add(nodeExpression);
+                }
+            }
+            else if (!node.Is3rdParty && node.Node is IdentifierNameSyntax && memberExpression is IdentifierNameSyntax)
+            {
+                if (reachabilityDelegate(memberReference, node.Reference, out Reference _))
+                {
+                    matchedExprs.Add(node.Expression);
+                }
+            }
+            else if (node.Node is MemberAccessExpressionSyntax && memberExpression is MemberAccessExpressionSyntax)
+            {
+                //TODO: MAJOR
+                //TODO: for now, we only match "amount1" with "amount2" (identifier with identifier) or "[from].AccountBalance" with "[from2].AccountBalance"
+                //TODO: need to extend to "amount" with "[from].AccountBalance" and other combinations
+                var firstMember = (MemberAccessExpressionSyntax) node.Node;
+                var secondMember = (MemberAccessExpressionSyntax) memberExpression;
+                var firstRootReference = new Reference(firstMember.GetRootIdentifier());
+                var secondRootReference = new Reference(secondMember.GetRootIdentifier());
+
+                if (reachabilityDelegate(firstRootReference, secondRootReference, out Reference _))
+                {
+                    matchedExprs.Add(node.Expression);
+                }
+            }
+
+            return matchedExprs;
         }
 
         private bool MatchCached3rdPartyPureMethodAssignment(ExpressionSyntax memberExpression, NodeType node, out Expr nodeExpression) {

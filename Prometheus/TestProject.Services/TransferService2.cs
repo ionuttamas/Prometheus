@@ -5,21 +5,21 @@ namespace TestProject.Services
 {
     public class TransferService2 {
         //TODO: handle interface reference tracking
-        private readonly CustomerRepository customerRepository;
-        private readonly PaymentProvider paymentProvider;
-        private readonly IField field;
-        private readonly CustomerValidator validator;
+        private readonly CustomerRepository customerRepository2;
+        private readonly PaymentProvider paymentProvider2;
+        private readonly IField field2;
+        private readonly CustomerValidator validator2;
 
         public TransferService2(CustomerRepository customerRepository, PaymentProvider paymentProvider, IField field, CustomerValidator validator)
         {
-            this.customerRepository = customerRepository;
-            this.paymentProvider = paymentProvider;
-            this.field = field;
-            this.validator = validator;
+            this.customerRepository2 = customerRepository;
+            this.paymentProvider2 = paymentProvider;
+            this.field2 = field;
+            this.validator2 = validator;
         }
 
         public void Polymorphic_VariousFields_ReferenceCall(Customer from2) {
-            var result = field.Compute(100);
+            var result = field2.Compute(100);
             Customer customer2;
 
             if (result > 0) {
@@ -30,29 +30,29 @@ namespace TestProject.Services
         }
 
         public void IfCheck_Sat_LocallyInitialized_FieldReferenceCall(Customer from2) {
-            var localValidator = new CustomerValidator(200, 30, 50);
+            var localValidator2 = new CustomerValidator(200, 30, 50);
 
-            if (localValidator.IsValid(from2) && from2 != null) {
+            if (localValidator2.IsValid(from2) && from2 != null) {
                 Customer customer2 = from2;
             }
         }
 
         public void IfCheck_Unsat_LocallyInitialized_FieldReferenceCall(Customer from2) {
-            var localValidator = new CustomerValidator(200, 50, 60);
+            var localValidator2 = new CustomerValidator(200, 50, 60);
 
-            if (localValidator.IsValid(from2) && from2 != null) {
+            if (localValidator2.IsValid(from2) && from2 != null) {
                 Customer customer2 = from2;
             }
         }
 
         public void IfCheck_Sat_FieldReferenceCall(Customer from2) {
-            if (validator.IsValid(from2) && from2 != null) {
+            if (validator2.IsValid(from2) && from2 != null) {
                 Customer customer2 = from2;
             }
         }
 
         public void IfCheck_Unsat_FieldReferenceCall(Customer from2) {
-            if (validator.IsValid(from2) && from2 == null) {
+            if (validator2.IsValid(from2) && from2 == null) {
                 Customer customer2 = from2;
             }
         }
@@ -202,31 +202,31 @@ namespace TestProject.Services
         }
 
         public void If_3rdPartyCheck_PureReferenceCall(Customer from2, Customer to2, decimal amount) {
-            if (from2 != null && paymentProvider.ValidatePaymentPure(from2.Name, to2.Name, amount)) {
+            if (from2 != null && paymentProvider2.ValidatePaymentPure(from2.Name, to2.Name, amount)) {
                 Customer customer2 = from2;
             }
         }
 
         public void If_3rdPartyCheck_Unsat_PureReferenceCall(Customer from2, Customer to2, decimal amount) {
-            if (from2 != null && !paymentProvider.ValidatePaymentPure(from2.Name, to2.Name, amount)) {
+            if (from2 != null && !paymentProvider2.ValidatePaymentPure(from2.Name, to2.Name, amount)) {
                 Customer customer2 = from2;
             }
         }
 
         public void If_3rdPartyCheck_ImpureReferenceCall(Customer from2, Customer to2, decimal amount) {
-            if (from2 != null && paymentProvider.ValidatePaymentPure(from2.Name, to2.Name, amount)) {
+            if (from2 != null && paymentProvider2.ValidatePaymentPure(from2.Name, to2.Name, amount)) {
                 Customer customer2 = from2;
             }
         }
 
         public void If_3rdPartyCheck_Negated_ImpureReferenceCall(Customer from2, Customer to2, decimal amount) {
-            if (from2 != null && !paymentProvider.ValidatePaymentImpure(from2.Name, to2.Name, amount)) {
+            if (from2 != null && !paymentProvider2.ValidatePaymentImpure(from2.Name, to2.Name, amount)) {
                 Customer customer2 = from2;
             }
         }
 
         public void If_3rdPartyCheck_PureMethodReferenceAssignment_MemberCheck(Customer from2, Customer to2, decimal amount) {
-            var result = paymentProvider.ProcessPaymentPure(from2.Name, to2.Name, amount);
+            var result = paymentProvider2.ProcessPaymentPure(from2.Name, to2.Name, amount);
 
             if (amount > 0 && result.IsSuccessful) {
                 Customer customer2 = from2;
@@ -234,7 +234,7 @@ namespace TestProject.Services
         }
 
         public void If_3rdPartyCheck_Sat_Negated_PureMethodReferenceAssignment_DifferentArgs_MemberCheck(Customer from2, Customer to2, decimal amount) {
-            var result = paymentProvider.ProcessPaymentPure(from2.Name, to2.Name, amount);
+            var result = paymentProvider2.ProcessPaymentPure(from2.Name, to2.Name, amount);
 
             if (amount > 5 && result.IsSuccessful) {
                 Customer customer2 = from2;
@@ -242,7 +242,7 @@ namespace TestProject.Services
         }
 
         public void If_3rdPartyCheck_Unsat_Negated_PureMethodReferenceAssignment_DifferentArgs_MemberCheck(Customer from2, Customer to2, decimal amount) {
-            var result = paymentProvider.ProcessPaymentPure(from2.Name, to2.Name, amount);
+            var result = paymentProvider2.ProcessPaymentPure(from2.Name, to2.Name, amount);
 
             if (amount > 0 && !result.IsSuccessful) {
                 Customer customer2 = from2;
@@ -266,7 +266,7 @@ namespace TestProject.Services
         }
 
         public void If_3rdPartyCheck_Unsat_PureMethodReferenceAssignment_MemberCheck(Customer from2, Customer to2, decimal amount) {
-            var result = paymentProvider.ProcessPaymentPure(from2.Name, to2.Name, amount);
+            var result = paymentProvider2.ProcessPaymentPure(from2.Name, to2.Name, amount);
 
             if (amount > 0 && !result.IsSuccessful) {
                 Customer customer2 = from2;
@@ -274,7 +274,7 @@ namespace TestProject.Services
         }
 
         public void If_3rdPartyCheck_Sat_PureMethodReferenceAssignment_DirectCheck(Customer from2, Customer to2, decimal amount) {
-            var isPaymentValid = paymentProvider.ValidatePaymentPure(from2.Name, to2.Name, amount);
+            var isPaymentValid = paymentProvider2.ValidatePaymentPure(from2.Name, to2.Name, amount);
 
             if (amount > 10 && isPaymentValid) {
                 Customer customer2 = from2;
@@ -282,7 +282,7 @@ namespace TestProject.Services
         }
 
         public void If_3rdPartyCheck_Unsat_PureMethodReferenceAssignment_DirectCheck(Customer from2, Customer to2, decimal amount) {
-            var isPaymentValid = paymentProvider.ValidatePaymentPure(from2.Name, to2.Name, amount);
+            var isPaymentValid = paymentProvider2.ValidatePaymentPure(from2.Name, to2.Name, amount);
 
             if (amount > 0 && !isPaymentValid) {
                 Customer customer2 = from2;
@@ -290,7 +290,7 @@ namespace TestProject.Services
         }
 
         public void If_3rdPartyCheck_ImpureMethodReferenceAssignment_MemberCheck(Customer from2, Customer to2, decimal amount) {
-            var result = paymentProvider.ProcessPaymentImpure(from2.Name, to2.Name, amount);
+            var result = paymentProvider2.ProcessPaymentImpure(from2.Name, to2.Name, amount);
 
             if (amount > 0 && result.IsSuccessful) {
                 Customer customer2 = from2;
@@ -314,7 +314,7 @@ namespace TestProject.Services
         }
 
         public void If_3rdPartyCheck_ImpureMethodReferenceAssignment_DirectCheck(Customer from2, Customer to2, decimal amount) {
-            var isPaymentValid = paymentProvider.ValidatePaymentImpure(from2.Name, to2.Name, amount);
+            var isPaymentValid = paymentProvider2.ValidatePaymentImpure(from2.Name, to2.Name, amount);
 
             if (amount > 0 && isPaymentValid) {
                 Customer customer2 = from2;
@@ -322,7 +322,7 @@ namespace TestProject.Services
         }
 
         public void If_3rdPartyCheck_Negated_Sat_ImpureMethodReferenceAssignment_DirectCheck(Customer from2, Customer to2, decimal amount) {
-            var isPaymentValid = paymentProvider.ValidatePaymentImpure(from2.Name, to2.Name, amount);
+            var isPaymentValid = paymentProvider2.ValidatePaymentImpure(from2.Name, to2.Name, amount);
 
             if (amount > 0 && !isPaymentValid) {
                 Customer customer2 = from2;
@@ -330,7 +330,7 @@ namespace TestProject.Services
         }
 
         public void If_3rdPartyCheck_Negated_Sat_ImpureMethodReferenceAssignment_MemberCheck(Customer from2, Customer to2, decimal amount) {
-            var result = paymentProvider.ProcessPaymentImpure(from2.Name, to2.Name, amount);
+            var result = paymentProvider2.ProcessPaymentImpure(from2.Name, to2.Name, amount);
 
             if (amount > 0 && !result.IsSuccessful) {
                 Customer customer2 = from2;
@@ -344,7 +344,7 @@ namespace TestProject.Services
 
         public void MethodAssignment_IfTransfer(Customer from, Customer to, decimal amount)
         {
-            var customer = customerRepository.Get(from.Age, to.Age);
+            var customer = customerRepository2.Get(from.Age, to.Age);
 
             if (from.AccountBalance > 0) {
                 var refCustomer = customer;
@@ -366,17 +366,17 @@ namespace TestProject.Services
         }
 
         public void MethodAssignment_WithIndexQuery_2(Customer from2, Customer to2, decimal amount) {
-            var customers = customerRepository.GetWhere(to2.Age);
+            var customers = customerRepository2.GetWhere(to2.Age);
             Customer indexCustomer2 = customers[to2.Age * to2.Age + from2.Age * to2.Age];
         }
 
         public void MethodAssignment_WithFirstQuery_2(Customer from2, Customer to2, decimal amount) {
-            var customers = customerRepository.GetWhere(to2.Age);
+            var customers = customerRepository2.GetWhere(to2.Age);
             Customer firstCustomer2 = customers.FirstOrDefault(x => (x.AccountBalance == from2.AccountBalance && x.DeliveryAddress.City == to2.DeliveryAddress.City) || (x.Age == from2.Age && x.DeliveryAddress.City == to2.DeliveryAddress.City));
         }
 
         public void MethodAssignment_WithWhereQuery_2(Customer from2, Customer to2, decimal amount) {
-            var customers = customerRepository.GetWhere(to2.Age);
+            var customers = customerRepository2.GetWhere(to2.Age);
             var whereCustomers2 = customers.Where(x => x.AccountBalance == from2.AccountBalance && x.DeliveryAddress.City == to2.DeliveryAddress.City || x.Age == from2.Age && x.DeliveryAddress.City == to2.DeliveryAddress.City);
         }
     }

@@ -9,6 +9,10 @@ namespace Prometheus.Engine.ReachabilityProver.Model
             CallContext = new CallContext();
         }
 
+        public ReferenceContext(CallContext callContext) {
+            CallContext = callContext;
+        }
+
         public ReferenceContext(CallContext callContext, IReferenceQuery query) {
             CallContext = callContext;
             Query = query;

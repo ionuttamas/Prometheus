@@ -39,8 +39,6 @@ namespace Prometheus.Engine.Reachability.Prover
         /// </summary>
         public bool HaveCommonReference(Reference first, Reference second, out Reference commonNode)
         {
-            //TODO: need to check for reference contexts
-
             if (!CheckTypes(first, second))
             {
                 commonNode = null;
@@ -147,8 +145,8 @@ namespace Prometheus.Engine.Reachability.Prover
                 return first.ToString() == second.ToString();
             }
 
-            if (first.ToString() == second.ToString() && first.GetLocation() == second.GetLocation())
-                return true;
+            if (first.ToString() != second.ToString() || first.GetLocation() != second.GetLocation())
+                return false;
 
             /* Currently, we perform a strict equivalence testing for the reference query stack:
                e.g. for:
@@ -157,21 +155,19 @@ namespace Prometheus.Engine.Reachability.Prover
                we enforce that a ≡ c, capturedValue1 ≡ capturedValue2, b ≡ d.
                In the future, we will support inclusion query support (one reference is included in the second).
              */
-            if (first.ReferenceContexts.Count != second.ReferenceContexts.Count)
-                return false;
-
-            var firstMethodContexts = first.ReferenceContexts.ToList();
-            var secondMethodContexts = second.ReferenceContexts.ToList();
-
-            return MatchCallContexts(firstMethodContexts, secondMethodContexts);
+            return MatchCallContexts(first, second);
         }
 
         //TODO: redesign: incorrect as it doesn't capture many cases
-        private bool MatchCallContexts(List<ReferenceContext> firstMethodContexts, List<ReferenceContext> secondMethodContexts)
+        private bool MatchCallContexts(Reference first, Reference second)
         {
-            if (firstMethodContexts.Count == 0)
-                return false;
+            var firstMethodContexts = first.ReferenceContexts.ToList();
+            var secondMethodContexts = second.ReferenceContexts.ToList();
 
+            if (firstMethodContexts.Count == 0 && secondMethodContexts.Count == 0)
+                return true;
+
+            //TODO: what if firstMethodContexts.Count != secondMethodContexts.Count?
             for (int i = 0; i < firstMethodContexts.Count; i++)
             {
                 var lambdaEquivalence = AreLambdaContextsEquivalent(firstMethodContexts[i], secondMethodContexts[i]);
@@ -196,9 +192,7 @@ namespace Prometheus.Engine.Reachability.Prover
                 return null;
 
             if (!queryMatcher.AreEquivalent(firstMethodContext.Query, secondMethodContext.Query, out var satisfiableTable))
-            {
                 return null;
-            }
 
             foreach (var variableMapping in satisfiableTable) {
                 var firstReference = new Reference(variableMapping.Key) { ReferenceContexts = new DEQueue<ReferenceContext>(new[] { firstMethodContext }) };

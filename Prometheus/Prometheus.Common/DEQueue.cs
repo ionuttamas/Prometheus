@@ -15,6 +15,10 @@ namespace Prometheus.Common
             container = new List<T>();
         }
 
+        public DEQueue(T item) {
+            container = new List<T>{item};
+        }
+
         public DEQueue(IEnumerable<T> container) {
             this.container = container.ToList();
         }

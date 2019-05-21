@@ -55,6 +55,9 @@ namespace Prometheus.Engine.Reachability.Tracker
             if (node is ArgumentSyntax)
                 return InternalParse(node.As<ArgumentSyntax>().Expression);
 
+            if (node is ObjectCreationExpressionSyntax)
+                return (new Reference(node.As<ObjectCreationExpressionSyntax>()), null);
+
             //todo: discern between various invocations: now only supporting "reference = instance.First/Where/FirstOrDefault"
             if (node is InvocationExpressionSyntax)
                 return ParseLambdaExpression(node.As<InvocationExpressionSyntax>());

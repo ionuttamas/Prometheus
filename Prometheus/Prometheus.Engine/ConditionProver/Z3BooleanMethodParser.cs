@@ -41,18 +41,19 @@ namespace Prometheus.Engine.ConditionProver
             return resultExpr;
         }
 
-        public List<Expr> ParseCachedBooleanMethod(MethodDeclarationSyntax methodDeclaration, Dictionary<string, NodeType> cachedNodes) {
+        public List<Expr> ParseCachedBooleanMethod(MethodDeclarationSyntax methodDeclaration, DEQueue<ReferenceContext> contexts, Dictionary<string, NodeType> cachedNodes) {
             var returnExpressions = methodDeclaration
                 .DescendantNodes<ReturnStatementSyntax>()
                 .Where(x => x.Expression.Kind() != SyntaxKind.ObjectCreationExpression) //TODO: are we interested in "return new X()"?
                 .ToList();
             var resultExprs = returnExpressions
-                .Select(x => ParseCachedReturnStatement(x, cachedNodes))
+                .Select(x => ParseCachedReturnStatement(x, contexts, cachedNodes))
                 .SelectMany(x=>x)
                 .ToList();
 
             return resultExprs;
         }
+
 
         private BoolExpr ParseReturnStatement(ReturnStatementSyntax returnStatement, out Dictionary<string, NodeType> processedNodes) {
             var conditions = conditionExtractor.ExtractConditions(returnStatement);
@@ -84,11 +85,11 @@ namespace Prometheus.Engine.ConditionProver
             return resultExpr;
         }
 
-        private List<Expr> ParseCachedReturnStatement(ReturnStatementSyntax returnStatement, Dictionary<string, NodeType> cachedNodes) {
+        private List<Expr> ParseCachedReturnStatement(ReturnStatementSyntax returnStatement, DEQueue<ReferenceContext> contexts, Dictionary<string, NodeType> cachedNodes) {
             var conditions = conditionExtractor.ExtractConditions(returnStatement);
-            var returnExprs = expressionParser.ParseCachedExpression(returnStatement.Expression, cachedNodes);
+            var returnExprs = expressionParser.ParseCachedExpression(returnStatement.Expression, contexts, cachedNodes);
             var condition = new Condition(conditions, false);
-            var testExprs = ProcessCachedCondition(condition, cachedNodes);
+            var testExprs = ProcessCachedCondition(condition, contexts, cachedNodes);
 
             var combinedExprs = new List<List<BoolExpr>>{testExprs, returnExprs};
             var resultExprs = combinedExprs
@@ -99,18 +100,18 @@ namespace Prometheus.Engine.ConditionProver
             return resultExprs;
         }
 
-        private List<BoolExpr> ProcessCachedCondition(Condition condition, Dictionary<string, NodeType> cachedNodes) {
+        private List<BoolExpr> ProcessCachedCondition(Condition condition, DEQueue<ReferenceContext> contexts, Dictionary<string, NodeType> cachedNodes) {
             if (!condition.Conditions.Any()) {
-                var exprs = expressionParser.ParseCachedExpression(condition.TestExpression, cachedNodes);
+                var exprs = expressionParser.ParseCachedExpression(condition.TestExpression, contexts, cachedNodes);
                 exprs = exprs.Select(x=> condition.IsNegated ? context.MkNot(x) : x).ToList();
 
                 return exprs;
             }
 
-            //TODO: double check this
+            //TODO: double check this if ORs are well-handled
             var expressions = condition
                 .Conditions
-                .Select(x => ProcessCachedCondition(x, cachedNodes))
+                .Select(x => ProcessCachedCondition(x, contexts, cachedNodes))
                 .CartesianProduct()
                 .Select(x=>context.MkAnd(x))
                 .ToList();

@@ -21,6 +21,10 @@ namespace Prometheus.Engine.ReachabilityProver.Model
             Node = node;
         }
 
+        public Reference(SyntaxNode node, DEQueue<ReferenceContext> contexts) : this(node) {
+            ReferenceContexts = contexts;
+        }
+
         public Reference(SyntaxToken token) : this() {
             Token = token;
         }

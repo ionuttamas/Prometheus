@@ -1,14 +1,8 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Z3;
 using Prometheus.Common;
-using Prometheus.Engine.Model;
 using Prometheus.Engine.ReachabilityProver.Model;
-using Prometheus.Engine.Types;
 
 namespace Prometheus.Engine.ConditionProver {
     internal class Z3ConditionProver : IConditionProver
@@ -63,13 +57,15 @@ namespace Prometheus.Engine.ConditionProver {
             return expression;
         }
 
-        private List<BoolExpr> ParseConditionalAssignment(ConditionalAssignment assignment, Dictionary<string, NodeType> cachedMembers) {
+        private List<BoolExpr> ParseConditionalAssignment(ConditionalAssignment assignment, Dictionary<string, NodeType> cachedMembers)
+        {
+            var contexts = assignment.RightReference.ReferenceContexts;
             var conditions = assignment
                 .Conditions
                 .Select(x =>
                         x.IsNegated
-                        ? boolExpressionParser.ParseCachedExpression(x.TestExpression, cachedMembers).Select(expr=>context.MkNot(expr)).ToList()
-                        : boolExpressionParser.ParseCachedExpression(x.TestExpression, cachedMembers))
+                        ? boolExpressionParser.ParseCachedExpression(x.TestExpression, contexts, cachedMembers).Select(expr=>context.MkNot(expr)).ToList()
+                        : boolExpressionParser.ParseCachedExpression(x.TestExpression, contexts, cachedMembers))
                 .ToList();
             var cartesianProduct = conditions.CartesianProduct();
             var result = cartesianProduct.Select(x => context.MkAnd(x)).ToList();

@@ -140,6 +140,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 case SyntaxKind.NullLiteralExpression:
                 case SyntaxKind.TrueLiteralExpression:
                 case SyntaxKind.FalseLiteralExpression:
+                case SyntaxKind.ObjectCreationExpression:
                     return true;
             }
 
@@ -157,14 +158,14 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 .Where(x => threadSchedule.ContainsLocation(solution, x.Location))
                 .Select(x => x.GetNode<InvocationExpressionSyntax>());
             var methodCallAssignments = invocations
-                .Where(x => referenceContexts.IsNullOrEmpty() || reachabilityDelegate(new Reference(x.GetReferenceNode()), new Reference(referenceContexts.PeekLast().CallContext?.InstanceNode), out var _))
+                .Where(x => referenceContexts.IsNullOrEmpty() || reachabilityDelegate(new Reference(x.GetReferenceNode()), new Reference(referenceContexts.PeekFirst().CallContext?.InstanceNode), out var _))
                 .SelectMany(x => GetConditionalAssignments(x, x.ArgumentList.Arguments[parameterIndex]))
                 .Select(x => {
                     if (referenceContexts == null)
                         return x;
 
                     if (x.RightReference.ReferenceContexts.Count != 0) {
-                        referenceContexts.Append(x.RightReference.ReferenceContexts.PeekLast());
+                        referenceContexts.Append(x.RightReference.ReferenceContexts.PeekFirst());
                     }
 
                     x.RightReference.ReferenceContexts = referenceContexts;
@@ -221,7 +222,16 @@ namespace Prometheus.Engine.Reachability.Tracker {
                     if (referenceContexts == null || referenceContexts.Count==0)
                         return true;
 
-                    if(!(x.Parent is AssignmentExpressionSyntax))
+                    if (x.Parent.Parent is VariableDeclaratorSyntax)
+                    {
+                        var declaratorSyntax = (VariableDeclaratorSyntax) x.Parent.Parent;
+                        var leftOperatorReference = new Reference(declaratorSyntax.Identifier);
+                        return reachabilityDelegate(new Reference(referenceContexts.PeekFirst().CallContext.InstanceNode), leftOperatorReference, out var _);
+
+                        //return true;
+                    }
+
+                    if (!(x.Parent is AssignmentExpressionSyntax))
                         return false;
 
                     var reference = new Reference(x.Parent
@@ -229,7 +239,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                         .As<IdentifierNameSyntax>());
 
                     //TODO: currently, we do not handle situations in which the found reference assignment happened before the current assignment
-                    return reachabilityDelegate(reference, new Reference(referenceContexts.PeekLast().CallContext.InstanceNode), out var _);
+                    return reachabilityDelegate(reference, new Reference(referenceContexts.PeekFirst().CallContext.InstanceNode), out var _);
                 })
                 .SelectMany(x => GetConditionalAssignments(x, x.ArgumentList.Arguments[constructorParameterIndex]))
                 .Select(x =>
@@ -239,7 +249,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
 
                     if (x.RightReference.ReferenceContexts.Count != 0)
                     {
-                        referenceContexts.Append(x.RightReference.ReferenceContexts.PeekLast());
+                        referenceContexts.Append(x.RightReference.ReferenceContexts.PeekFirst());
                     }
 
                     x.RightReference.ReferenceContexts = referenceContexts;
@@ -292,9 +302,6 @@ namespace Prometheus.Engine.Reachability.Tracker {
 
                 throw new NotSupportedException($"InvocationExpression {invocationExpression} is not supported");
             }
-
-            if (argument is ObjectCreationExpressionSyntax)
-                return new List<ConditionalAssignment>();
 
             var (rightReference, query) = referenceParser.Parse(argument);
 
@@ -361,11 +368,11 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 .Where(x => x.Expression.Kind() != SyntaxKind.ObjectCreationExpression) //TODO: are we interested in "return new X()"?
                 .Select(x => {
                     var (returnReference, query) = referenceParser.Parse(x.Expression);
-
                     var callContext = new CallContext {
                         ArgumentsTable = argumentsTable,
                         InvocationExpression = invocationExpression
                     };
+
                     returnReference.AppendContext(new ReferenceContext(callContext, query));
 
                     return new ConditionalAssignment {
