@@ -29,7 +29,24 @@ namespace Prometheus.Engine.UnitTests
             solver.Assert(forAllQuantifier);
             Status status = solver.Check();
             Assert.AreEqual(Status.SATISFIABLE, status);
-        }
+        }/*
+
+        [Test]
+        public void Z3Context_ForSameNameVariables_ProducesSameVariables2() {
+            Expr firstBoolean = context.MkConst("boolVar", context.BoolSort);
+            Expr secondBoolean = context.MkConst("boolVar", context.BoolSort);
+            BoolExpr equalityExpression = context.MkEq(firstBoolean, secondBoolean);
+            BoolExpr equalityExpression2 = context.MkEq(firstBoolean, context.MkTrue());
+            BoolExpr equalityExpression3 = context.MkEq(secondBoolean, context.MkTrue());
+
+            BoolExpr expression = context.MkAnd(equalityExpression, equalityExpression2, equalityExpression3);
+
+            Quantifier forAllQuantifier = context.MkForall(new[] { firstBoolean, secondBoolean }, equalityExpression);
+            Solver solver = context.MkSolver();
+            solver.Assert(expression);
+            Status status = solver.Check();
+            Assert.AreEqual(Status.SATISFIABLE, status);
+        }*/
 
         [Test]
         public void Z3Context_ForDifferentNameVariables_ProducesSameVariables() {

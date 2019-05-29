@@ -22,7 +22,7 @@ namespace Prometheus.Engine.ConditionProver
             this.context = context;
         }
 
-        public Expr ParseBooleanMethod(MethodDeclarationSyntax methodDeclaration, out Dictionary<string, NodeType> processedNodes)
+        public BoolExpr ParseBooleanMethod(MethodDeclarationSyntax methodDeclaration, out Dictionary<string, NodeType> processedNodes)
         {
             var returnExpressions = methodDeclaration
                 .DescendantNodes<ReturnStatementSyntax>()
@@ -41,7 +41,7 @@ namespace Prometheus.Engine.ConditionProver
             return resultExpr;
         }
 
-        public List<Expr> ParseCachedBooleanMethod(MethodDeclarationSyntax methodDeclaration, DEQueue<ReferenceContext> contexts, Dictionary<string, NodeType> cachedNodes) {
+        public List<BoolExpr> ParseCachedBooleanMethod(MethodDeclarationSyntax methodDeclaration, DEQueue<ReferenceContext> contexts, Dictionary<string, NodeType> cachedNodes) {
             var returnExpressions = methodDeclaration
                 .DescendantNodes<ReturnStatementSyntax>()
                 .Where(x => x.Expression.Kind() != SyntaxKind.ObjectCreationExpression) //TODO: are we interested in "return new X()"?
@@ -85,7 +85,7 @@ namespace Prometheus.Engine.ConditionProver
             return resultExpr;
         }
 
-        private List<Expr> ParseCachedReturnStatement(ReturnStatementSyntax returnStatement, DEQueue<ReferenceContext> contexts, Dictionary<string, NodeType> cachedNodes) {
+        private List<BoolExpr> ParseCachedReturnStatement(ReturnStatementSyntax returnStatement, DEQueue<ReferenceContext> contexts, Dictionary<string, NodeType> cachedNodes) {
             var conditions = conditionExtractor.ExtractConditions(returnStatement);
             var returnExprs = expressionParser.ParseCachedExpression(returnStatement.Expression, contexts, cachedNodes);
             var condition = new Condition(conditions, false);
@@ -94,7 +94,7 @@ namespace Prometheus.Engine.ConditionProver
             var combinedExprs = new List<List<BoolExpr>>{testExprs, returnExprs};
             var resultExprs = combinedExprs
                 .CartesianProduct()
-                .Select(x => (Expr)context.MkAnd(x))
+                .Select(x => context.MkAnd(x))
                 .ToList();
 
             return resultExprs;
