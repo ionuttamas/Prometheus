@@ -121,6 +121,7 @@ namespace Prometheus.Engine.Reachability.Prover
                     return true;
             }
 
+            reachabilityCache.AddToCache(first.LeftReference, second.LeftReference, null);
             return false;
         }
 

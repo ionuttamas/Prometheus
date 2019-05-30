@@ -10,7 +10,7 @@ namespace Prometheus.Engine.ConditionProver {
     internal delegate bool HaveCommonReference(Reference first, Reference second, out Reference commonReference);
     internal delegate List<ConditionalAssignment> GetConditionalAssignments(Reference reference);
     internal delegate BoolExpr ParseBooleanMethod(MethodDeclarationSyntax methodDeclaration, out Dictionary<string, NodeType> processedNodes);
-    internal delegate List<BoolExpr> ParseCachedBooleanMethod(MethodDeclarationSyntax methodDeclaration, DEQueue<ReferenceContext> contexts, Dictionary<string, NodeType> cachedNodes);
+    internal delegate BoolExpr ParseCachedBooleanMethod(MethodDeclarationSyntax methodDeclaration, DEQueue<ReferenceContext> contexts, Dictionary<string, NodeType> cachedNodes);
 
     public interface IConditionProver: IDisposable
     {
