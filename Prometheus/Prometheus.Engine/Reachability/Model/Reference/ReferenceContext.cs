@@ -32,5 +32,18 @@ namespace Prometheus.Engine.ReachabilityProver.Model
         /// this contains the filters applied on the given instance ("customers" reference in this case).
         /// </summary>
         public IReferenceQuery Query { get; set; }
+
+        public override bool Equals(object obj) {
+            if (obj == null || GetType() != obj.GetType())
+                return false;
+
+            ReferenceContext instance = (ReferenceContext)obj;
+
+            return instance.CallContext.InvocationExpression.GetLocation() == CallContext.InvocationExpression.GetLocation();
+        }
+
+        public override int GetHashCode() {
+            return CallContext.InstanceNode.GetHashCode();
+        }
     }
 }

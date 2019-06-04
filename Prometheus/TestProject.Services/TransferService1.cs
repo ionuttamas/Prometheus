@@ -9,7 +9,7 @@ namespace TestProject.Services
         private readonly CustomerRepository _customerRepository;
         private readonly List<Customer> customers;
         private readonly PaymentProvider paymentProvider;
-        private readonly CustomerValidator validator;
+        private readonly CustomerValidator validator1;
         private const int CONST_NUMBER = 100;
         private const string CONST_STRING = "abc";
         private readonly IField field;
@@ -21,7 +21,7 @@ namespace TestProject.Services
             //TODO: this does not work paymentProvider = new PaymentProvider();
             this.paymentProvider = paymentProvider;
             this.field = field;
-            this.validator = validator;
+            this.validator1 = validator;
         }
 
         public void StringConstantTransfer(Customer from1, Customer to1, decimal amount)
@@ -62,7 +62,7 @@ namespace TestProject.Services
         }
 
         public void IfCheck_FieldReferenceCall(Customer from1) {
-            if (validator.IsValid(from1) && from1 != null) {
+            if (validator1.IsValid(from1) && from1 != null) {
                 Customer customer1 = from1;
             }
         }

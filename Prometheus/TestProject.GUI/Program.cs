@@ -31,15 +31,15 @@ namespace TestProject.GUI {
             var thread = new Thread(Do);
             var transferService = new TransferService();
             customerRepository = new CustomerRepository(customers);
-            var validator = new CustomerValidator(100, 20, 30);
-            transferService1 = new TransferService1(customerRepository, customers, paymentProvider, null, validator);
+            var validator1 = new CustomerValidator(100, 20, 30);
+            transferService1 = new TransferService1(customerRepository, customers, paymentProvider, null, validator1);
             transferService1.If_NullCheck(sharedCustomer);
             transferService1.StringConstantTransfer(sharedCustomer, sharedCustomer, 100);
             transferService1.IntConstantTransfer(sharedCustomer, sharedCustomer2, 100); //TODO: for (sharedCustomer, sharedCustomer) arguments it fails
+
             transferService1.IfCheck_FieldReferenceCall(sharedCustomer);
 
             transferService1.IfCheck_LocallyInitialized_FieldReferenceCall(sharedCustomer);
-
             transferService1.IfCheck_LocalStaticCall(sharedCustomer);
             transferService1.IfCheck_ThisReferenceCall(sharedCustomer);
             transferService1.IfCheck_ExternalStaticCall(sharedCustomer);
@@ -99,18 +99,18 @@ namespace TestProject.GUI {
             registrationService.Register(sharedCustomer);
             registrationService.SimpleIfRegister(sharedCustomer);
 
-            var validator = new CustomerValidator(200, 25, 35);
-            var transferService2 = new TransferService2(customerRepository, paymentProvider, null, validator);
+            var validator2 = new CustomerValidator(200, 25, 35);
+            var transferService2 = new TransferService2(customerRepository, paymentProvider, null, validator2);
             transferService2.StringConstantTransfer(sharedCustomer, sharedCustomer, 100);
             transferService2.Unsat_StringConstantTransfer(sharedCustomer, sharedCustomer, 100);
             transferService2.IntConstantTransfer(sharedCustomer, sharedCustomer, 100);
             transferService2.Unsat_IntConstantTransfer(sharedCustomer, sharedCustomer2, 100);
-            transferService2.IfCheck_Sat_FieldReferenceCall(sharedCustomer);
-            transferService2.IfCheck_Unsat_FieldReferenceCall(sharedCustomer);
 
+            transferService2.IfCheck_Sat_FieldReferenceCall(sharedCustomer);
+
+            transferService2.IfCheck_Unsat_FieldReferenceCall(sharedCustomer);
             transferService2.IfCheck_Sat_LocallyInitialized_FieldReferenceCall(sharedCustomer);
             transferService2.IfCheck_Unsat_LocallyInitialized_FieldReferenceCall(sharedCustomer);
-
             transferService2.IfCheck_Sat_LocalStaticCall(sharedCustomer);
             transferService2.IfCheck_Unsat_LocalStaticCall(sharedCustomer);
             transferService2.IfCheck_Sat_ThisReferenceCall(sharedCustomer);

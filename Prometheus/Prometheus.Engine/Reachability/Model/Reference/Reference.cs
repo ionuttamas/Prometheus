@@ -55,7 +55,19 @@ namespace Prometheus.Engine.ReachabilityProver.Model
 
             Reference instance = (Reference)obj;
 
-            return instance.GetLocation() == GetLocation();
+            if (instance.GetLocation() != GetLocation())
+                return false;
+
+            if (instance.ReferenceContexts.Count != ReferenceContexts.Count)
+                return false;
+
+            for (int i = 0; i < ReferenceContexts.Count; i++)
+            {
+                if (instance.ReferenceContexts[i] != ReferenceContexts[i])
+                    return false;
+            }
+
+            return true;
         }
 
         public override int GetHashCode() {

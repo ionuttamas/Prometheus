@@ -24,6 +24,7 @@ namespace Prometheus.Engine.ConditionProver
         private readonly Context context;
         private readonly Dictionary<Expr, List<Expr>> reachableExprsTable;
         private readonly Dictionary<Expr, List<Expr>> nonReachableExprsTable;
+        private readonly Dictionary<ExpressionSyntax, Expr> cachedProcessedExprsTable;
 
         public Z3BooleanExpressionParser(ITypeService typeService, IReferenceParser referenceParser, Context context) {
             this.typeService = typeService;
@@ -32,6 +33,7 @@ namespace Prometheus.Engine.ConditionProver
 
             reachableExprsTable = new Dictionary<Expr, List<Expr>>();
             nonReachableExprsTable = new Dictionary<Expr, List<Expr>>();
+            cachedProcessedExprsTable = new Dictionary<ExpressionSyntax, Expr>();
         }
 
         public void Configure(HaveCommonReference @delegate) {
@@ -85,15 +87,23 @@ namespace Prometheus.Engine.ConditionProver
 
         }
 
-        public List<BoolExpr> ParseCachedExpression(ExpressionSyntax expressionSyntax, DEQueue<ReferenceContext> contexts, Dictionary<string, NodeType> cachedMembers) {
+        public List<BoolExpr> ParseCachedExpression(ExpressionSyntax expressionSyntax,
+            DEQueue<ReferenceContext> contexts, Dictionary<string, NodeType> cachedMembers)
+        {
             reachableExprsTable.Clear();
             nonReachableExprsTable.Clear();
+            cachedProcessedExprsTable.Clear();
 
             var rawExpr = ParseRawCachedExpression(expressionSyntax, contexts, cachedMembers);
             var exprs = new List<BoolExpr>();
-
-            var sets = reachableExprsTable.Select(x => (x.Key, x.Value)).ToList();
-            var exprsCombinations = sets.Select(x => x.Item2).CartesianProduct().Select(x=>x.ToList()).ToList();
+            var sets = reachableExprsTable
+                .Select(x => (x.Key, x.Value.Count == 0 ? new List<Expr> {x.Key} : x.Value))
+                .ToList();
+            var exprsCombinations = sets
+                .Select(x => x.Item2)
+                .CartesianProduct()
+                .Select(x => x.ToList())
+                .ToList();
             var keys = sets.Select(x => x.Item1).ToList();
 
             foreach (var combination in exprsCombinations)
@@ -104,8 +114,9 @@ namespace Prometheus.Engine.ConditionProver
                     var reachableConstraint = context.MkEq(rawMemberExpr, combination[i]);
                     var nonReachableConstraint = context.MkTrue();
 
-                    if (nonReachableExprsTable.ContainsKey(rawMemberExpr)) {
-                        var nonReachableExprs = nonReachableExprsTable[rawMemberExpr];
+                    if (nonReachableExprsTable.ContainsKey(rawMemberExpr))
+                    {
+                        var nonReachableExprs = nonReachableExprsTable[rawMemberExpr].Where(x=>x!=null);
                         nonReachableConstraint = context.MkAnd(nonReachableExprs.Select(x => context.MkNot(context.MkEq(x, rawMemberExpr))));
                     }
 
@@ -116,6 +127,7 @@ namespace Prometheus.Engine.ConditionProver
 
             reachableExprsTable.Clear();
             nonReachableExprsTable.Clear();
+            cachedProcessedExprsTable.Clear();
 
             return exprs;
         }
@@ -320,7 +332,8 @@ namespace Prometheus.Engine.ConditionProver
 
         private Expr ParseVariableExpression(ExpressionSyntax memberExpression, Type type, Dictionary<string, NodeType> processedMembers) {
             string memberName = memberExpression.ToString();
-            string uniqueMemberName = $"{memberName}{memberExpression.GetLocation().SourceSpan}";
+            var locationSpan = memberExpression.GetLocation().SourceSpan;
+            string uniqueMemberName = $"{memberName}[{locationSpan.Start}..{locationSpan.End}]";
             Expr expr;
             bool is3rdParty = false;
             Reference thirdPartyReference = null;
@@ -364,7 +377,6 @@ namespace Prometheus.Engine.ConditionProver
         #endregion
 
         #region Cached processing
-
 
         private BoolExpr ParseCachedBinaryExpression(BinaryExpressionSyntax binaryExpression, DEQueue<ReferenceContext> contexts, Dictionary<string, NodeType> cachedMembers) {
             SyntaxKind expressionKind = binaryExpression.Kind();
@@ -555,14 +567,22 @@ namespace Prometheus.Engine.ConditionProver
         /// E.g. for (memberExpression = a, cachedNodes = {x,y,z} - all of the same type), if we find equivalences (a ≡ x) or (a ≡ y), but not with {z}, we will add to (reachableExprsTable - {x, y}, nonReachableExprsTable - {z}).
         /// </summary>
         private Expr ParseCachedVariableExpression(ExpressionSyntax memberExpression, DEQueue<ReferenceContext> contexts, Dictionary<string, NodeType> cachedMembers) {
+            // When processing the same memberExpression from the same "if" condition twice, we will generate only one unique member and cache it
             var memberType = typeService.GetTypeContainer(memberExpression).Type;
             var memberReference = new Reference(memberExpression, contexts);
             string memberName = memberExpression.ToString();
             string randomToken = Guid.NewGuid().ToString("n").Substring(0, 8);
-            string uniqueMemberName = $"{memberName}{memberExpression.GetLocation().SourceSpan}{randomToken}";
+            var locationSpan = memberExpression.GetLocation().SourceSpan;
+            var containingMethod = memberExpression.GetContainingMethod();
+            var processedMember = cachedProcessedExprsTable.FirstOrDefault(x => x.Key.GetContainingMethod() == containingMethod && x.Key.ToString()==memberName);
+
+            if (!processedMember.Equals(default(KeyValuePair<ExpressionSyntax, Expr>)))
+                return processedMember.Value;
+
+            string uniqueMemberName = $"{memberName}[{locationSpan.Start}..{locationSpan.End}]{randomToken}";
             Sort sort = typeService.GetSort(memberType);
             Expr expr = context.MkConst(uniqueMemberName, sort);
-
+            cachedProcessedExprsTable[memberExpression] = expr;
             reachableExprsTable[expr] = new List<Expr>();
             nonReachableExprsTable[expr] = new List<Expr>();
 

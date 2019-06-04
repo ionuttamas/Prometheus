@@ -27,6 +27,8 @@ namespace Prometheus.Common
 
         public bool IsEmpty => container.Count == 0;
 
+        public T this[int index] => container[index];
+
         public void Append(T item)
         {
             container.Add(item);

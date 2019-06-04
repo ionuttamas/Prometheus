@@ -59,7 +59,7 @@ namespace Prometheus.Engine.Analyzer.Atomic
 
             foreach (ReferenceLocation location in locations)
             {
-                if(ThreadSchedule.GetThreadPath(Solution, location.Location)==null)
+                if(ThreadSchedule.GetInvocationPath(Solution, location.Location)==null)
                     continue;
 
                 var identifierNode = (IdentifierNameSyntax)compilation
@@ -98,7 +98,7 @@ namespace Prometheus.Engine.Analyzer.Atomic
             var lockChains = new List<List<LockContext>>();
 
             foreach (ReferenceLocation location in locations) {
-                if (ThreadSchedule.GetThreadPath(Solution, location.Location) == null)
+                if (ThreadSchedule.GetInvocationPath(Solution, location.Location) == null)
                     continue;
 
                 compilation = Solution.GetCompilation(location);

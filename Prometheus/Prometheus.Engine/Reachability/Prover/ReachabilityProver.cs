@@ -96,6 +96,7 @@ namespace Prometheus.Engine.Reachability.Prover
             if (!firstAssignments.Any() && !secondAssignments.Any())
             {
                 reachabilityCache.AddToCache(first.LeftReference, second.LeftReference, null);
+                reachabilityCache.AddToCache(first.RightReference, second.RightReference, null);
                 return false;
             }
 
@@ -122,6 +123,7 @@ namespace Prometheus.Engine.Reachability.Prover
             }
 
             reachabilityCache.AddToCache(first.LeftReference, second.LeftReference, null);
+            reachabilityCache.AddToCache(first.RightReference, second.RightReference, null);
             return false;
         }
 

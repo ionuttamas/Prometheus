@@ -93,11 +93,11 @@ namespace Prometheus.Engine.Reachability.Tracker {
 
             if (identifier.Text == NULL_MARKER)
             {
-                var localreference = new Reference(identifier.Parent);
+                var localReference = new Reference(identifier.Parent);
 
                 return new List<ConditionalAssignment>
                 {
-                    new ConditionalAssignment(localreference, localreference, conditions)
+                    new ConditionalAssignment(localReference, localReference, conditions)
                 };
             }
 
@@ -226,9 +226,8 @@ namespace Prometheus.Engine.Reachability.Tracker {
                     {
                         var declaratorSyntax = (VariableDeclaratorSyntax) x.Parent.Parent;
                         var leftOperatorReference = new Reference(declaratorSyntax.Identifier);
+                        //TODO: should it be indirectly reachable or exact?
                         return reachabilityDelegate(new Reference(referenceContexts.PeekFirst().CallContext.InstanceNode), leftOperatorReference, out var _);
-
-                        //return true;
                     }
 
                     if (!(x.Parent is AssignmentExpressionSyntax))
@@ -314,6 +313,13 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 LeftReference = new Reference(bindingNode),
                 RightReference = rightReference
             };
+
+            if (bindingNode is LocalDeclarationStatementSyntax)
+            {
+                var leftIdentifier = bindingNode.As<LocalDeclarationStatementSyntax>().Declaration.Variables[0].Identifier;
+                conditionalAssignment.LeftReference = new Reference(leftIdentifier);
+            }
+
             SyntaxNode currentNode = bindingNode;
             var classDeclaration = argument.FirstAncestorOrSelf<ClassDeclarationSyntax>();
             var matchingField = classDeclaration

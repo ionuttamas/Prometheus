@@ -8,13 +8,21 @@ namespace Prometheus.Engine.Thread
     {
         public List<ThreadPath> Paths { get; set; }
 
+        //public bool BelongToSameThreadPath(Solution solution, Location pivot, Location candidate)
+        //{
+        //    // We should check if the candidate appears before the usage of the pivot within the same thread path
+        //    // However, due to recursive calls
+        //    var threadPath = GetInvocationPath(solution, location);
+        //    return threadPath != null && threadPath.Invocations.Any();
+        //}
+
         public bool ContainsLocation(Solution solution, Location location)
         {
-            var threadPath = GetThreadPath(solution, location);
+            var threadPath = GetInvocationPath(solution, location);
             return threadPath != null && threadPath.Invocations.Any();
         }
 
-        public InvocationPath GetThreadPath(Solution solution, Location location)
+        public InvocationPath GetInvocationPath(Solution solution, Location location)
         {
             foreach (ThreadPath threadPath in Paths)
             {
