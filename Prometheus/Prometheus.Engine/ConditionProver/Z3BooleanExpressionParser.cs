@@ -108,21 +108,24 @@ namespace Prometheus.Engine.ConditionProver
 
             foreach (var combination in exprsCombinations)
             {
+                BoolExpr processedExpr = rawExpr;
+
                 for (int i = 0; i < combination.Count; i++)
                 {
                     var rawMemberExpr = keys[i];
-                    var reachableConstraint = context.MkEq(rawMemberExpr, combination[i]);
+                    var reachableConstraint = rawMemberExpr==combination[i] ? context.MkTrue() : context.MkEq(rawMemberExpr, combination[i]);
                     var nonReachableConstraint = context.MkTrue();
 
                     if (nonReachableExprsTable.ContainsKey(rawMemberExpr))
                     {
-                        var nonReachableExprs = nonReachableExprsTable[rawMemberExpr].Where(x=>x!=null);
+                        var nonReachableExprs = nonReachableExprsTable[rawMemberExpr].Where(x => x!=null);
                         nonReachableConstraint = context.MkAnd(nonReachableExprs.Select(x => context.MkNot(context.MkEq(x, rawMemberExpr))));
                     }
 
-                    var processedExpr = context.MkAnd(rawExpr, reachableConstraint, nonReachableConstraint);
-                    exprs.Add(processedExpr);
+                    processedExpr = context.MkAnd(processedExpr, reachableConstraint, nonReachableConstraint);
                 }
+
+                exprs.Add(processedExpr);
             }
 
             reachableExprsTable.Clear();
