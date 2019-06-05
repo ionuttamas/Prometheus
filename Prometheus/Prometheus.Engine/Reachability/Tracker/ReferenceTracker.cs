@@ -39,6 +39,29 @@ namespace Prometheus.Engine.Reachability.Tracker {
         }
 
         /// <summary>
+        /// In the case when a reference (value or reference type) can have only one unique reference assigned to it, it will return that reference.
+        /// E.g. in the case when a private field is assigned with a constant numeric value, through its constructor (keeping track of the instance node).
+        /// </summary>
+        public bool TryGetUniqueAssignment(Reference reference, out Reference uniqueReference)
+        {
+            var assignments = GetAssignments(reference); //TODO: replace this
+
+            if (assignments.Count > 1)
+            {
+                uniqueReference = null;
+                return false;
+            }
+
+            if (assignments.Count == 0)
+            {
+                uniqueReference = reference;
+                return true;
+            }
+
+            return TryGetUniqueAssignment(assignments[0].RightReference, out uniqueReference);
+        }
+
+        /// <summary>
         /// Returns a list of conditional assignments that the identifier referenced and based on what conditions.
         /// The assignments will be the last references that the identifier took its reference from.
         /// <example>

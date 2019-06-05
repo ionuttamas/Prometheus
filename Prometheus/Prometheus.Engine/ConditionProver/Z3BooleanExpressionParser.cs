@@ -7,6 +7,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Z3;
 using Prometheus.Common;
+using Prometheus.Engine.Reachability.Prover;
 using Prometheus.Engine.Reachability.Tracker;
 using Prometheus.Engine.ReachabilityProver.Model;
 using Prometheus.Engine.Types;
@@ -25,6 +26,7 @@ namespace Prometheus.Engine.ConditionProver
         private readonly Dictionary<Expr, List<Expr>> reachableExprsTable;
         private readonly Dictionary<Expr, List<Expr>> nonReachableExprsTable;
         private readonly Dictionary<ExpressionSyntax, Expr> cachedProcessedExprsTable;
+        private readonly ReplacementCache replacementCache;
 
         public Z3BooleanExpressionParser(ITypeService typeService, IReferenceParser referenceParser, Context context) {
             this.typeService = typeService;
@@ -34,6 +36,7 @@ namespace Prometheus.Engine.ConditionProver
             reachableExprsTable = new Dictionary<Expr, List<Expr>>();
             nonReachableExprsTable = new Dictionary<Expr, List<Expr>>();
             cachedProcessedExprsTable = new Dictionary<ExpressionSyntax, Expr>();
+            replacementCache = new ReplacementCache();
         }
 
         public void Configure(HaveCommonReference @delegate) {
@@ -604,6 +607,7 @@ namespace Prometheus.Engine.ConditionProver
                 }
                 else
                 {
+                    //TODO: we should also add different types expressions as constraints
                     nonReachableExprsTable[expr].Add(cachedExpr);
                 }
             }
