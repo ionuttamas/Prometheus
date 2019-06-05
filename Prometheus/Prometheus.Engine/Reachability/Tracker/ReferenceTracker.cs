@@ -44,7 +44,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
         /// </summary>
         public bool TryGetUniqueAssignment(Reference reference, out Reference uniqueReference)
         {
-            var assignments = GetAssignments(reference); //TODO: replace this
+            var assignments = GetAssignments(reference); //TODO: replace this with optimized version as no conditions are needed
 
             if (assignments.Count > 1)
             {

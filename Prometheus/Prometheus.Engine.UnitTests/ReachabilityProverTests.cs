@@ -52,6 +52,7 @@ namespace Prometheus.Engine.UnitTests
             expressionParser.Configure(referenceTracker.GetAssignments);
             expressionParser.Configure(methodParser.ParseBooleanMethod);
             expressionParser.Configure(methodParser.ParseCachedBooleanMethod);
+            expressionParser.Configure(referenceTracker.TryGetUniqueAssignment);
         }
 
         [TearDown]

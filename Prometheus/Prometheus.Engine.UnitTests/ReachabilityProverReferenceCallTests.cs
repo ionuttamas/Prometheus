@@ -51,6 +51,7 @@ namespace Prometheus.Engine.UnitTests
 
             expressionParser.Configure(reachabilityProver.HaveCommonReference);
             expressionParser.Configure(referenceTracker.GetAssignments);
+            expressionParser.Configure(referenceTracker.TryGetUniqueAssignment);
             expressionParser.Configure(methodParser.ParseBooleanMethod);
             expressionParser.Configure(methodParser.ParseCachedBooleanMethod);
         }

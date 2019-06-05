@@ -22,6 +22,7 @@ namespace Prometheus.Engine.ConditionProver
         private GetConditionalAssignments getAssignmentsDelegate;
         private ParseBooleanMethod parseBooleanMethodDelegate;
         private Func<MethodDeclarationSyntax, DEQueue<ReferenceContext>, Dictionary<string, NodeType>, BoolExpr> parseCachedBooleanMethodDelegate;
+        private TryGetUniqueAssignment tryGetUniqueAssignmentDelegate;
         private readonly Context context;
         private readonly Dictionary<Expr, List<Expr>> reachableExprsTable;
         private readonly Dictionary<Expr, List<Expr>> nonReachableExprsTable;
@@ -54,6 +55,10 @@ namespace Prometheus.Engine.ConditionProver
         public void Configure(ParseCachedBooleanMethod @delegate)
         {
             parseCachedBooleanMethodDelegate = (method, contexts, cachedNodes) => @delegate(method, contexts, cachedNodes);
+        }
+
+        public void Configure(TryGetUniqueAssignment @delegate) {
+            tryGetUniqueAssignmentDelegate = @delegate;
         }
 
         public BoolExpr ParseExpression(ExpressionSyntax expressionSyntax, out Dictionary<string, NodeType> processedMembers) {
@@ -358,6 +363,10 @@ namespace Prometheus.Engine.ConditionProver
                     //todo: currently we only take the first assignments of the rootIdentifier to see if is pure or not, regardless of any conditions
                     thirdPartyReference = firstAssignment.RightReference;
                 }
+
+                if (tryGetUniqueAssignmentDelegate(reference, out var uniqueReference)) {
+                    replacementCache.AddToCache(reference, uniqueReference);
+                }
             }
 
             processedMembers[memberName] = new NodeType {
@@ -609,6 +618,11 @@ namespace Prometheus.Engine.ConditionProver
                 {
                     //TODO: we should also add different types expressions as constraints
                     nonReachableExprsTable[expr].Add(cachedExpr);
+
+                    if (tryGetUniqueAssignmentDelegate(memberReference, out var uniqueReference))
+                    {
+                        replacementCache.AddToCache(memberReference, uniqueReference);
+                    }
                 }
             }
 
