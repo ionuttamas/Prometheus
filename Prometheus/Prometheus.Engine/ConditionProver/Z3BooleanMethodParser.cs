@@ -22,21 +22,23 @@ namespace Prometheus.Engine.ConditionProver
             this.context = context;
         }
 
-        public BoolExpr ParseBooleanMethod(MethodDeclarationSyntax methodDeclaration, out Dictionary<string, NodeType> processedNodes)
+        public BoolExpr ParseBooleanMethod(MethodDeclarationSyntax methodDeclaration, DEQueue<ReferenceContext> contexts, out Dictionary<string, NodeType> processedNodes)
         {
             var returnExpressions = methodDeclaration
                 .DescendantNodes<ReturnStatementSyntax>()
                 .Where(x => x.Expression.Kind() != SyntaxKind.ObjectCreationExpression) //TODO: are we interested in "return new X()"?
                 .ToList();
             processedNodes = new Dictionary<string, NodeType>();
-            var resultExpr = context.MkTrue();
+            var possibleReturnExprs = new List<BoolExpr>();
 
             foreach (var returnExpression in returnExpressions)
             {
-                var expr = ParseReturnStatement(returnExpression, out var nodes);
+                var expr = ParseReturnStatement(returnExpression, contexts, out var nodes);
                 processedNodes.Merge(nodes);
-                resultExpr = context.MkOr(resultExpr, expr);
+                possibleReturnExprs.Add(expr);
             }
+
+            var resultExpr = context.MkOr(possibleReturnExprs);
 
             return resultExpr;
         }
@@ -55,20 +57,20 @@ namespace Prometheus.Engine.ConditionProver
         }
 
 
-        private BoolExpr ParseReturnStatement(ReturnStatementSyntax returnStatement, out Dictionary<string, NodeType> processedNodes) {
+        private BoolExpr ParseReturnStatement(ReturnStatementSyntax returnStatement, DEQueue<ReferenceContext> contexts, out Dictionary<string, NodeType> processedNodes) {
             var conditions = conditionExtractor.ExtractConditions(returnStatement);
-            var returnExpr = expressionParser.ParseExpression(returnStatement.Expression, out processedNodes);
+            var returnExpr = expressionParser.ParseExpression(returnStatement.Expression, contexts, out processedNodes);
             var resultExpr = returnExpr;
             var condition = new Condition(conditions, false);
-            var testExpr = ProcessCondition(condition, out processedNodes);
+            var testExpr = ProcessCondition(condition, contexts, out processedNodes);
             resultExpr = context.MkAnd(resultExpr, testExpr);
 
             return resultExpr;
         }
 
-        private BoolExpr ProcessCondition(Condition condition, out Dictionary<string, NodeType> processedNodes) {
+        private BoolExpr ProcessCondition(Condition condition, DEQueue<ReferenceContext> contexts, out Dictionary<string, NodeType> processedNodes) {
             if (!condition.Conditions.Any()) {
-                var expr = expressionParser.ParseExpression(condition.TestExpression, out processedNodes);
+                var expr = expressionParser.ParseExpression(condition.TestExpression, contexts, out processedNodes);
 
                 return condition.IsNegated ? context.MkNot(expr) : expr;
             }
@@ -77,8 +79,13 @@ namespace Prometheus.Engine.ConditionProver
             processedNodes = new Dictionary<string, NodeType>();
 
             foreach (var nestedCondition in condition.Conditions) {
-                var expr = ProcessCondition(nestedCondition, out var nodes);
-                resultExpr = context.MkAnd(resultExpr, expr);
+                var expr = ProcessCondition(nestedCondition, contexts, out var nodes);
+
+                if (expr != context.MkTrue())
+                {
+                    resultExpr = context.MkAnd(resultExpr, expr);
+                }
+
                 processedNodes.Merge(nodes);
             }
 

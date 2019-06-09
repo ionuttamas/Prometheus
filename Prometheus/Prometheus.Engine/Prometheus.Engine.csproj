@@ -202,7 +202,6 @@
     <Compile Include="Reachability\Model\Query\FirstExpressionQuery.cs" />
     <Compile Include="Reachability\Model\Query\IndexArgumentQuery.cs" />
     <Compile Include="Reachability\Model\Query\PredicateExpressionQuery.cs" />
-    <Compile Include="Reachability\Prover\ReplacementCache.cs" />
     <Compile Include="Reachability\Tracker\ConditionCache.cs" />
     <Compile Include="Reachability\Tracker\ConditionExtractor.cs" />
     <Compile Include="Reachability\Tracker\IReferenceParser.cs" />

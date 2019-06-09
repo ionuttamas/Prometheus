@@ -43,18 +43,19 @@ namespace Prometheus.Engine.ConditionProver {
 
         private BoolExpr ParseConditionalAssignment(ConditionalAssignment assignment, out Dictionary<string, NodeType> processedMembers) {
             List<BoolExpr> conditions = new List<BoolExpr>();
-
             processedMembers = new Dictionary<string, NodeType>();
+            var contexts = assignment.RightReference.ReferenceContexts;
 
             foreach (var assignmentCondition in assignment.Conditions) {
-                var boolExpr = boolExpressionParser.ParseExpression(assignmentCondition.TestExpression, out var membersTable);
+                var boolExpr = boolExpressionParser.ParseExpression(assignmentCondition.TestExpression, contexts, out var membersTable);
                 processedMembers.Merge(membersTable);
                 conditions.Add(assignmentCondition.IsNegated ? context.MkNot(boolExpr) : boolExpr);
             }
 
-            BoolExpr expression = context.MkAnd(conditions.ToArray());
+            BoolExpr expr = context.MkAnd(conditions.ToArray());
+            expr = (BoolExpr)expr.Simplify(); //TODO: see if needed
 
-            return expression;
+            return expr;
         }
 
         private List<BoolExpr> ParseConditionalAssignment(ConditionalAssignment assignment, Dictionary<string, NodeType> cachedMembers)

@@ -38,11 +38,11 @@ namespace Prometheus.Common
             container.Insert(0, item);
         }
 
-        public void DeleteFirst(T item) {
+        public void DeleteFirst() {
             container.RemoveAt(0);
         }
 
-        public void DeleteLast(T item) {
+        public void DeleteLast() {
             container.RemoveAt(container.Count-1);
         }
 

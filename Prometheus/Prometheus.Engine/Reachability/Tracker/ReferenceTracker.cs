@@ -240,29 +240,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 .IndexOf(x => x.Identifier.Text == parameterIdentifier);
             var constructorAssignments = FindObjectCreations(classDeclaration)
                 .Where(x => threadSchedule.ContainsLocation(solution, x.GetLocation()))
-                .Where(x =>
-                {
-                    if (referenceContexts == null || referenceContexts.Count==0)
-                        return true;
-
-                    if (x.Parent.Parent is VariableDeclaratorSyntax)
-                    {
-                        var declaratorSyntax = (VariableDeclaratorSyntax) x.Parent.Parent;
-                        var leftOperatorReference = new Reference(declaratorSyntax.Identifier);
-                        //TODO: should it be indirectly reachable or exact?
-                        return reachabilityDelegate(new Reference(referenceContexts.PeekFirst().CallContext.InstanceNode), leftOperatorReference, out var _);
-                    }
-
-                    if (!(x.Parent is AssignmentExpressionSyntax))
-                        return false;
-
-                    var reference = new Reference(x.Parent
-                        .As<AssignmentExpressionSyntax>().Left
-                        .As<IdentifierNameSyntax>());
-
-                    //TODO: currently, we do not handle situations in which the found reference assignment happened before the current assignment
-                    return reachabilityDelegate(reference, new Reference(referenceContexts.PeekFirst().CallContext.InstanceNode), out var _);
-                })
+                .Where(x =>  IsInitializationReachable(referenceContexts, x))
                 .SelectMany(x => GetConditionalAssignments(x, x.ArgumentList.Arguments[constructorParameterIndex]))
                 .Select(x =>
                 {
@@ -575,6 +553,33 @@ namespace Prometheus.Engine.Reachability.Tracker {
                                                                   .Where(oce => oce.Type is IdentifierNameSyntax && oce.GetTypeName() == className)));
 
             return objectCreations;
+        }
+
+        /// <summary>
+        /// Checks if initialzation is reachable.
+        /// E.g. if we have "var instance = new Class(arg1, arg2);" and we have "copy = instance" and "copy.IsValid()", we want to see if "instance ≡ copy".
+        /// </summary>
+        private bool IsInitializationReachable(DEQueue<ReferenceContext> referenceContexts, ObjectCreationExpressionSyntax objectCreation) {
+            if (referenceContexts == null || referenceContexts.Count == 0)
+                return true;
+
+            if (objectCreation.Parent.Parent is VariableDeclaratorSyntax) {
+                var declaratorSyntax = (VariableDeclaratorSyntax)objectCreation.Parent.Parent;
+                var leftOperatorReference = new Reference(declaratorSyntax.Identifier);
+                //TODO: should it be indirectly reachable or exact?
+                return reachabilityDelegate(new Reference(referenceContexts.PeekFirst().CallContext.InstanceNode),
+                    leftOperatorReference, out var _);
+            }
+
+            if (!(objectCreation.Parent is AssignmentExpressionSyntax))
+                return false;
+
+            var reference = new Reference(objectCreation.Parent
+                .As<AssignmentExpressionSyntax>().Left
+                .As<IdentifierNameSyntax>());
+
+            //TODO: currently, we do not handle situations in which the found reference assignment happened before the current assignment
+            return reachabilityDelegate(reference, new Reference(referenceContexts.PeekFirst().CallContext.InstanceNode), out var _);
         }
     }
 }
