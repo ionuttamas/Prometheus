@@ -181,7 +181,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 .Where(x => threadSchedule.ContainsLocation(solution, x.Location))
                 .Select(x => x.GetNode<InvocationExpressionSyntax>());
             var methodCallAssignments = invocations
-                .Where(x => referenceContexts.IsNullOrEmpty() || reachabilityDelegate(new Reference(x.GetReferenceNode()), new Reference(referenceContexts.PeekFirst().CallContext?.InstanceNode), out var _))
+                .Where(x => IsReferenceMethodCallReachable(referenceContexts, x))
                 .SelectMany(x => GetConditionalAssignments(x, x.ArgumentList.Arguments[parameterIndex]))
                 .Select(x => {
                     if (referenceContexts == null)
@@ -580,6 +580,21 @@ namespace Prometheus.Engine.Reachability.Tracker {
 
             //TODO: currently, we do not handle situations in which the found reference assignment happened before the current assignment
             return reachabilityDelegate(reference, new Reference(referenceContexts.PeekFirst().CallContext.InstanceNode), out var _);
+        }
+
+        private bool IsReferenceMethodCallReachable(DEQueue<ReferenceContext> referenceContexts, InvocationExpressionSyntax invocationExpression) {
+            var referenceNode = invocationExpression.GetReferenceNode();
+
+            //This is the case of [this].Method() call, where the referenceNode is implicit
+            if (referenceNode == null)
+                return true;
+
+            var firstContextNode = referenceContexts.PeekFirst()?.CallContext?.InstanceNode;
+
+            if (firstContextNode == null)
+                return true;
+
+            return referenceContexts.IsNullOrEmpty() || reachabilityDelegate(new Reference(referenceNode), new Reference(), out var _);
         }
     }
 }

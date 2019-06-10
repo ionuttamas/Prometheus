@@ -14,10 +14,10 @@ namespace Prometheus.Common
                 .Identifier.Text;
         }
 
-        public static IdentifierNameSyntax GetReferenceNode(this InvocationExpressionSyntax invocationExpression) {
-
-            if (!(invocationExpression.Expression is MemberAccessExpressionSyntax))
-                throw new ArgumentException($"The invocation expression {invocationExpression} is not a reference method call");
+        public static IdentifierNameSyntax GetReferenceNode(this InvocationExpressionSyntax invocationExpression)
+        {
+            if (invocationExpression.Expression is IdentifierNameSyntax)
+                return null;
 
             var memberAccess = invocationExpression.Expression.As<MemberAccessExpressionSyntax>();
 

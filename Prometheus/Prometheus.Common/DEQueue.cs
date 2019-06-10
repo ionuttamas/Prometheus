@@ -47,11 +47,11 @@ namespace Prometheus.Common
         }
 
         public T PeekFirst() {
-            return container.First();
+            return container.FirstOrDefault();
         }
 
         public T PeekLast() {
-            return container.Last();
+            return container.LastOrDefault();
         }
 
         public void Clear()
