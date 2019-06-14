@@ -95,10 +95,6 @@ namespace Prometheus.Engine.ConditionProver
 
         public List<BoolExpr> ParseCachedExpression(ExpressionSyntax expressionSyntax, DEQueue<ReferenceContext> contexts, Dictionary<string, NodeType> cachedMembers)
         {
-            reachableExprsTable.Clear();
-            nonReachableExprsTable.Clear();
-            cachedProcessedExprsTable.Clear();
-
             var rawExpr = ParseRawCachedExpression(expressionSyntax, contexts, cachedMembers);
             var exprs = new List<BoolExpr>();
             var sets = reachableExprsTable
@@ -133,9 +129,9 @@ namespace Prometheus.Engine.ConditionProver
                 exprs.Add(processedExpr);
             }
 
-            reachableExprsTable.Clear();
-            nonReachableExprsTable.Clear();
-            cachedProcessedExprsTable.Clear();
+            //reachableExprsTable.Clear();
+            //nonReachableExprsTable.Clear();
+            //cachedProcessedExprsTable.Clear();
 
             return exprs;
         }

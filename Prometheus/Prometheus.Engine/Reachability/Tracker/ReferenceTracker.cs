@@ -594,7 +594,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
             if (firstContextNode == null)
                 return true;
 
-            return referenceContexts.IsNullOrEmpty() || reachabilityDelegate(new Reference(referenceNode), new Reference(), out var _);
+            return referenceContexts.IsNullOrEmpty() || reachabilityDelegate(new Reference(referenceNode), new Reference(firstContextNode), out var _);
         }
     }
 }

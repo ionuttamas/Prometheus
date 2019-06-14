@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using Microsoft.Z3;
 using Prometheus.Common;
 using Prometheus.Engine.ReachabilityProver.Model;
@@ -47,13 +48,13 @@ namespace Prometheus.Engine.ConditionProver {
             var contexts = assignment.RightReference.ReferenceContexts;
 
             foreach (var assignmentCondition in assignment.Conditions) {
-                var boolExpr = boolExpressionParser.ParseExpression(assignmentCondition.TestExpression, contexts, out var membersTable);
+                var boolExpr = ParseCondition(assignmentCondition, contexts, out var membersTable);
                 processedMembers.Merge(membersTable);
                 conditions.Add(assignmentCondition.IsNegated ? context.MkNot(boolExpr) : boolExpr);
             }
 
-            BoolExpr expr = context.MkAnd(conditions.ToArray());
-            expr = (BoolExpr)expr.Simplify(); //TODO: see if needed
+            BoolExpr expr = context.MkAnd(conditions);
+            expr = (BoolExpr)expr.Simplify();
 
             return expr;
         }
@@ -63,15 +64,61 @@ namespace Prometheus.Engine.ConditionProver {
             var contexts = assignment.RightReference.ReferenceContexts;
             var conditions = assignment
                 .Conditions
-                .Select(x =>
-                        x.IsNegated
-                        ? boolExpressionParser.ParseCachedExpression(x.TestExpression, contexts, cachedMembers).Select(expr=>context.MkNot(expr)).ToList()
-                        : boolExpressionParser.ParseCachedExpression(x.TestExpression, contexts, cachedMembers))
+                .Select(x => ParseCachedCondition(x, contexts, cachedMembers))
                 .ToList();
             var cartesianProduct = conditions.CartesianProduct();
             var result = cartesianProduct.Select(x => context.MkAnd(x)).ToList();
 
             return result;
+        }
+
+        private BoolExpr ParseCondition(Condition condition, DEQueue<ReferenceContext> contexts, out Dictionary<string, NodeType> processedMembers)
+        {
+            processedMembers = new Dictionary<string, NodeType>();
+            List<BoolExpr> exprs = new List<BoolExpr>();
+
+            BoolExpr boolExpr;
+
+            if (condition.TestExpression != null)
+            {
+                boolExpr = boolExpressionParser.ParseExpression(condition.TestExpression, contexts, out var membersTable);
+                processedMembers.Merge(membersTable);
+                exprs.Add(condition.IsNegated ? context.MkNot(boolExpr) : boolExpr);
+            }
+
+            foreach (var subCondition in condition.Conditions)
+            {
+                boolExpr = ParseCondition(subCondition, contexts, out var membersTable);
+                processedMembers.Merge(membersTable);
+                exprs.Add(boolExpr);
+            }
+
+            BoolExpr expr = context.MkAnd(exprs);
+            expr = (BoolExpr)expr.Simplify();
+
+            return expr;
+        }
+
+        private List<BoolExpr> ParseCachedCondition(Condition condition, DEQueue<ReferenceContext> contexts, Dictionary<string, NodeType> cachedMembers) {
+            var exprs = new List<BoolExpr>();
+
+            if (condition.TestExpression != null) {
+                var boolExprs = boolExpressionParser.ParseCachedExpression(condition.TestExpression, contexts, cachedMembers);
+
+                if (condition.IsNegated)
+                {
+                    boolExprs = boolExprs.Select(x => context.MkNot(x)).ToList();
+                }
+
+                boolExprs.ForEach(x => exprs.Add(x));
+            }
+
+            foreach (var subCondition in condition.Conditions) {
+                var boolExprs = ParseCachedCondition(subCondition, contexts, cachedMembers);
+                boolExprs.ForEach(x=>exprs.Add(x));
+            }
+
+            return exprs;
         }
     }
 }
