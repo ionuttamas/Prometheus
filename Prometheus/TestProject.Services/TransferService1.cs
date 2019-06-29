@@ -8,19 +8,19 @@ namespace TestProject.Services
     {
         private readonly CustomerRepository _customerRepository;
         private readonly List<Customer> customers;
-        private readonly PaymentProvider paymentProvider;
+        private readonly PaymentProvider paymentProvider1;
         private readonly CustomerValidator validator1;
         private const int CONST_NUMBER = 100;
         private const string CONST_STRING = "abc";
-        private readonly IField field;
+        private readonly IField field1;
 
         public TransferService1(CustomerRepository customerRepository, List<Customer> customers, PaymentProvider paymentProvider, IField field, CustomerValidator validator)
         {
             _customerRepository = customerRepository;
             this.customers = customers;
             //TODO: this does not work paymentProvider = new PaymentProvider();
-            this.paymentProvider = paymentProvider;
-            this.field = field;
+            this.paymentProvider1 = paymentProvider;
+            this.field1 = field;
             this.validator1 = validator;
         }
 
@@ -40,7 +40,7 @@ namespace TestProject.Services
 
         public void Polymorphic_CurrentPriceField_ReferenceCall(Customer from1)
         {
-            var result = field.Compute(100);
+            var result = field1.Compute(100);
             Customer customer1;
 
             if (result > 0)
@@ -121,7 +121,7 @@ namespace TestProject.Services
         }
 
         public void If_3rdPartyCheck_ImpureReferenceCall(Customer from1, Customer to1, decimal amount) {
-            if (from1 != null && paymentProvider.ValidatePaymentImpure(from1.Name, from1.Name, amount)) {
+            if (from1 != null && paymentProvider1.ValidatePaymentImpure(from1.Name, from1.Name, amount)) {
                 Customer customer1 = from1;
             }
         }
@@ -139,14 +139,14 @@ namespace TestProject.Services
         }
 
         public void If_3rdPartyCheck_PureReferenceCall(Customer from1, Customer to1, decimal amount) {
-            if (from1 != null && paymentProvider.ValidatePaymentPure(from1.Name, to1.Name, amount)) {
+            if (from1 != null && paymentProvider1.ValidatePaymentPure(from1.Name, to1.Name, amount)) {
                 Customer customer1 = from1;
             }
         }
 
         public void If_3rdPartyCheck_PureMethodReferenceAssignment_MemberCheck(Customer from1, Customer to1, decimal amount)
         {
-            var result = paymentProvider.ProcessPaymentPure(from1.Name, to1.Name, amount);
+            var result = paymentProvider1.ProcessPaymentPure(from1.Name, to1.Name, amount);
 
             if (amount > 0 && result.IsSuccessful) {
                 Customer customer1 = from1;
@@ -170,7 +170,7 @@ namespace TestProject.Services
         }
 
         public void If_3rdPartyCheck_PureMethodReferenceAssignment_DirectCheck(Customer from1, Customer to1, decimal amount) {
-            var isPaymentValid = paymentProvider.ValidatePaymentPure(from1.Name, to1.Name, amount);
+            var isPaymentValid = paymentProvider1.ValidatePaymentPure(from1.Name, to1.Name, amount);
 
             if (amount > 0 && isPaymentValid) {
                 Customer customer1 = from1;
@@ -178,7 +178,7 @@ namespace TestProject.Services
         }
 
         public void If_3rdPartyCheck_ImpureMethodReferenceAssignment_MemberCheck(Customer from1, Customer to1, decimal amount) {
-            var result = paymentProvider.ProcessPaymentImpure(from1.Name, to1.Name, amount);
+            var result = paymentProvider1.ProcessPaymentImpure(from1.Name, to1.Name, amount);
 
             if (amount > 0 && result.IsSuccessful) {
                 Customer customer1 = from1;
@@ -194,7 +194,7 @@ namespace TestProject.Services
         }
 
         public void If_3rdPartyCheck_ImpureMethodReferenceAssignment_DirectCheck(Customer from1, Customer to1, decimal amount) {
-            var isPaymentValid = paymentProvider.ValidatePaymentImpure(from1.Name, to1.Name, amount);
+            var isPaymentValid = paymentProvider1.ValidatePaymentImpure(from1.Name, to1.Name, amount);
 
             if (amount > 0 && isPaymentValid) {
                 Customer customer1 = from1;

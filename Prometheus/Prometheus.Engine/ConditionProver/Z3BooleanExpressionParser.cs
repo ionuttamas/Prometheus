@@ -643,6 +643,7 @@ namespace Prometheus.Engine.ConditionProver
             if (TryParseFixedExpression(memberExpression, memberType, out var fixedExpr))
             {
                 reachableExprsTable[expr] = new List<Expr> { fixedExpr };
+                return expr;
             }
 
             foreach (NodeType cachedNode in cachedMembers.Values.Where(x => x.Type == memberType))

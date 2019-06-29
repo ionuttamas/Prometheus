@@ -21,6 +21,7 @@ namespace Prometheus.Engine.Types
         private readonly ModelStateConfiguration modelConfig;
         private readonly List<TypeInfo> solutionTypes;
         private readonly List<TypeInfo> thirdPartyTypes;
+        private readonly List<TypeInfo> staticTypes;
         private readonly Dictionary<Type, List<Type>> interfaceImplementations;
         private readonly List<ClassDeclarationSyntax> classDeclarations;
         private readonly Dictionary<string, Type> primitiveTypes;
@@ -131,6 +132,10 @@ namespace Prometheus.Engine.Types
                 (!x.IsAbstract || !x.IsSealed) &&
                 !x.IsGenericType &&
                 !x.GetTypeInfo().IsDefined(typeof(CompilerGeneratedAttribute), true));
+            staticTypes = solutionTypes
+                .Where(x => x.IsSealed && x.IsAbstract)
+                .ToList();
+
             ConstructSorts(types);
         }
 
@@ -383,8 +388,18 @@ namespace Prometheus.Engine.Types
             Queue<string> memberTokens = new Queue<string>(memberExpression.ToString().Split('.'));
             string rootToken = memberTokens.First();
 
-            var classType = solutionTypes.FirstOrDefault(x => x.Name == rootToken);
-            classType = classType ?? thirdPartyTypes.FirstOrDefault(x => x.Name == rootToken);
+            //Handles static class expressions such as Math.Pi
+            var rootStaticType = staticTypes.FirstOrDefault(x => x.Name == rootToken);
+
+            if (rootStaticType != null)
+            {
+                var staticExpressionTypes = GetExpressionTypes(rootStaticType, memberExpression);
+
+                return staticExpressionTypes;
+            }
+
+            var classType = solutionTypes.FirstOrDefault(x => x.Name == rootToken) ??
+                            thirdPartyTypes.FirstOrDefault(x => x.Name == rootToken);
 
             if (classType != null)
                 return new List<Type> {classType};
@@ -411,6 +426,7 @@ namespace Prometheus.Engine.Types
                 var member = currentType.GetMember(memberTokens.Dequeue(),
                     BindingFlags.Public |
                     BindingFlags.Instance |
+                    BindingFlags.Static |
                     BindingFlags.GetProperty |
                     BindingFlags.GetField)[0];
 

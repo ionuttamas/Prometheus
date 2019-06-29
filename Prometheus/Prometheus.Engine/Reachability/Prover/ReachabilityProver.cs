@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Prometheus.Common;
@@ -39,6 +40,14 @@ namespace Prometheus.Engine.Reachability.Prover
         /// </summary>
         public bool HaveCommonReference(Reference first, Reference second, out Reference commonNode)
         {
+            commonNode = null;
+
+            if (first.Node == null && first.Token == default(SyntaxToken))
+                return false;
+
+            if (second.Node == null && second.Token == default(SyntaxToken))
+                return false;
+
             if (!CheckTypes(first, second))
             {
                 commonNode = null;

@@ -565,10 +565,17 @@ namespace Prometheus.Engine.Reachability.Tracker {
 
             if (objectCreation.Parent.Parent is VariableDeclaratorSyntax) {
                 var declaratorSyntax = (VariableDeclaratorSyntax)objectCreation.Parent.Parent;
-                var leftOperatorReference = new Reference(declaratorSyntax.Identifier);
+                var leftReference = new Reference(declaratorSyntax.Identifier);
+                var rightReference = new Reference(referenceContexts.PeekFirst().CallContext.InstanceNode);
+
+                if (leftReference.Token == default(SyntaxToken))
+                    return false;
+
+                if (rightReference.Node == null)
+                    return false;
+
                 //TODO: should it be indirectly reachable or exact?
-                return reachabilityDelegate(new Reference(referenceContexts.PeekFirst().CallContext.InstanceNode),
-                    leftOperatorReference, out var _);
+                return reachabilityDelegate(rightReference, leftReference, out var _);
             }
 
             if (!(objectCreation.Parent is AssignmentExpressionSyntax))

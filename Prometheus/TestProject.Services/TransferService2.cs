@@ -76,7 +76,7 @@ namespace TestProject.Services
         }
 
         public void IfCheck_Unsat_LocalStaticCall(Customer from2) {
-            if (from2 != null && from2.Age < 10) {
+            if (from2 != null && from2.Age < 10 && from2.AccountBalance > 100) {
                 Customer customer2 = from2;
             }
         }
