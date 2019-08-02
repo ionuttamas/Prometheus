@@ -648,6 +648,10 @@ namespace Prometheus.Engine.ConditionProver
 
             foreach (NodeType cachedNode in cachedMembers.Values.Where(x => x.Type == memberType))
             {
+                //Exclude matching with fixed expressions: e.g. comparing "customer.Type" to "CustomerType.Premium" (fixed expression)
+                if(cachedNode.Reference.Node is MemberAccessExpressionSyntax && TryParseFixedExpression(cachedNode.Reference.Node.As<MemberAccessExpressionSyntax>(), memberType, out var _))
+                    continue;
+
                 var matchesCachedExpr = MatchesCachedNode(memberReference, cachedNode, out var cachedExpr);
 
                 if (matchesCachedExpr)

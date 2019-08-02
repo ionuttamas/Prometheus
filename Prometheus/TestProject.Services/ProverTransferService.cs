@@ -70,7 +70,7 @@ namespace TestProject.Services
 
         public void NestedCall_SimpleIfTransfer_SatisfiableCounterpart(Customer from, Customer to, decimal amount)
         {
-            if (!from.IsActive && from.AccountBalance < 50 && amount < 30)
+            if (!from.IsActive && from.AccountBalance < 50 && amount < 130)
             {
                 Customer customer = from;
             }

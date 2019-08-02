@@ -238,9 +238,11 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 .ParameterList
                 .Parameters
                 .IndexOf(x => x.Identifier.Text == parameterIdentifier);
-            var constructorAssignments = FindObjectCreations(classDeclaration)
+            var objectCreations = FindObjectCreations(classDeclaration)
                 .Where(x => threadSchedule.ContainsLocation(solution, x.GetLocation()))
                 .Where(x =>  IsInitializationReachable(referenceContexts, x))
+                .ToList();
+            var assignments = objectCreations
                 .SelectMany(x => GetConditionalAssignments(x, x.ArgumentList.Arguments[constructorParameterIndex]))
                 .Select(x =>
                 {
@@ -255,7 +257,8 @@ namespace Prometheus.Engine.Reachability.Tracker {
                     x.RightReference.ReferenceContexts = referenceContexts;
 
                     return x;
-                })
+                }).ToList();
+            var constructorAssignments = assignments
                 .Where(x => x.RightReference.Node == null || IsAssignmentKindAllowed(x.RightReference.Node.Kind()))
                 .ToList();
 
@@ -556,7 +559,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
         }
 
         /// <summary>
-        /// Checks if initialzation is reachable.
+        /// Checks if initialization is reachable.
         /// E.g. if we have "var instance = new Class(arg1, arg2);" and we have "copy = instance" and "copy.IsValid()", we want to see if "instance ≡ copy".
         /// </summary>
         private bool IsInitializationReachable(DEQueue<ReferenceContext> referenceContexts, ObjectCreationExpressionSyntax objectCreation) {
