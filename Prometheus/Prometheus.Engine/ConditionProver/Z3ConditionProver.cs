@@ -67,7 +67,7 @@ namespace Prometheus.Engine.ConditionProver {
                 .Select(x => ParseCachedCondition(x, contexts, cachedMembers))
                 .ToList();
             var cartesianProduct = conditions.CartesianProduct();
-            var result = cartesianProduct.Select(x => context.MkAnd(x)).ToList();
+            var result = cartesianProduct.Select(x => context.MkAnd(x)).Select(x=> (BoolExpr)x.Simplify()).ToList();
 
             return result;
         }

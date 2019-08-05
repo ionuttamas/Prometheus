@@ -157,6 +157,7 @@ namespace Prometheus.Engine.Reachability.Prover
                 return first.ToString() == second.ToString();
             }
 
+            //TODO: in the case of customer[0] ≡ customers[x] from different locations => it fails to match 0≡x;
             if (first.ToString() != second.ToString() || first.GetLocation() != second.GetLocation())
                 return false;
 

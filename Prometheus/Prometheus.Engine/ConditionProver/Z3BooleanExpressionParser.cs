@@ -673,15 +673,13 @@ namespace Prometheus.Engine.ConditionProver
             ExpressionSyntax memberExpression = memberReference.Node.As<ExpressionSyntax>();
             expr = null;
 
-            if (cachedNode.Is3rdParty && cachedNode.Reference.IsPure)
+            if (cachedNode.Is3rdParty)
             {
-                if (TryMatchCached3rdPartyPureMethodAssignment(memberExpression, cachedNode, out expr))
-                {
-                    return true;
-                }
+                //If method is impure, the method result can take any value
+                if (!cachedNode.Reference.IsPure)
+                    return false;
 
-                //todo: see if we need to treat this case as well
-                return false;
+                return TryMatchCached3rdPartyPureMethodAssignment(memberExpression, cachedNode, out expr);
             }
 
             if (!cachedNode.Is3rdParty && cachedNode.Node is IdentifierNameSyntax && memberExpression is IdentifierNameSyntax)

@@ -139,9 +139,10 @@ namespace TestProject.GUI {
             transferService2.If_3rdPartyCheck_Negated_Sat_ImpureMethodStaticAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
             transferService2.If_3rdPartyCheck_ImpureMethodStaticAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
             transferService2.If_3rdPartyCheck_Sat_Negated_PureMethodReferenceAssignment_DifferentArgs_MemberCheck(sharedCustomer, sharedCustomer, 34);
-            transferService2.If_3rdPartyCheck_Unsat_Negated_PureMethodReferenceAssignment_DifferentArgs_MemberCheck(sharedCustomer, sharedCustomer, 34);
+            transferService2.If_3rdPartyCheck_Unsat_Negated_PureMethodReferenceAssignment_DifferentArgs_MemberCheck(sharedCustomer, sharedCustomer, 100);
             transferService2.If_3rdPartyCheck_Negated_Sat_ImpureMethodReferenceAssignment_DirectCheck(sharedCustomer, sharedCustomer, 100);
             transferService2.If_3rdPartyCheck_Negated_Sat_ImpureMethodReferenceAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
+            transferService2.If_3rdPartyCheck_Negated_Unsat_ImpureMethodReferenceAssignment_MemberCheck(sharedCustomer, sharedCustomer, 100);
             transferService2.If_3rdPartyCheck_Negated_Sat_StaticPureCall_DifferentArgs(null, sharedCustomer);
             transferService2.MethodAssignment_SimpleAssign(customers[0]);
             transferService2.If_NullCheck_Satisfiable(sharedCustomer);

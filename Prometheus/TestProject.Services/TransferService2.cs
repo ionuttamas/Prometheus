@@ -242,9 +242,9 @@ namespace TestProject.Services
         }
 
         public void If_3rdPartyCheck_Unsat_Negated_PureMethodReferenceAssignment_DifferentArgs_MemberCheck(Customer from2, Customer to2, decimal amount) {
-            var result = paymentProvider2.ProcessPaymentPure(from2.Name, to2.Name, amount);
+            var result2 = paymentProvider2.ProcessPaymentPure(from2.Name, to2.Name, amount);
 
-            if (amount > 0 && !result.IsSuccessful) {
+            if (amount > 0 && !result2.IsSuccessful) {
                 Customer customer2 = from2;
             }
         }
@@ -332,7 +332,15 @@ namespace TestProject.Services
         public void If_3rdPartyCheck_Negated_Sat_ImpureMethodReferenceAssignment_MemberCheck(Customer from2, Customer to2, decimal amount) {
             var result = paymentProvider2.ProcessPaymentImpure(from2.Name, to2.Name, amount);
 
-            if (amount > 0 && !result.IsSuccessful) {
+            if (amount > 50 && !result.IsSuccessful) {
+                Customer customer2 = from2;
+            }
+        }
+
+        public void If_3rdPartyCheck_Negated_Unsat_ImpureMethodReferenceAssignment_MemberCheck(Customer from2, Customer to2, decimal amount) {
+            var result = paymentProvider2.ProcessPaymentImpure(from2.Name, to2.Name, amount);
+
+            if (amount < 0 && !result.IsSuccessful) {
                 Customer customer2 = from2;
             }
         }
