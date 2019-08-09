@@ -115,14 +115,7 @@ namespace Prometheus.Engine.Reachability.Tracker {
             }
 
             if (identifier.Text == NULL_MARKER)
-            {
-                var localReference = new Reference(identifier.Parent);
-
-                return new List<ConditionalAssignment>
-                {
-                    new ConditionalAssignment(localReference, localReference, conditions)
-                };
-            }
+                return new List<ConditionalAssignment>();
 
             var parameterIndex = method.ParameterList.Parameters.IndexOf(x => x.Identifier.Text == identifierName);
             List<ConditionalAssignment> result;

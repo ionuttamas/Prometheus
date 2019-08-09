@@ -157,9 +157,19 @@ namespace Prometheus.Engine.Reachability.Prover
                 return first.ToString() == second.ToString();
             }
 
-            //TODO: in the case of customer[0] ≡ customers[x] from different locations => it fails to match 0≡x;
-            if (first.ToString() != second.ToString() || first.GetLocation() != second.GetLocation())
+            if (first.ToString() != second.ToString())
                 return false;
+
+            if (first.GetLocation() != second.GetLocation())
+            {
+                if (first.ReferenceContexts.Count != 0 && second.ReferenceContexts.Count != 0)
+                {
+                    //E.g. in the case of customers[0] ≡ customers[x] from different locations => we want to match 0 ≡ x;
+                    return MatchCallContexts(first, second);
+                }
+
+                return false;
+            }
 
             /* Currently, we perform a strict equivalence testing for the reference query stack:
                e.g. for:
@@ -181,12 +191,12 @@ namespace Prometheus.Engine.Reachability.Prover
                 return true;
 
             //TODO: what if firstMethodContexts.Count != secondMethodContexts.Count?
-            for (int i = 0; i < firstMethodContexts.Count; i++)
+            for (int i = 0; i < Math.Min(firstMethodContexts.Count, secondMethodContexts.Count); i++)
             {
-                var lambdaEquivalence = AreLambdaContextsEquivalent(firstMethodContexts[i], secondMethodContexts[i]);
+                var queryEquivalence = AreQueryContextsEquivalent(firstMethodContexts[i], secondMethodContexts[i]);
 
-                if (lambdaEquivalence!=null)
-                    return lambdaEquivalence.Value;
+                if (queryEquivalence!=null)
+                    return queryEquivalence.Value;
 
                 var functionEquivalence = AreFunctionContextsEquivalent(firstMethodContexts[i], secondMethodContexts[i]);
 
@@ -197,7 +207,7 @@ namespace Prometheus.Engine.Reachability.Prover
             return true;
         }
 
-        private bool? AreLambdaContextsEquivalent(ReferenceContext firstMethodContext, ReferenceContext secondMethodContext)
+        private bool? AreQueryContextsEquivalent(ReferenceContext firstMethodContext, ReferenceContext secondMethodContext)
         {
             if ((firstMethodContext.Query == null && secondMethodContext.Query != null) ||
                 (firstMethodContext.Query != null && secondMethodContext.Query == null) ||
