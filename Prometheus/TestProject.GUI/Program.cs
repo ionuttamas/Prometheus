@@ -33,6 +33,7 @@ namespace TestProject.GUI {
             customerRepository = new CustomerRepository(customers);
             var validator1 = new CustomerValidator(100, 20, 30);
             transferService1 = new TransferService1(customerRepository, customers, paymentProvider, null, validator1);
+            transferService1.SimpleAlgebraicAssignment(sharedCustomer, sharedCustomer2, 100);
             transferService1.If_NullCheck(sharedCustomer);
             transferService1.StringConstantTransfer(sharedCustomer, sharedCustomer, 100);
             transferService1.IntConstantTransfer(sharedCustomer, sharedCustomer2, 100); //TODO: for (sharedCustomer, sharedCustomer) arguments it fails
@@ -101,6 +102,8 @@ namespace TestProject.GUI {
 
             var validator2 = new CustomerValidator(200, 25, 35);
             var transferService2 = new TransferService2(customerRepository, paymentProvider, null, validator2);
+            transferService2.SimpleAlgebraicAssignment_Sat(sharedCustomer, sharedCustomer2, 100);
+            transferService2.SimpleAlgebraicAssignment_Unsat(sharedCustomer, sharedCustomer2, 100);
             transferService2.StringConstantTransfer(sharedCustomer, sharedCustomer, 100);
             transferService2.Unsat_StringConstantTransfer(sharedCustomer, sharedCustomer, 100);
             transferService2.IntConstantTransfer(sharedCustomer, sharedCustomer, 100);

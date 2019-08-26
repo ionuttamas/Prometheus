@@ -38,6 +38,12 @@ namespace TestProject.Services
             }
         }
 
+        public void SimpleAlgebraicAssignment(Customer from1, Customer to1, decimal amount) {
+            if (from1.Age > 10) {
+                var customer1 = from1;
+            }
+        }
+
         public void Polymorphic_CurrentPriceField_ReferenceCall(Customer from1)
         {
             var result = field1.Compute(100);

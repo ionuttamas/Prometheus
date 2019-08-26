@@ -18,6 +18,24 @@ namespace TestProject.Services
             this.validator2 = validator;
         }
 
+        public void SimpleAlgebraicAssignment_Sat(Customer from1, Customer to1, decimal amount) {
+            var ageExpression = 2 * from1.Age + to1.Age;
+
+            if (ageExpression <= 30) {
+                var customer2 = from1;
+            }
+        }
+
+        public void SimpleAlgebraicAssignment_Unsat(Customer from1, Customer to1, decimal amount)
+        {
+            var ageExpression = 2 * from1.Age;
+
+            if (ageExpression <= 20) {
+                var customer2 = from1;
+            }
+        }
+
+
         public void Polymorphic_VariousFields_ReferenceCall(Customer from2) {
             var result = field2.Compute(100);
             Customer customer2;
@@ -28,6 +46,7 @@ namespace TestProject.Services
                 customer2 = null;
             }
         }
+
 
         public void IfCheck_Sat_LocallyInitialized_FieldReferenceCall(Customer from2) {
             var localValidator2 = new CustomerValidator(200, 30, 50);
