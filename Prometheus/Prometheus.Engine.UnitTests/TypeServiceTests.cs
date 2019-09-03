@@ -25,7 +25,11 @@ namespace Prometheus.Engine.UnitTests
             var context = new Context();
             polymorphicService.Register(typeof(TestTypeService), "GetPolymorphicTypeDeclaration", "field", typeof(AskField));
             polymorphicService.Register(typeof(TestTypeService), "GetPolymorphicTypeParameter", "currentPriceField", typeof(CurrentPriceField));
-            typeService = new TypeService(solution, context, polymorphicService, ModelStateConfiguration.Empty, "TestProject.GUI", "TestProject.Services", "TestProject.Common");
+            typeService = TypeService.Empty
+                .WithZ3Context(context)
+                .WithPolymorphicResolver(polymorphicService)
+                .WithModelStateConfig(ModelStateConfiguration.Empty)
+                .Build(solution, "TestProject.GUI", "TestProject.Services", "TestProject.Common");
         }
 
         [TearDown]

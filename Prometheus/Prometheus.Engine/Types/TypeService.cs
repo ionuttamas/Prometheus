@@ -17,57 +17,26 @@ namespace Prometheus.Engine.Types
 {
     internal class TypeService : ITypeService
     {
-        private readonly IPolymorphicResolver polymorphicService;
-        private readonly ModelStateConfiguration modelConfig;
-        private readonly List<TypeInfo> solutionTypes;
-        private readonly List<TypeInfo> thirdPartyTypes;
-        private readonly List<TypeInfo> staticTypes;
-        private readonly Dictionary<Type, List<Type>> interfaceImplementations;
-        private readonly List<ClassDeclarationSyntax> classDeclarations;
+        private IPolymorphicResolver polymorphicService;
+        private ModelStateConfiguration modelConfig;
+        private List<TypeInfo> solutionTypes;
+        private List<TypeInfo> thirdPartyTypes;
+        private List<TypeInfo> staticTypes;
+        private Dictionary<Type, List<Type>> interfaceImplementations;
+        private List<ClassDeclarationSyntax> classDeclarations;
         private readonly Dictionary<string, Type> primitiveTypes;
-        private readonly Dictionary<string, Type> coreTypes;
-        private readonly Dictionary<Type, EnumSort> enumSorts;
+        private Dictionary<string, Type> coreTypes;
+        private Dictionary<Type, EnumSort> enumSorts;
         private readonly Dictionary<Type, Sort> typeSorts;
         private readonly TypeCache typeCache;
-        private readonly Context context;
+        private Context context;
+        private Solution solution;
         private const string VAR_TOKEN = "var";
         private readonly Regex genericRegex = new Regex(@"(.*)<(.*)>");
 
-        public TypeService(Solution solution, Context context, IPolymorphicResolver polymorphicService, ModelStateConfiguration modelConfig, params string[] projects)
+        private TypeService()
         {
-            this.polymorphicService = polymorphicService;
-            this.modelConfig = modelConfig;
-            this.context = context;
-            var solutionAssemblies = solution
-                .Projects
-                .Where(x => projects == null || projects.Contains(x.Name))
-                .Select(x => Assembly.Load(x.AssemblyName))
-                .ToList();
-            solutionTypes = solutionAssemblies
-                .SelectMany(x => x.DefinedTypes)
-                .ToList();
-            var externalAssemblies = solutionAssemblies.SelectMany(x => x.GetReferencedAssemblies())
-                .Where(x => projects == null || !projects.Contains(x.Name))
-                .DistinctBy(x=>x.FullName)
-                .Where(x=> !x.Name.StartsWith("System") && !x.Name.Contains("mscorlib"))
-                .Select(x => Assembly.Load(x.FullName))
-                .ToList();
-            thirdPartyTypes = externalAssemblies
-                .SelectMany(x => x.DefinedTypes)
-                .ToList();
-            coreTypes = typeof(int).Assembly.DefinedTypes.DistinctBy(x=>x.Name).ToDictionary(x => x.Name, x => x.AsType());
             typeSorts = new Dictionary<Type, Sort>();
-            enumSorts = solutionTypes
-                .Where(x => x.IsEnum)
-                .ToDictionary(x=>x.AsType(), x => default(EnumSort));
-            interfaceImplementations = solutionTypes
-                .Where(x => x.IsInterface)
-                .ToDictionary(x => (Type)x, x => solutionTypes.Where(t => t.ImplementedInterfaces.Contains(x)).OfType<Type>().ToList());
-            classDeclarations = solution.Projects
-                .SelectMany(x => x.GetCompilation().SyntaxTrees)
-                .Select(x => x.GetRoot())
-                .SelectMany(x => x.DescendantNodes<ClassDeclarationSyntax>())
-                .ToList();
             typeCache = new TypeCache();
             primitiveTypes = new Dictionary<string, Type>
             {
@@ -126,6 +95,59 @@ namespace Prometheus.Engine.Types
                 {"string", typeof(string)},
                 {"String", typeof(string)}
             };
+        }
+
+        public static TypeService Empty => new TypeService();
+
+        public TypeService WithZ3Context(Context context)
+        {
+            this.context = context;
+
+            return this;
+        }
+
+        public TypeService WithPolymorphicResolver(IPolymorphicResolver polymorphicService) {
+            this.polymorphicService = polymorphicService;
+
+            return this;
+        }
+
+        public TypeService WithModelStateConfig(ModelStateConfiguration modelConfig) {
+            this.modelConfig = modelConfig;
+
+            return this;
+        }
+
+        public TypeService Build(Solution solution, params string[] projects) {
+            var solutionAssemblies = solution
+                .Projects
+                .Where(x => projects == null || projects.Contains(x.Name))
+                .Select(x => Assembly.Load(x.AssemblyName))
+                .ToList();
+            solutionTypes = solutionAssemblies
+                .SelectMany(x => x.DefinedTypes)
+                .ToList();
+            var externalAssemblies = solutionAssemblies.SelectMany(x => x.GetReferencedAssemblies())
+                .Where(x => projects == null || !projects.Contains(x.Name))
+                .DistinctBy(x => x.FullName)
+                .Where(x => !x.Name.StartsWith("System") && !x.Name.Contains("mscorlib"))
+                .Select(x => Assembly.Load(x.FullName))
+                .ToList();
+            thirdPartyTypes = externalAssemblies
+                .SelectMany(x => x.DefinedTypes)
+                .ToList();
+            coreTypes = typeof(int).Assembly.DefinedTypes.DistinctBy(x => x.Name).ToDictionary(x => x.Name, x => x.AsType());
+            enumSorts = solutionTypes
+                .Where(x => x.IsEnum)
+                .ToDictionary(x => x.AsType(), x => default(EnumSort));
+            interfaceImplementations = solutionTypes
+                .Where(x => x.IsInterface)
+                .ToDictionary(x => (Type)x, x => solutionTypes.Where(t => t.ImplementedInterfaces.Contains(x)).OfType<Type>().ToList());
+            classDeclarations = solution.Projects
+                .SelectMany(x => x.GetCompilation().SyntaxTrees)
+                .Select(x => x.GetRoot())
+                .SelectMany(x => x.DescendantNodes<ClassDeclarationSyntax>())
+                .ToList();
             //TODO: allow generics
             var types = solutionTypes.Where(x =>
                 x.IsClass &&
@@ -135,13 +157,14 @@ namespace Prometheus.Engine.Types
             staticTypes = solutionTypes
                 .Where(x => x.IsSealed && x.IsAbstract)
                 .ToList();
-
+            this.solution = solution;
             ConstructSorts(types);
+
+            return this;
         }
 
         public bool TryGetType(string typeName, out Type type) {
             //todo: there can be multiple classes with the same name
-
             if (genericRegex.IsMatch(typeName))
                 return TryGetGenericType(typeName, out type);
 
@@ -510,6 +533,9 @@ namespace Prometheus.Engine.Types
             if (ProcessParameter(containingMethod, token, out typeName))
                 return typeName;
 
+            if (ProcessExpressionAssignment(containingMethod, token, out typeName))
+                return typeName;
+
             if (ProcessAssignment(containingMethod, token, out typeName, out type))
                 return typeName;
 
@@ -566,6 +592,29 @@ namespace Prometheus.Engine.Types
                 return true;
 
             return false;
+        }
+
+        private bool ProcessExpressionAssignment(MethodDeclarationSyntax methodDeclaration, string token, out string typeName)
+        {
+            var identifierSyntax = methodDeclaration
+                .FirstDescendantNode<IdentifierNameSyntax>(x => x.Identifier.Text == token);
+            if (identifierSyntax == null)
+            {
+                typeName = null;
+                return false;
+            }
+
+            var semanticModel = identifierSyntax.GetSemanticModel(solution);
+
+            if (semanticModel == null)
+            {
+                typeName = null;
+                return false;
+            }
+
+            typeName = semanticModel.GetTypeInfo(identifierSyntax).Type.Name;
+
+            return true;
         }
 
         private bool ProcessReferenceAssignment(LocalDeclarationStatementSyntax declaration, out string typeName, out Type type)

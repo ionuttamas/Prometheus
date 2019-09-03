@@ -28,7 +28,11 @@ namespace Prometheus.Engine.UnitTests
             solution = workspace.OpenSolutionAsync(@"C:\Users\tamas\Documents\Github\Prometheus\Prometheus\Prometheus.sln").Result;
             var polymorphicService = new PolymorphicResolver();
             var context = new Context();
-            var typeService = new TypeService(solution, context, polymorphicService, ModelStateConfiguration.Empty, "TestProject.GUI", "TestProject.Services", "TestProject.Common");
+            var typeService = TypeService.Empty
+                .WithZ3Context(context)
+                .WithPolymorphicResolver(polymorphicService)
+                .WithModelStateConfig(ModelStateConfiguration.Empty)
+                .Build(solution, "TestProject.GUI", "TestProject.Services", "TestProject.Common");
             var referenceParser = new ReferenceParser();
             var threadSchedule = new ThreadAnalyzer(solution).GetThreadSchedule(solution.Projects.First(x => x.Name == "TestProject.GUI"));
             var conditionExtractor = new ConditionExtractor();

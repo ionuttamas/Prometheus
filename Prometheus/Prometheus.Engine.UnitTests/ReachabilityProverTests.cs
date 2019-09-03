@@ -33,11 +33,14 @@ namespace Prometheus.Engine.UnitTests
                 .IsPure(typeof(BackgroundCheckHelper), nameof(BackgroundCheckHelper.StaticProcessPaymentPure))
                 .IsPure(typeof(PaymentProvider), nameof(PaymentProvider.ValidatePaymentPure))
                 .IsPure(typeof(PaymentProvider), nameof(PaymentProvider.ProcessPaymentPure));
-
             var threadSchedule = new ThreadAnalyzer(solution).GetThreadSchedule(solution.Projects.First(x => x.Name == "TestProject.GUI"));
             var polymorphicService = new PolymorphicResolver();
             var context = new Context();
-            var typeService = new TypeService(solution, context, polymorphicService, modelStateConfig, "TestProject.GUI", "TestProject.Services", "TestProject.Common");
+            var typeService = TypeService.Empty
+                .WithZ3Context(context)
+                .WithPolymorphicResolver(polymorphicService)
+                .WithModelStateConfig(modelStateConfig)
+                .Build(solution, "TestProject.GUI", "TestProject.Services", "TestProject.Common");
             var referenceParser = new ReferenceParser();
             var expressionParser = new Z3BooleanExpressionParser(typeService, referenceParser, context);
             var conditionProver = new Z3ConditionProver(expressionParser, context);

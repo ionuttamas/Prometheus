@@ -1,14 +1,18 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Linq;
+using System.Reflection;
 using Microsoft.CodeAnalysis.FindSymbols;
 
 namespace Prometheus.Common
 {
     public static class RoslynExtensions
     {
+        private static readonly Dictionary<Project, Compilation> CompilationCache = new Dictionary<Project, Compilation>();
+
         public static IEnumerable<T> DescendantNodes<T>(this SyntaxNode node) {
             return node.DescendantNodes().OfType<T>();
         }
@@ -197,6 +201,17 @@ namespace Prometheus.Common
         public static SemanticModel GetSemanticModel(this SyntaxNode node, Compilation compilation)
         {
             SemanticModel model = compilation.GetSemanticModel(node.SyntaxTree.GetRoot().SyntaxTree, true);
+
+            return model;
+        }
+
+        public static SemanticModel GetSemanticModel(this SyntaxNode node, Solution solution)
+        {
+            var filePath = node.SyntaxTree.FilePath;
+            var project = solution.Projects.FirstOrDefault(x => x.Documents.Any(d => d.FilePath == filePath));
+            var compilation = project.GetCompilation();
+            var model = GetSemanticModel(node, compilation);
+
             return model;
         }
 
@@ -226,7 +241,26 @@ namespace Prometheus.Common
 
         public static Compilation GetCompilation(this Project project)
         {
-            return project.GetCompilationAsync().Result;
+            if (CompilationCache.ContainsKey(project))
+                return CompilationCache[project];
+
+            var compilation = project.GetCompilationAsync().Result;
+
+            foreach (var assembly in Assembly.Load(project.AssemblyName).GetReferencedAssemblies().Select(Assembly.Load))
+            {
+                //var assemblyName = assembly.GetName().Name;
+
+                //if (compilation.ExternalReferences.Any(x=>x.Display == assemblyName))
+                    //continue;
+
+                var reference = MetadataReference.CreateFromFile(assembly.Location);
+                compilation = compilation.AddReferences(reference);
+            }
+
+            CompilationCache[project] = compilation;
+            var diag = compilation.GetDiagnostics();
+
+            return compilation;
         }
 
         public static string GetTypeName(this ObjectCreationExpressionSyntax objectCreation)
