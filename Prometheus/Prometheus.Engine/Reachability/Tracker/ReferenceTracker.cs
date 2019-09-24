@@ -157,6 +157,10 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 case SyntaxKind.TrueLiteralExpression:
                 case SyntaxKind.FalseLiteralExpression:
                 case SyntaxKind.ObjectCreationExpression:
+                case SyntaxKind.AddExpression:
+                case SyntaxKind.SubtractExpression:
+                case SyntaxKind.DivideExpression:
+                case SyntaxKind.MultiplyExpression:
                     return true;
             }
 
@@ -269,11 +273,13 @@ namespace Prometheus.Engine.Reachability.Tracker {
                 .DescendantNodes<AssignmentExpressionSyntax>()
                 .Where(x=>x.Kind() == SyntaxKind.SimpleAssignmentExpression)
                 .Where(x=>x.Left.ToString() == identifierName)
-                .SelectMany(x=>GetConditionalAssignments(x, x.Right));
+                .SelectMany(x=>GetConditionalAssignments(x, x.Right))
+                .ToList();
             var localDeclarationAssignments = method
                 .DescendantNodes<LocalDeclarationStatementSyntax>()
                 .Where(x => x.Declaration.Variables[0].Identifier.Text == identifierName && x.Declaration.Variables[0].Initializer!=null)
-                .SelectMany(x => GetConditionalAssignments(x, x.Declaration.Variables[0].Initializer.Value));
+                .SelectMany(x => GetConditionalAssignments(x, x.Declaration.Variables[0].Initializer.Value))
+                .ToList();
             var conditionalAssignments = simpleAssignments.Concat(localDeclarationAssignments)
                 .Where(x => x.RightReference.Node == null || IsAssignmentKindAllowed(x.RightReference.Node.Kind()))
                 .ToList();
@@ -297,6 +303,18 @@ namespace Prometheus.Engine.Reachability.Tracker {
                     return ProcessLocalMethodCallAssignments(bindingNode, invocationExpression);
 
                 throw new NotSupportedException($"InvocationExpression {invocationExpression} is not supported");
+            }
+
+            // Consider other algebraic expressions
+            if (argument is BinaryExpressionSyntax)
+            {
+                var algebraicAssignment = new ConditionalAssignment {
+                    LeftReference = new Reference(bindingNode),
+                    RightReference = new Reference(argument),
+                    IsAlgebraic = true
+                };
+
+                return new List<ConditionalAssignment> { algebraicAssignment };
             }
 
             var (rightReference, query) = referenceParser.Parse(argument);

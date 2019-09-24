@@ -90,7 +90,6 @@ namespace Prometheus.Engine.ConditionProver
                 default:
                     throw new NotImplementedException();
             }
-
         }
 
         public List<BoolExpr> ParseCachedExpression(ExpressionSyntax expressionSyntax, DEQueue<ReferenceContext> contexts, Dictionary<string, NodeType> cachedMembers)
@@ -490,7 +489,13 @@ namespace Prometheus.Engine.ConditionProver
             var expressionKind = memberExpression.Kind();
 
             if (memberExpression is BinaryExpressionSyntax)
-                return ParseCachedBinaryExpression((BinaryExpressionSyntax)memberExpression, contexts, cachedMembers);
+            {
+                var binaryExpression = (BinaryExpressionSyntax) memberExpression;
+
+                return memberExpression.IsAlgebraic() ?
+                    ParseCachedBinaryAlgebraicExpression(binaryExpression, contexts, cachedMembers) :
+                    ParseCachedBinaryExpression(binaryExpression, contexts, cachedMembers);
+            }
 
             if (expressionKind == SyntaxKind.NumericLiteralExpression)
                 return ParseNumericLiteral(memberExpression.ToString());
@@ -513,6 +518,35 @@ namespace Prometheus.Engine.ConditionProver
             return ParseCachedVariableExpression(memberExpression, contexts, cachedMembers);
         }
 
+        private Expr ParseCachedBinaryAlgebraicExpression(BinaryExpressionSyntax binaryExpression, DEQueue<ReferenceContext> contexts, Dictionary<string, NodeType> cachedMembers) {
+            SyntaxKind expressionKind = binaryExpression.Kind();
+            Expr left;
+            Expr right;
+
+            if (binaryExpression.Left.Kind() == SyntaxKind.NullLiteralExpression) {
+                left = GetNullExpression(typeService.GetTypeContainer(binaryExpression.Right).Type);
+                right = ParseCachedExpressionMember(binaryExpression.Right, contexts, cachedMembers);
+            } else if (binaryExpression.Right.Kind() == SyntaxKind.NullLiteralExpression) {
+                right = GetNullExpression(typeService.GetTypeContainer(binaryExpression.Left).Type);
+                left = ParseCachedExpressionMember(binaryExpression.Left, contexts, cachedMembers);
+            } else {
+                left = ParseCachedExpressionMember(binaryExpression.Left, contexts, cachedMembers);
+                right = ParseCachedExpressionMember(binaryExpression.Right, contexts, cachedMembers);
+            }
+
+            switch (expressionKind) {
+                case SyntaxKind.AddExpression:
+                    return context.MkAdd(left.As<ArithExpr>(), right.As<ArithExpr>());
+                case SyntaxKind.SubtractExpression:
+                    return context.MkSub(left.As<ArithExpr>(), right.As<ArithExpr>());
+                case SyntaxKind.MultiplyExpression:
+                    return context.MkMul(left.As<ArithExpr>(), right.As<ArithExpr>());
+                case SyntaxKind.DivideExpression:
+                    return context.MkGe(left.As<ArithExpr>(), right.As<ArithExpr>());
+                default:
+                    throw new NotImplementedException();
+            }
+        }
         private Expr ParseCachedInvocationExpression(ExpressionSyntax expression, DEQueue<ReferenceContext> contexts, Dictionary<string, NodeType> cachedMembers) {
             //Currently, we treat 3rd party code as well as solution code methods within "if" test conditions the same
             var invocationExpression = (InvocationExpressionSyntax)expression;
@@ -632,18 +666,23 @@ namespace Prometheus.Engine.ConditionProver
             reachableExprsTable[expr] = new List<Expr>();
             nonReachableExprsTable[expr] = new List<Expr>();
 
-            if (memberType.IsSimple() &&
-                tryGetUniqueAssignmentDelegate(memberReference, out var uniqueReference) &&
-                TryParseSimpleTypeLiteral(uniqueReference.Node, out var literalExpr))
-            {
-                cachedProcessedExprsTable[memberExpression] = literalExpr;
-                return literalExpr;
-            }
-
             if (TryParseFixedExpression(memberExpression, memberType, out var fixedExpr))
             {
                 reachableExprsTable[expr] = new List<Expr> { fixedExpr };
                 return expr;
+            }
+
+            if (TryParseUniqueAlgebraicExpression(memberExpression, contexts, cachedMembers, out var algebraicExpr))
+            {
+                reachableExprsTable[expr] = new List<Expr> { algebraicExpr };
+                return expr;
+            }
+
+            if (memberType.IsSimple() &&
+                tryGetUniqueAssignmentDelegate(memberReference, out var uniqueReference) &&
+                TryParseSimpleTypeLiteral(uniqueReference.Node, out var literalExpr)) {
+                cachedProcessedExprsTable[memberExpression] = literalExpr;
+                return literalExpr;
             }
 
             foreach (NodeType cachedNode in cachedMembers.Values.Where(x => x.Type == memberType))
@@ -806,6 +845,42 @@ namespace Prometheus.Engine.ConditionProver
 
             if (constantField.FieldType.IsString()) {
                 fixedExpr = context.MkString((string)constantValue);
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Parses unique algebraic expressions.
+        /// </summary>
+        private bool TryParseUniqueAlgebraicExpression(ExpressionSyntax memberExpression, DEQueue<ReferenceContext> contexts, Dictionary<string, NodeType> cachedMembers, out Expr algebraicExpr) {
+            algebraicExpr = null;
+            var assignments = getAssignmentsDelegate(new Reference(memberExpression));
+
+            if (assignments.Count != 1)
+            {
+                // We ignore scenarios like below, and we allow only algebraic assignment for "expression":
+                /*
+                    var expression = a+b;
+
+                    if(...) {
+                        expression = c+d;
+                    }
+
+                    if(expression + 3 < 100)
+                    {
+                        ...
+                    }
+                 */
+                return false;
+            }
+
+            var assignment = assignments[0];
+
+            if (assignment.IsAlgebraic)
+            {
+                algebraicExpr = ParseCachedExpressionMember(assignment.RightReference.Node.As<ExpressionSyntax>(), contexts, cachedMembers);
                 return true;
             }
 

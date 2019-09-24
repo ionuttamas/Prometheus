@@ -6,6 +6,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Linq;
 using System.Reflection;
 using Microsoft.CodeAnalysis.FindSymbols;
+using SyntaxKind = Microsoft.CodeAnalysis.CSharp.SyntaxKind;
 
 namespace Prometheus.Common
 {
@@ -272,6 +273,20 @@ namespace Prometheus.Common
             }
 
             throw new NotImplementedException("Currently only IdentiferNameSyntax are allowed");
+        }
+
+        public static bool IsAlgebraic(this ExpressionSyntax expressionSyntax)
+        {
+            switch (expressionSyntax.Kind())
+            {
+                case SyntaxKind.AddExpression:
+                case SyntaxKind.MultiplyExpression:
+                case SyntaxKind.SubtractExpression:
+                case SyntaxKind.DivideExpression:
+                    return true;
+            }
+
+            return false;
         }
     }
 }

@@ -11,11 +11,13 @@ namespace Prometheus.Engine.ReachabilityProver.Model
         public HashSet<Condition> Conditions { get; set; }
         public Reference LeftReference { get; set; }
         public Reference RightReference { get; set; }
+        public bool IsAlgebraic { get; set; }
 
         public ConditionalAssignment()
         {
             Conditions = new HashSet<Condition>();
             RightReference = new Reference();
+            IsAlgebraic = false;
         }
 
         public ConditionalAssignment(Reference left, Reference right, HashSet<Condition> conditions)
@@ -23,6 +25,7 @@ namespace Prometheus.Engine.ReachabilityProver.Model
             Conditions = conditions;
             LeftReference = left;
             RightReference = right;
+            IsAlgebraic = false;
         }
 
         public void AddCondition(IfStatementSyntax ifStatement, bool isNegated)

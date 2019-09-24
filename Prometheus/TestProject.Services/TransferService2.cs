@@ -21,7 +21,7 @@ namespace TestProject.Services
         public void SimpleAlgebraicAssignment_Sat(Customer from1, Customer to1, decimal amount) {
             var ageExpression = 2 * from1.Age + to1.Age;
 
-            if (ageExpression <= 30) {
+            if (ageExpression + 4 <= 30) {
                 var customer2 = from1;
             }
         }
@@ -30,7 +30,7 @@ namespace TestProject.Services
         {
             var ageExpression = 2 * from1.Age;
 
-            if (ageExpression <= 20) {
+            if (ageExpression + 4 <= 19) {
                 var customer2 = from1;
             }
         }

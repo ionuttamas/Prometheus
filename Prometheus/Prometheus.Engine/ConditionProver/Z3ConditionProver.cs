@@ -19,6 +19,8 @@ namespace Prometheus.Engine.ConditionProver {
 
         public bool IsSatisfiable(ConditionalAssignment first, ConditionalAssignment second)
         {
+            //TODO: treat algebraic assignments differently
+
             BoolExpr firstCondition = ParseConditionalAssignment(first, out var processedMembers);
             //TODO: use (reference, state) for reference context validation
             List<BoolExpr> secondConditions = ParseConditionalAssignment(second, processedMembers);
@@ -74,10 +76,9 @@ namespace Prometheus.Engine.ConditionProver {
 
         private BoolExpr ParseCondition(Condition condition, DEQueue<ReferenceContext> contexts, out Dictionary<string, NodeType> processedMembers)
         {
-            processedMembers = new Dictionary<string, NodeType>();
             List<BoolExpr> exprs = new List<BoolExpr>();
-
             BoolExpr boolExpr;
+            processedMembers = new Dictionary<string, NodeType>();
 
             if (condition.TestExpression != null)
             {
