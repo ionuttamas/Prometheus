@@ -121,7 +121,9 @@ namespace Prometheus.Common
         }
 
         public static Compilation GetCompilation(this Solution solution, SyntaxNode node) {
-            return solution.Projects.First(x => x.Documents.Any(doc => doc.FilePath == node.SyntaxTree.FilePath)).GetCompilation();
+            var compilation =  solution.Projects.First(x => x.Documents.Any(doc => doc.FilePath == node.SyntaxTree.FilePath)).GetCompilation();
+            var diagnostics = compilation.GetDiagnostics();
+            return compilation;
         }
 
         public static IEnumerable<ReferencedSymbol> FindReferences(this Solution solution, SyntaxNode node)
@@ -160,6 +162,7 @@ namespace Prometheus.Common
 
         public static IEnumerable<ReferenceLocation> FindReferenceLocations(this Solution solution, ISymbol symbol)
         {
+            var res = SymbolFinder.FindReferencesAsync(symbol, solution).Result;
             return SymbolFinder.FindReferencesAsync(symbol, solution).Result.SelectMany(x => x.Locations);
         }
 

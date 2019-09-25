@@ -542,7 +542,7 @@ namespace Prometheus.Engine.ConditionProver
                 case SyntaxKind.MultiplyExpression:
                     return context.MkMul(left.As<ArithExpr>(), right.As<ArithExpr>());
                 case SyntaxKind.DivideExpression:
-                    return context.MkGe(left.As<ArithExpr>(), right.As<ArithExpr>());
+                    return context.MkDiv(left.As<ArithExpr>(), right.As<ArithExpr>());
                 default:
                     throw new NotImplementedException();
             }

@@ -18,20 +18,20 @@ namespace TestProject.Services
             this.validator2 = validator;
         }
 
-        public void SimpleAlgebraicAssignment_Sat(Customer from1, Customer to1, decimal amount) {
-            var ageExpression = 2 * from1.Age + to1.Age;
+        public void SimpleAlgebraicAssignment_Sat(Customer from2, Customer to2, decimal amount) {
+            var ageExpression = 2 * from2.Age + to2.Age;
 
             if (ageExpression + 4 <= 30) {
-                var customer2 = from1;
+                var customer2 = from2;
             }
         }
 
-        public void SimpleAlgebraicAssignment_Unsat(Customer from1, Customer to1, decimal amount)
+        public void SimpleAlgebraicAssignment_Unsat(Customer from2, Customer to2, decimal amount)
         {
-            var ageExpression = 2 * from1.Age;
+            var ageExpression = 2 * from2.Age;
 
             if (ageExpression + 4 <= 19) {
-                var customer2 = from1;
+                var customer2 = from2;
             }
         }
 
