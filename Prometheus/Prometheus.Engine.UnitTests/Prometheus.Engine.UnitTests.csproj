@@ -166,11 +166,6 @@
       <HintPath>..\packages\System.Runtime.CompilerServices.Unsafe.4.5.2\lib\netstandard2.0\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
     </Reference>
     <Reference Include="System.Runtime.InteropServices" />
-    <Reference Include="System.Runtime.InteropServices.RuntimeInformation, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Runtime.InteropServices.RuntimeInformation.4.3.0\lib\net45\System.Runtime.InteropServices.RuntimeInformation.dll</HintPath>
-      <Private>True</Private>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Security" />
     <Reference Include="System.Security.Cryptography.Algorithms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
@@ -226,8 +221,7 @@
       <HintPath>..\packages\System.Xml.XPath.XDocument.4.3.0\lib\net46\System.Xml.XPath.XDocument.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="TestProject.3rdParty, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
+    <Reference Include="TestProject.3rdParty">
       <HintPath>..\TestProject.3rdParty\bin\Debug\TestProject.3rdParty.dll</HintPath>
     </Reference>
   </ItemGroup>
@@ -269,7 +263,7 @@
       <Name>Prometheus.Engine</Name>
     </ProjectReference>
     <ProjectReference Include="..\TestProject.Common\TestProject.Common.csproj">
-      <Project>{0B17B989-0D3A-4AE0-A2FE-FEB03490DBF3}</Project>
+      <Project>{0b17b989-0d3a-4ae0-a2fe-feb03490dbf3}</Project>
       <Name>TestProject.Common</Name>
     </ProjectReference>
     <ProjectReference Include="..\TestProject.GUI\TestProject.GUI.csproj">
@@ -311,7 +305,7 @@
     </PropertyGroup>
     <Error Condition="!Exists('..\packages\Microsoft.CodeAnalysis.Analyzers.2.9.4\build\Microsoft.CodeAnalysis.Analyzers.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.CodeAnalysis.Analyzers.2.9.4\build\Microsoft.CodeAnalysis.Analyzers.props'))" />
   </Target>
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it.
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">
   </Target>

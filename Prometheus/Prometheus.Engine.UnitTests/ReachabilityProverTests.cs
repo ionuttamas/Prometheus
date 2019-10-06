@@ -1,6 +1,7 @@
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.MSBuild;
+using Microsoft.CodeAnalysis.Options;
 using Microsoft.Z3;
 using NUnit.Framework;
 using Prometheus.Common;
@@ -26,7 +27,7 @@ namespace Prometheus.Engine.UnitTests
         public void Init() {
             var workspace = MSBuildWorkspace.Create();
             workspace.LoadMetadataForReferencedProjects = true;
-            solution = workspace.OpenSolutionAsync(@"C:\Users\tamas\Documents\Github\Prometheus\Prometheus\Prometheus.sln").Result;
+            solution = workspace.OpenSolutionAsync(@"C:\Users\tamas\Documents\Github\Prometheus\Prometheus\TestSolution\TestSolution.sln").Result;
             var modelStateConfig = ModelStateConfiguration
                 .Empty
                 .IsPure(typeof(BackgroundCheckHelper), nameof(BackgroundCheckHelper.ValidateSsnPure))
@@ -264,7 +265,7 @@ namespace Prometheus.Engine.UnitTests
             var transferService2Class = project.GetCompilation().GetClassDeclaration(typeof(TransferService2));
 
             var firstIdentifier = transferService1Class.GetMethodDescendant(nameof(TransferService1.SimpleAlgebraicAssignment)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer1").First();
-            var secondIdentifier = transferService2Class.GetMethodDescendant(nameof(TransferService2.SimpleAlgebraicAssignment_Sat)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer2").First();
+            var secondIdentifier = transferService2Class.GetMethodDescendant(nameof(TransferService2.SimpleAlgebraicAssignment_Unsat)).Body.DescendantTokens<SyntaxToken>(x => x.Text == "customer2").First();
             var haveCommonValue = reachabilityProver.HaveCommonReference(new Reference(firstIdentifier), new Reference(secondIdentifier), out var _);
 
             Assert.False(haveCommonValue);

@@ -13,6 +13,7 @@ namespace Prometheus.Common
     public static class RoslynExtensions
     {
         private static readonly Dictionary<Project, Compilation> CompilationCache = new Dictionary<Project, Compilation>();
+        private static readonly Dictionary<string, IEnumerable<ReferenceLocation>> LocationCache = new Dictionary<string, IEnumerable<ReferenceLocation>>();
 
         public static IEnumerable<T> DescendantNodes<T>(this SyntaxNode node) {
             return node.DescendantNodes().OfType<T>();
@@ -126,15 +127,22 @@ namespace Prometheus.Common
             return compilation;
         }
 
-        public static IEnumerable<ReferencedSymbol> FindReferences(this Solution solution, SyntaxNode node)
-        {
-            var methodSymbol = node.GetSemanticModel(GetCompilation(solution, node)).GetDeclaredSymbol(node);
-            return SymbolFinder.FindReferencesAsync(methodSymbol, solution).Result;
-        }
-
         public static IEnumerable<ReferenceLocation> FindReferenceLocations(this Solution solution, SyntaxNode node) {
             var methodSymbol = node.GetSemanticModel(GetCompilation(solution, node)).GetDeclaredSymbol(node);
             return FindReferenceLocations(solution, methodSymbol);
+        }
+
+        public static IEnumerable<ReferenceLocation> FindReferenceLocations(this Solution solution, ISymbol symbol)
+        {
+            var key = symbol.ToString();
+
+            if (LocationCache.ContainsKey(key))
+                return LocationCache[key];
+
+            var locations = SymbolFinder.FindReferencesAsync(symbol, solution).Result;
+            LocationCache[key] = locations.SelectMany(x => x.Locations);
+
+            return LocationCache[key];
         }
 
         public static T GetNode<T>(this ReferenceLocation referenceLocation)
@@ -158,12 +166,6 @@ namespace Prometheus.Common
                 return true;
 
             return false;
-        }
-
-        public static IEnumerable<ReferenceLocation> FindReferenceLocations(this Solution solution, ISymbol symbol)
-        {
-            var res = SymbolFinder.FindReferencesAsync(symbol, solution).Result;
-            return SymbolFinder.FindReferencesAsync(symbol, solution).Result.SelectMany(x => x.Locations);
         }
 
         public static IEnumerable<T> AncestorNodes<T>(this SyntaxNode node) {
